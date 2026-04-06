@@ -41,6 +41,7 @@ FALLBACK_TAG_DEFINITIONS = {
     53: {"version": 2, "name": "M3 6.0\"", "width": 600, "height": 448},
     54: {"version": 5, "name": "M3 7.5\"", "width": 800, "height": 480},
     55: {"version": 3, "name": "M3 11.6\"", "width": 960, "height": 640},
+    56: {"version": 1, "name": "M3 8.2\" BWRY", "width": 1024, "height": 576},
     60: {"version": 4, "name": "M3 4.2\" BWY", "width": 400, "height": 300},
     64: {"version": 1, "name": "M3 2.9\" BW", "width": 384, "height": 168},
     65: {"version": 1, "name": "M3 5.85\"", "width": 792, "height": 272},
