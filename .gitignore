@@ -168,3 +168,4 @@ custom_components/opendisplay/*.jpg
 custom_components/opendisplay/lastapinteraction.txt
 
 tests/drawcustom/test_images/rename_me.png
+.worktrees/
