@@ -6,7 +6,7 @@ from homeassistant.components import bluetooth
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo, Entity
-from .ble import BLEDeviceMetadata
+from .metadata import BLEDeviceMetadata
 
 from .const import DOMAIN, OPENDISPLAY_CONFIG_URL, ATC_CONFIG_URL
 from .tag_types import get_hw_string, get_hw_dimensions

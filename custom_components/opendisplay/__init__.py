@@ -11,7 +11,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er, device_registry as dr, storage
 from homeassistant.const import __version__ as HA_VERSION
 from homeassistant.helpers.typing import ConfigType
-from .ble import BLEDeviceMetadata
+from .metadata import BLEDeviceMetadata
 from .const import DOMAIN
 from .coordinator import Hub
 from .runtime_data import OpenDisplayConfigEntry, OpenDisplayBLERuntimeData
@@ -114,7 +114,7 @@ async def async_remove_invalid_ble_entities(
     mac_address = entry.data.get("mac_address", "")
 
     # Check power mode - remove battery sensors if not battery/solar powered
-    from .ble import BLEDeviceMetadata
+    from .metadata import BLEDeviceMetadata
     metadata = BLEDeviceMetadata(device_metadata)
     if metadata.power_mode not in (1, 3):  # Not battery (1) or solar (3)
         for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id):

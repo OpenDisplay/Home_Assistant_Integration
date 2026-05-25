@@ -15,7 +15,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .ble import BLEDeviceMetadata
+from .metadata import BLEDeviceMetadata
 from .const import DOMAIN
 from .entity import OpenDisplayBLEEntity
 from .runtime_data import OpenDisplayBLERuntimeData

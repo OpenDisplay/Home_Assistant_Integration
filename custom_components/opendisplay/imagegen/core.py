@@ -232,7 +232,7 @@ class ImageGen:
                     translation_placeholders={"entity_id": entity_id}
                 )
             # Wrap metadata for clean access
-            from ..ble import BLEDeviceMetadata
+            from ..metadata import BLEDeviceMetadata
             metadata = BLEDeviceMetadata(device_metadata)
 
             # Extract device capabilities

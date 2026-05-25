@@ -11,7 +11,7 @@ from PIL import Image
 
 from .exceptions import BLEError
 from .image_processing import process_image_for_device
-from .metadata import BLEDeviceMetadata
+from ..metadata import BLEDeviceMetadata
 
 _LOGGER = logging.getLogger(__name__)
 

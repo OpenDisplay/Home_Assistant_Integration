@@ -10,7 +10,8 @@ from homeassistant.exceptions import ServiceValidationError, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from .coordinator import Hub
-from .ble import BLEConnectionError, BLETimeoutError, BLEProtocolError, BLEDeviceMetadata
+from .ble import BLEConnectionError, BLETimeoutError, BLEProtocolError
+from .metadata import BLEDeviceMetadata
 from .const import DOMAIN, SIGNAL_TAG_IMAGE_UPDATE
 from .imagegen import ImageGen
 from .tag_types import get_tag_types_manager

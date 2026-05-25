@@ -628,7 +628,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry, 
         protocol_type = entry_data.protocol_type  # Default to ATC for backward compatibility
 
         # Create sensors for each description
-        from .ble import BLEDeviceMetadata
+        from .metadata import BLEDeviceMetadata
         metadata = BLEDeviceMetadata(device_metadata)
         sensors = []
         for description in BLE_SENSOR_TYPES:

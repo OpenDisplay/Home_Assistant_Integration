@@ -17,8 +17,9 @@ from homeassistant.exceptions import ServiceValidationError, HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from .runtime_data import OpenDisplayBLERuntimeData
 from .const import DOMAIN, SIGNAL_TAG_IMAGE_UPDATE
-from .ble import BLEConnection, BLEImageUploader, BLEDeviceMetadata, get_protocol_by_name, BLEConnectionError, \
+from .ble import BLEConnection, BLEImageUploader, get_protocol_by_name, BLEConnectionError, \
     BLETimeoutError, BLEProtocolError
+from .metadata import BLEDeviceMetadata
 
 _LOGGER: Final = logging.getLogger(__name__)
 
