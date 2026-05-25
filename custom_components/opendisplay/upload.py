@@ -17,9 +17,7 @@ from homeassistant.exceptions import ServiceValidationError, HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from .runtime_data import OpenDisplayBLERuntimeData
 from .const import DOMAIN, SIGNAL_TAG_IMAGE_UPDATE
-from .ble import BLEConnection, BLEImageUploader, get_protocol_by_name
 import opendisplay
-from .metadata import BLEDeviceMetadata
 
 _LOGGER: Final = logging.getLogger(__name__)
 
@@ -370,57 +368,39 @@ async def upload_to_ble_block(
     _LOGGER.debug("Preparing BLE block-based upload for %s (MAC: %s)", entity_id, mac)
 
     try:
-        # Get device metadata from Home Assistant data
-        device_metadata = None
-        protocol_type = "open_display"
-
         # Find the config entry for this BLE device
+        device_found = False
         for entry in hass.config_entries.async_entries(DOMAIN):
             runtime_data = getattr(entry, 'runtime_data', None)
             if runtime_data is not None and isinstance(runtime_data, OpenDisplayBLERuntimeData):
                 if runtime_data.mac_address.upper() == mac:
-                    device_metadata = runtime_data.device_metadata
-                    protocol_type = "open_display"
+                    device_found = True
                     break
 
-
-        if not device_metadata:
+        if not device_found:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="ble_no_metadata",
                 translation_placeholders={"entity_id": entity_id}
             )
 
-        # Get protocol handler for service UUID
-        protocol = get_protocol_by_name(protocol_type)
-        _LOGGER.debug("Using protocol %s for device %s", protocol_type, entity_id)
+        # Map dither integer to opendisplay.DitherMode
+        try:
+            dither_mode = opendisplay.DitherMode(dither)
+        except ValueError:
+            dither_mode = opendisplay.DitherMode.ORDERED
 
-        # Wrap metadata and create DeviceMetadata object
-        metadata = BLEDeviceMetadata(device_metadata)
-
-        # Upload via BLE using protocol-specific service UUID
-        async with BLEConnection(hass, mac, protocol.service_uuid, protocol) as conn:
-            uploader = BLEImageUploader(conn, mac)
-            success, processed_image = await uploader.upload_image_block_based(
+        # Upload via BLE using OpenDisplayDevice
+        async with opendisplay.OpenDisplayDevice(mac_address=mac) as conn:
+            await conn.interrogate()
+            processed_image = await conn.upload_image(
                 img,
-                metadata,
-                protocol_type,
-                dither,
-                render_duration,
+                dither_mode=dither_mode,
             )
 
-            if not success:
-                raise HomeAssistantError(
-                    translation_domain=DOMAIN,
-                    translation_key="ble_upload_failed",
-                    translation_placeholders={"entity_id": entity_id}
-                )
-
             if processed_image is not None:
-                display_image = processed_image
-
                 jpeg_bytes = await hass.async_add_executor_job(
-                    image_to_jpeg_bytes, display_image, 95
+                    image_to_jpeg_bytes, processed_image, 95
                 )
                 async_dispatcher_send(
                     hass,
@@ -476,57 +456,43 @@ async def upload_to_ble_direct(
     )
 
     try:
-        # Get device metadata from Home Assistant data
-        device_metadata = None
-        protocol_type = "open_display"  # Direct write is OpenDisplay only
-
         # Find the config entry for this BLE device
+        device_found = False
         for entry in hass.config_entries.async_entries(DOMAIN):
             runtime_data = getattr(entry, 'runtime_data', None)
             if runtime_data is not None and isinstance(runtime_data, OpenDisplayBLERuntimeData):
                 if runtime_data.mac_address.upper() == mac:
-                    device_metadata = runtime_data.device_metadata
-                    protocol_type = runtime_data.protocol_type
+                    device_found = True
                     break
 
-        if not device_metadata:
+        if not device_found:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="ble_no_metadata",
                 translation_placeholders={"entity_id": entity_id}
             )
 
-        # Verify this is an OpenDisplay device
-        metadata = BLEDeviceMetadata(device_metadata)
-        if not metadata.is_open_display:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="ble_direct_write_not_supported",
-                translation_placeholders={"entity_id": entity_id}
-            )
+        # Map dither to DitherMode
+        try:
+            dither_mode = opendisplay.DitherMode(dither)
+        except ValueError:
+            dither_mode = opendisplay.DitherMode.ORDERED
 
-        # Get protocol handler for service UUID
-        protocol = get_protocol_by_name(protocol_type)
-        _LOGGER.debug("Using protocol %s for direct write on device %s", protocol_type, entity_id)
+        # Map refresh_type to RefreshMode
+        try:
+            refresh_mode = opendisplay.RefreshMode(refresh_type)
+        except ValueError:
+            refresh_mode = opendisplay.RefreshMode.PARTIAL
 
-        # Upload via BLE using direct write protocol
-        async with BLEConnection(hass, mac, protocol.service_uuid, protocol) as conn:
-            uploader = BLEImageUploader(conn, mac)
-            success, processed_image = await uploader.upload_direct_write(
+        # Upload via BLE using OpenDisplayDevice
+        async with opendisplay.OpenDisplayDevice(mac_address=mac) as conn:
+            await conn.interrogate()
+            processed_image = await conn.upload_image(
                 img,
-                metadata,
-                allow_compression,
-                dither,
-                refresh_type,
-                render_duration,
+                refresh_mode=refresh_mode,
+                dither_mode=dither_mode,
+                compress=allow_compression,
             )
-
-            if not success:
-                raise HomeAssistantError(
-                    translation_domain=DOMAIN,
-                    translation_key="ble_direct_write_failed",
-                    translation_placeholders={"entity_id": entity_id}
-                )
 
             if processed_image is not None:
                 jpeg_bytes = await hass.async_add_executor_job(
