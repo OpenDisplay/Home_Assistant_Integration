@@ -3,9 +3,6 @@
   "name": "OpenDisplay",
   "bluetooth": [
     {
-      "manufacturer_id": 4919
-    },
-    {
       "manufacturer_id": 9286
     }
   ],

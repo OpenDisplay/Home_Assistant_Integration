@@ -372,7 +372,7 @@ async def upload_to_ble_block(
     try:
         # Get device metadata from Home Assistant data
         device_metadata = None
-        protocol_type = "atc"  # Default to ATC for backward compatibility
+        protocol_type = "open_display"
 
         # Find the config entry for this BLE device
         for entry in hass.config_entries.async_entries(DOMAIN):
@@ -380,7 +380,7 @@ async def upload_to_ble_block(
             if runtime_data is not None and isinstance(runtime_data, OpenDisplayBLERuntimeData):
                 if runtime_data.mac_address.upper() == mac:
                     device_metadata = runtime_data.device_metadata
-                    protocol_type = runtime_data.protocol_type
+                    protocol_type = "open_display"
                     break
 
 
@@ -417,10 +417,7 @@ async def upload_to_ble_block(
                 )
 
             if processed_image is not None:
-                # Undo rotation for display (ATC rotation is for device memory, not viewing)
                 display_image = processed_image
-                if protocol_type == "atc" and metadata.rotatebuffer == 1:
-                    display_image = processed_image.transpose(Image.Transpose.ROTATE_270)
 
                 jpeg_bytes = await hass.async_add_executor_job(
                     image_to_jpeg_bytes, display_image, 95

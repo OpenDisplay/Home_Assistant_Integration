@@ -43,8 +43,6 @@ def _format_ble_protocol_label(protocol_type: str) -> str:
     """Return a user-facing label for a BLE protocol."""
     if protocol_type == "open_display":
         return "OpenDisplay (OD)"
-    if protocol_type == "atc":
-        return "OEPL / ATC"
     return protocol_type
 
 
@@ -75,15 +73,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Build placeholders for the Bluetooth confirmation dialog."""
         device = self._discovered_device
         advertised_details = ""
-        if device["protocol_type"] == "atc":
-            battery = f"{device['battery_mv']/1000:.2f}V" if device["battery_mv"] > 0 else "Unknown"
-            fw_version = str(device["fw_version"]) if device["fw_version"] > 0 else "Unknown"
-            config_version = str(device["version"]) if device["version"] > 0 else "Unknown"
-            advertised_details = (
-                f"\n- Battery: {battery}"
-                f"\n- Firmware: {fw_version}"
-                f"\n- Config Version: {config_version}"
-            )
 
         placeholders = {
             "name": device["name"],
@@ -223,9 +212,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         manufacturer_id = None
         manufacturer_data = b''
 
-        # Check for known manufacturer IDs (ATC: 4919, OpenDisplay: 9286)
+        # Check for known manufacturer IDs (OpenDisplay: 9286)
         for mfg_id, mfg_data in discovery_info.manufacturer_data.items():
-            if mfg_id in (4919, 9286):
+            if mfg_id == 9286:
                 manufacturer_id = mfg_id
                 manufacturer_data = mfg_data
                 break
@@ -285,9 +274,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             try:
                 # Get protocol handler for this device
-                protocol = get_protocol_by_manufacturer_id(
-                    9286 if self._discovered_device["protocol_type"] == "open_display" else 4919
-                )
+                protocol = get_protocol_by_manufacturer_id(9286)
 
                 # Interrogate device using protocol-specific method
                 fw_info: dict[str, Any] | None = None
@@ -322,93 +309,39 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Generate model name based on protocol type
                 hw_type = self._discovered_device["hw_type"]
 
-                if self._discovered_device["protocol_type"] == "open_display":
-                    # OpenDisplay devices: Store complete config, generate model name from DisplayConfig
-                    from .ble.tlv_parser import config_to_dict, generate_model_name
+                # OpenDisplay devices: Store complete config, generate model name from DisplayConfig
+                from .ble.tlv_parser import config_to_dict, generate_model_name
 
-                    if hasattr(protocol, '_last_config') and protocol._last_config:
-                        # Store complete OpenDisplay config for future use
-                        device_metadata = {
-                            "open_display_config": config_to_dict(protocol._last_config),
-                        }
-                        if fw_info:
-                            device_metadata["fw_version"] = fw_info.get("version")
-                            device_metadata["fw_version_raw"] = fw_info.get("raw")
-                            if fw_info.get("sha"):
-                                device_metadata["fw_sha"] = fw_info["sha"]
+                if hasattr(protocol, '_last_config') and protocol._last_config:
+                    # Store complete OpenDisplay config for future use
+                    device_metadata = {
+                        "open_display_config": config_to_dict(protocol._last_config),
+                    }
+                    if fw_info:
+                        device_metadata["fw_version"] = fw_info.get("version")
+                        device_metadata["fw_version_raw"] = fw_info.get("raw")
+                        if fw_info.get("sha"):
+                            device_metadata["fw_sha"] = fw_info["sha"]
 
-                        # Generate model name from display config
-                        if protocol._last_config.displays:
-                            model_name = generate_model_name(protocol._last_config.displays[0])
-                            device_metadata["model_name"] = model_name
-                            _LOGGER.debug("Generated model name from config: %s", model_name)
-                        else:
-                            _LOGGER.warning("OpenDisplay config has no display config")
+                    # Generate model name from display config
+                    if protocol._last_config.displays:
+                        model_name = generate_model_name(protocol._last_config.displays[0])
+                        device_metadata["model_name"] = model_name
+                        _LOGGER.debug("Generated model name from config: %s", model_name)
                     else:
-                        # Fallback if config unavailable (shouldn't happen for OpenDisplay)
-                        model_name = get_hw_string(hw_type) if hw_type else "Unknown"
-                        _LOGGER.warning("OpenDisplay config unavailable, using tagtypes fallback: %s", model_name)
-                        # Store individual fields as fallback
-                        device_metadata = {
-                            "hw_type": hw_type,
-                            "fw_version": self._discovered_device["fw_version"],
-                            "width": capabilities.width,
-                            "height": capabilities.height,
-                            "rotatebuffer": capabilities.rotatebuffer,
-                            "color_scheme": capabilities.color_scheme,
-                            "model_name": model_name,
-                        }
+                        _LOGGER.warning("OpenDisplay config has no display config")
                 else:
-                    # ATC devices: Use tagtypes.json lookup and store individual fields
-                    # Try to get tag types manager, but don't fail if unavailable
-                    tag_types_manager = None
-                    try:
-                        tag_types_manager = await get_tag_types_manager(self.hass)
-                        _LOGGER.debug("Tag types manager loaded successfully")
-                    except Exception as tag_err:
-                        _LOGGER.warning(
-                            "Could not load tag types during config flow, will use fallback values: %s",
-                            tag_err
-                        )
-                    
+                    # Fallback if config unavailable (shouldn't happen for OpenDisplay)
                     model_name = get_hw_string(hw_type) if hw_type else "Unknown"
-                    _LOGGER.debug("Resolved hw_type %s to model: %s", hw_type, model_name)
-
-                    # Refine color_scheme using TagTypes db if available
-                    if tag_types_manager and tag_types_manager.is_in_hw_map(hw_type):
-                        tag_type = await tag_types_manager.get_tag_info(hw_type)
-                        color_table = tag_type.color_table
-
-                        if 'yellow' in color_table and 'red' in color_table:
-                            color_scheme = 3 # BWRY
-                        elif 'yellow' in color_table:
-                            color_scheme = 2 # BWY
-                        elif 'red' in color_table:
-                            color_scheme = 1 # BWR
-                        else:
-                            color_scheme = 0 # BW
-                    else:
-                        # Fallback to protocol detection
-                        color_scheme = capabilities.color_scheme
-                        if not tag_types_manager:
-                            _LOGGER.info(
-                                "Tag types not available, using protocol-detected color_scheme: %d",
-                                color_scheme
-                            )
-                        else:
-                            _LOGGER.warning(
-                                "hw_type %s not in TagTypes, using protocol color_scheme: %d",
-                                hw_type, color_scheme
-                            )
-
-                    # Build device metadata from capabilities
+                    _LOGGER.warning("OpenDisplay config unavailable, using tagtypes fallback: %s", model_name)
+                    # Store individual fields as fallback
                     device_metadata = {
                         "hw_type": hw_type,
                         "fw_version": self._discovered_device["fw_version"],
                         "width": capabilities.width,
                         "height": capabilities.height,
                         "rotatebuffer": capabilities.rotatebuffer,
-                        "color_scheme": color_scheme,
+                        "color_scheme": capabilities.color_scheme,
                         "model_name": model_name,
                     }
 

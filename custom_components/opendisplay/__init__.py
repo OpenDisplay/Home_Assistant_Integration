@@ -308,7 +308,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
         mac_address = entry.data.get("mac_address")
         name = entry.data.get("name")
         device_metadata = entry.data.get("device_metadata", {})
-        protocol_type = entry.data.get("protocol_type", "atc")  # Default to ATC for backward compatibility
+        protocol_type = "open_display"
 
         # Get protocol handler for this device
         protocol = get_protocol_by_name(protocol_type)
@@ -378,24 +378,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
                 _LOGGER.debug("Failed to parse advertising data for %s: %s", mac_address, err, exc_info=True)
                 return
 
-            # Dynamically update device attributes (skip OpenDisplay fw to avoid incorrect value)
-            if advertising_data.fw_version and protocol_type != "open_display":
-                device_registry = dr.async_get(hass)
-                device_entry = device_registry.async_get_device(
-                    identifiers={(DOMAIN, f"ble_{mac_address}")}
-                )
-                new_fw_string = str(advertising_data.fw_version)
-                if device_entry and device_entry.sw_version != new_fw_string:
-                    _LOGGER.debug(
-                        "Device %s firmware updated from %s to %s",
-                        mac_address,
-                        device_entry.sw_version,
-                        new_fw_string,
-                    )
-                    device_registry.async_update_device(
-                        device_entry.id,
-                        sw_version=new_fw_string
-                    )
+
 
             # Build sensor data
             sensor_data = {
@@ -409,11 +392,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
             # Update all registered sensors
             for sensor in ble_data.sensors.values():
                 sensor.update_from_advertising_data(sensor_data)
-
-        # Remove deprecated clock mode button entities
-        removed_clock_buttons = await async_remove_clock_mode_buttons(hass, entry)
-        if removed_clock_buttons:
-            _LOGGER.info("Removed deprecated clock mode buttons: %s", removed_clock_buttons)
 
         # Remove invalid entities based on the current device config
         removed_invalid = await async_remove_invalid_ble_entities(hass, entry, device_metadata)
