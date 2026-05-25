@@ -17,8 +17,8 @@ from homeassistant.exceptions import ServiceValidationError, HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from .runtime_data import OpenDisplayBLERuntimeData
 from .const import DOMAIN, SIGNAL_TAG_IMAGE_UPDATE
-from .ble import BLEConnection, BLEImageUploader, get_protocol_by_name, BLEConnectionError, \
-    BLETimeoutError, BLEProtocolError
+from .ble import BLEConnection, BLEImageUploader, get_protocol_by_name
+import opendisplay
 from .metadata import BLEDeviceMetadata
 
 _LOGGER: Final = logging.getLogger(__name__)
@@ -430,7 +430,7 @@ async def upload_to_ble_block(
 
     except ServiceValidationError:
         raise  # Config/validation errors - propagate unchanged
-    except (BLEConnectionError, BLETimeoutError, BLEProtocolError) as err:
+    except (opendisplay.exceptions.BLEConnectionError, opendisplay.exceptions.BLETimeoutError, opendisplay.exceptions.ProtocolError) as err:
         # BLE-specific errors already inherit from HomeAssistantError
         raise  # Propagate with specific type
     except Exception as err:
@@ -540,7 +540,7 @@ async def upload_to_ble_direct(
 
     except ServiceValidationError:
         raise  # Config/validation errors - propagate unchanged
-    except (BLEConnectionError, BLETimeoutError, BLEProtocolError) as err:
+    except (opendisplay.exceptions.BLEConnectionError, opendisplay.exceptions.BLETimeoutError, opendisplay.exceptions.ProtocolError) as err:
         raise  # BLE operational errors - propagate unchanged
     except Exception as err:
         raise HomeAssistantError(

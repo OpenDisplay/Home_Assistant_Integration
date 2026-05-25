@@ -443,22 +443,20 @@ class RefreshConfigButton(OpenDisplayBLEEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """Re-interrogate device and update configuration."""
-        from .ble import BLEConnection, get_protocol_by_name
+        import opendisplay
         from .ble.tlv_parser import config_to_dict, generate_model_name
         from homeassistant.helpers import device_registry as dr
 
         _LOGGER.info("Refreshing configuration for OpenDisplay device %s", self._mac_address)
 
         try:
-            # Get protocol handler
-            protocol = get_protocol_by_name(self._protocol_type)
             fw_info = None
 
             # Connect and interrogate device
-            async with BLEConnection(self.hass, self._mac_address, self._service_uuid, protocol) as conn:
-                capabilities = await protocol.interrogate_device(conn)
+            async with opendisplay.OpenDisplayDevice(mac_address=self._mac_address) as conn:
+                capabilities = await conn.interrogate()
                 try:
-                    fw_info = await protocol.read_firmware_version(conn)
+                    fw_info = await conn.read_firmware_version()
                 except Exception as fw_err:
                     _LOGGER.warning(
                         "Failed to read firmware version for %s: %s",
@@ -473,7 +471,7 @@ class RefreshConfigButton(OpenDisplayBLEEntity, ButtonEntity):
                     )
 
                 # Get updated config from protocol
-                config = protocol._last_config
+                config = conn.config
 
                 if not config:
                     raise HomeAssistantError(
@@ -486,10 +484,10 @@ class RefreshConfigButton(OpenDisplayBLEEntity, ButtonEntity):
                     "open_display_config": config_to_dict(config),
                 }
                 if fw_info:
-                    new_metadata["fw_version"] = fw_info.get("version")
-                    new_metadata["fw_version_raw"] = fw_info.get("raw")
-                    if fw_info.get("sha"):
-                        new_metadata["fw_sha"] = fw_info["sha"]
+                    new_metadata["fw_version"] = f"{fw_info['major']}.{fw_info['minor']}"
+                    new_metadata["fw_version_major"] = fw_info["major"]
+                    new_metadata["fw_version_minor"] = fw_info["minor"]
+                    new_metadata["fw_sha"] = fw_info["sha"]
                 elif "fw_version" in self._device_metadata:
                     # Preserve the previously known firmware version if read fails
                     new_metadata["fw_version"] = self._device_metadata.get("fw_version")

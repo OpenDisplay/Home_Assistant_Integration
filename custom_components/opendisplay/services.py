@@ -10,7 +10,7 @@ from homeassistant.exceptions import ServiceValidationError, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from .coordinator import Hub
-from .ble import BLEConnectionError, BLETimeoutError, BLEProtocolError
+import opendisplay
 from .metadata import BLEDeviceMetadata
 from .const import DOMAIN, SIGNAL_TAG_IMAGE_UPDATE
 from .imagegen import ImageGen
@@ -360,7 +360,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         except ServiceValidationError:
             raise  # User input errors - propagate unchanged
-        except (HomeAssistantError, BLEConnectionError, BLETimeoutError, BLEProtocolError):
+        except (HomeAssistantError, opendisplay.exceptions.BLEConnectionError, opendisplay.exceptions.BLETimeoutError, opendisplay.exceptions.ProtocolError):
             raise  # Operational errors - propagate unchanged
         except Exception as err:
             # Unexpected errors - wrap as operational error

@@ -20,12 +20,10 @@ from homeassistant.helpers.selector import TextSelectorType
 from .const import DOMAIN
 from .ble import (
     get_protocol_by_manufacturer_id,
-    BLEConnection,
     UnsupportedProtocolError,
     ConfigValidationError,
-    BLEConnectionError,
-    BLEProtocolError,
 )
+import opendisplay
 from .tag_types import get_tag_types_manager, get_hw_string
 from .util import is_ble_entry
 import logging
@@ -279,17 +277,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Interrogate device using protocol-specific method
                 fw_info: dict[str, Any] | None = None
 
-                async with BLEConnection(
-                    self.hass,
-                    self._discovered_device["address"],
-                    protocol.service_uuid,
-                    protocol
-                ) as conn:
-                    capabilities = await protocol.interrogate_device(conn)
+                async with opendisplay.OpenDisplayDevice(mac_address=self._discovered_device["address"]) as conn:
+                    capabilities = await conn.interrogate()
                     # OpenDisplay devices expose firmware version via 0x0043
                     if self._discovered_device["protocol_type"] == "open_display":
                         try:
-                            fw_info = await protocol.read_firmware_version(conn)
+                            fw_info = await conn.read_firmware_version()
                         except Exception as fw_err:
                             _LOGGER.warning(
                                 "Failed to read firmware version for %s: %s",
@@ -318,10 +311,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "open_display_config": config_to_dict(protocol._last_config),
                     }
                     if fw_info:
-                        device_metadata["fw_version"] = fw_info.get("version")
-                        device_metadata["fw_version_raw"] = fw_info.get("raw")
-                        if fw_info.get("sha"):
-                            device_metadata["fw_sha"] = fw_info["sha"]
+                        device_metadata["fw_version"] = f"{fw_info['major']}.{fw_info['minor']}"
+                        device_metadata["fw_version_major"] = fw_info["major"]
+                        device_metadata["fw_version_minor"] = fw_info["minor"]
+                        device_metadata["fw_sha"] = fw_info["sha"]
 
                     # Generate model name from display config
                     if protocol._last_config.displays:
@@ -365,7 +358,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     description_placeholders=self._bluetooth_description_placeholders(),
                 )
 
-            except (BLEConnectionError, BLEProtocolError) as e:
+            except (opendisplay.exceptions.BLEConnectionError, opendisplay.exceptions.ProtocolError) as e:
                 _LOGGER.error("Error during device interrogation: %s", e)
                 return self.async_show_form(
                     step_id="bluetooth_confirm",
