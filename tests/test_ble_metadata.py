@@ -8,16 +8,12 @@ CURR_DIR = os.path.dirname(os.path.abspath(__file__))
 OPENDISPLAY_DIR = os.path.abspath(os.path.join(CURR_DIR, "../custom_components/opendisplay"))
 
 sys.path.insert(0, OPENDISPLAY_DIR)
-import metadata as new_metadata_mod
-NewBLEDeviceMetadata = new_metadata_mod.BLEDeviceMetadata
-
-sys.path.insert(0, os.path.join(OPENDISPLAY_DIR, "ble"))
-import metadata as old_metadata_mod
-OldBLEDeviceMetadata = old_metadata_mod.BLEDeviceMetadata
+import metadata as metadata_mod
+BLEDeviceMetadata = metadata_mod.BLEDeviceMetadata
 
 
-def test_atc_metadata_compatibility():
-    """Verify that both old and new BLEDeviceMetadata produce identical results for ATC (flat) devices."""
+def test_atc_metadata():
+    """Verify that BLEDeviceMetadata produces correct results for ATC (flat) devices."""
     raw_metadata = {
         "width": 296,
         "height": 128,
@@ -28,33 +24,32 @@ def test_atc_metadata_compatibility():
         "color_scheme": 1,  # BWR
     }
 
-    old_metadata = OldBLEDeviceMetadata(raw_metadata)
-    new_metadata = NewBLEDeviceMetadata(raw_metadata)
+    metadata = BLEDeviceMetadata(raw_metadata)
 
     # Core properties
-    assert new_metadata.width == old_metadata.width == 296
-    assert new_metadata.height == old_metadata.height == 128
-    assert new_metadata.model_name == old_metadata.model_name == "ATC_2.9"
-    assert new_metadata.fw_version == old_metadata.fw_version == 25
-    assert new_metadata.formatted_fw_version() == old_metadata.formatted_fw_version() == "0x0019"
-    assert new_metadata.rotatebuffer == old_metadata.rotatebuffer == 1
-    assert new_metadata.hw_type == old_metadata.hw_type == 15
-    assert new_metadata.power_mode == old_metadata.power_mode == 1
-    assert new_metadata.is_open_display == old_metadata.is_open_display is False
+    assert metadata.width == 296
+    assert metadata.height == 128
+    assert metadata.model_name == "ATC_2.9"
+    assert metadata.fw_version == 25
+    assert metadata.formatted_fw_version() == "0x0019"
+    assert metadata.rotatebuffer == 1
+    assert metadata.hw_type == 15
+    assert metadata.power_mode == 1
+    assert metadata.is_open_display is False
 
     # Color scheme properties
-    assert new_metadata.color_scheme.value == old_metadata.color_scheme.value == 1
-    assert new_metadata.accent_color == old_metadata.accent_color == "red"
-    assert new_metadata.is_multi_color == old_metadata.is_multi_color is True
+    assert metadata.color_scheme.value == 1
+    assert metadata.accent_color == "red"
+    assert metadata.is_multi_color is True
 
     # Transmission / Upload properties
-    assert new_metadata.transmission_modes == old_metadata.transmission_modes == 0
-    assert new_metadata.supports_zip_compression == old_metadata.supports_zip_compression is False
-    assert new_metadata.get_best_upload_method() == old_metadata.get_best_upload_method() == "block"
+    assert metadata.transmission_modes == 0
+    assert metadata.supports_zip_compression is False
+    assert metadata.get_best_upload_method() == "block"
 
 
-def test_opendisplay_metadata_compatibility():
-    """Verify that both old and new BLEDeviceMetadata produce identical results for OpenDisplay devices."""
+def test_opendisplay_metadata():
+    """Verify that BLEDeviceMetadata produces correct results for OpenDisplay devices."""
     raw_metadata = {
         "fw_version": "2.0.2",
         "model_name": "OD_7.5_BWR",
@@ -121,26 +116,25 @@ def test_opendisplay_metadata_compatibility():
         }
     }
 
-    old_metadata = OldBLEDeviceMetadata(raw_metadata)
-    new_metadata = NewBLEDeviceMetadata(raw_metadata)
+    metadata = BLEDeviceMetadata(raw_metadata)
 
     # Core properties
-    assert new_metadata.width == old_metadata.width == 800
-    assert new_metadata.height == old_metadata.height == 480
-    assert new_metadata.model_name == old_metadata.model_name == "OD_7.5_BWR"
-    assert new_metadata.fw_version == old_metadata.fw_version == "2.0.2"
-    assert new_metadata.formatted_fw_version() == old_metadata.formatted_fw_version() == "2.0.2"
-    assert new_metadata.rotatebuffer == old_metadata.rotatebuffer == 90
-    assert new_metadata.hw_type == old_metadata.hw_type == 12
-    assert new_metadata.power_mode == old_metadata.power_mode == 2
-    assert new_metadata.is_open_display == old_metadata.is_open_display is True
+    assert metadata.width == 800
+    assert metadata.height == 480
+    assert metadata.model_name == "OD_7.5_BWR"
+    assert metadata.fw_version == "2.0.2"
+    assert metadata.formatted_fw_version() == "2.0.2"
+    assert metadata.rotatebuffer == 90
+    assert metadata.hw_type == 12
+    assert metadata.power_mode == 2
+    assert metadata.is_open_display is True
 
     # Color scheme properties
-    assert new_metadata.color_scheme.value == old_metadata.color_scheme.value == 3
-    assert new_metadata.accent_color == old_metadata.accent_color == "red"
-    assert new_metadata.is_multi_color == old_metadata.is_multi_color is True
+    assert metadata.color_scheme.value == 3
+    assert metadata.accent_color == "red"
+    assert metadata.is_multi_color is True
 
     # Transmission / Upload properties
-    assert new_metadata.transmission_modes == old_metadata.transmission_modes == 10
-    assert new_metadata.supports_zip_compression == old_metadata.supports_zip_compression is True
-    assert new_metadata.get_best_upload_method() == old_metadata.get_best_upload_method() == "direct_write"
+    assert metadata.transmission_modes == 10
+    assert metadata.supports_zip_compression is True
+    assert metadata.get_best_upload_method() == "direct_write"
