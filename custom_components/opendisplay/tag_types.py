@@ -10,9 +10,8 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Tuple
 
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import storage
-from .const import DOMAIN, FALLBACK_TAG_DEFINITIONS
+from .const import FALLBACK_TAG_DEFINITIONS
 
 _LOGGER = logging.getLogger(__name__)
 

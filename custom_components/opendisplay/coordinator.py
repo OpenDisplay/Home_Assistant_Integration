@@ -19,7 +19,13 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 import logging
 
-from .const import DOMAIN, SIGNAL_AP_UPDATE, SIGNAL_TAG_UPDATE, SIGNAL_TAG_IMAGE_UPDATE
+from .const import (
+    DOMAIN,
+    SIGNAL_AP_UPDATE,
+    SIGNAL_TAG_CHECKIN,
+    SIGNAL_TAG_IMAGE_UPDATE,
+    SIGNAL_TAG_UPDATE,
+)
 from .tag_types import get_tag_types_manager, get_hw_string
 
 _LOGGER: Final = logging.getLogger(__name__)
@@ -516,9 +522,12 @@ class Hub:
         Args:
             tag_data: Dictionary containing tag properties from the AP
         """
-        tag_mac = tag_data.get("mac")
+        tag_mac = self._normalize_tag_mac(tag_data.get("mac"))
         if not tag_mac:
             return
+
+        tag_data = dict(tag_data)
+        tag_data["mac"] = tag_mac
 
         # Process tag data
         is_new_tag = await self._process_tag_data(tag_mac, tag_data)
@@ -698,6 +707,8 @@ class Hub:
 
         # Fire state update event
         async_dispatcher_send(self.hass, f"{SIGNAL_TAG_UPDATE}_{tag_mac}")
+        if not is_initial_load:
+            async_dispatcher_send(self.hass, SIGNAL_TAG_CHECKIN, tag_mac)
 
         # Handle wakeup event if needed and not initial load
         wakeup_reason = tag_data.get("wakeupReason")
@@ -850,7 +861,10 @@ class Hub:
                 # Add tags to set
                 for tag in data.get("tags", []):
                     if "mac" in tag:
-                        result[tag["mac"]] = tag
+                        normalized_mac = self._normalize_tag_mac(tag["mac"])
+                        tag_copy = dict(tag)
+                        tag_copy["mac"] = normalized_mac
+                        result[normalized_mac] = tag_copy
 
                 # Check for pagination
                 if "continu" in data and data["continu"] > 0:
@@ -1448,10 +1462,11 @@ class Hub:
         Returns:
             True if the tag is online, False if timed out or not found.
         """
-        if tag_mac not in self.tags:
+        normalized_mac = self._normalize_tag_mac(tag_mac)
+        if normalized_mac not in self.tags:
             return False
 
-        tag_data = self.get_tag_data(tag_mac)
+        tag_data = self.get_tag_data(normalized_mac)
         last_seen = tag_data.get("last_seen", 0)
 
         if last_seen == 0:
@@ -1467,3 +1482,48 @@ class Hub:
         current_time = datetime.now(timezone.utc).timestamp()
 
         return (current_time - last_seen) < timeout_threshold
+
+    @staticmethod
+    def _normalize_tag_mac(tag_mac: str | None) -> str | None:
+        """Normalize tag MAC address to uppercase."""
+        if tag_mac is None:
+            return None
+        return tag_mac.upper()
+
+    def is_tag_in_deep_sleep(self, tag_mac: str) -> bool:
+        """Return whether the tag is configured for deep sleep."""
+        normalized_mac = self._normalize_tag_mac(tag_mac)
+        if normalized_mac is None:
+            return False
+
+        tag_data = self.get_tag_data(normalized_mac)
+        modecfgjson = tag_data.get("modecfgjson")
+        if not isinstance(modecfgjson, dict):
+            return False
+
+        if bool(modecfgjson.get("deepsleep")):
+            return True
+
+        maxsleep = modecfgjson.get("maxsleep")
+        if isinstance(maxsleep, (int, float)) and maxsleep >= 15:
+            return True
+
+        return False
+
+    def is_tag_currently_sleeping(self, tag_mac: str) -> bool:
+        """Return whether the tag is currently sleeping."""
+        normalized_mac = self._normalize_tag_mac(tag_mac)
+        if normalized_mac is None:
+            return False
+
+        tag_data = self.get_tag_data(normalized_mac)
+        next_checkin = tag_data.get("next_checkin")
+        if not isinstance(next_checkin, (int, float)) or next_checkin <= 0:
+            return False
+
+        current_time = datetime.now(timezone.utc).timestamp()
+        return current_time < next_checkin
+
+    def should_queue_image_upload(self, tag_mac: str) -> bool:
+        """Return whether image upload should be queued for this tag."""
+        return self.is_tag_in_deep_sleep(tag_mac) and self.is_tag_currently_sleeping(tag_mac)

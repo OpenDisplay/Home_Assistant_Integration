@@ -4,14 +4,23 @@ import logging
 from functools import wraps
 from time import perf_counter
 from typing import Final, Any, Callable
+from datetime import timedelta
 
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceValidationError, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.dispatcher import async_dispatcher_connect, async_dispatcher_send
 from .coordinator import Hub
 from .ble import BLEConnectionError, BLETimeoutError, BLEProtocolError, BLEDeviceMetadata
-from .const import DOMAIN, SIGNAL_TAG_IMAGE_UPDATE
+from .const import (
+    DOMAIN,
+    SIGNAL_TAG_CHECKIN,
+    SIGNAL_TAG_IMAGE_UPDATE,
+    CONF_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+    DEFAULT_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+    MIN_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+    MAX_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+)
 from .imagegen import ImageGen
 from .tag_types import get_tag_types_manager
 from .upload import (
@@ -37,7 +46,27 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     """
 
     # Create upload queues
-    ble_upload_queue, hub_upload_queue = create_upload_queues()
+    ble_upload_queue, hub_upload_queue, deep_sleep_upload_queue = create_upload_queues()
+
+    @callback
+    def _handle_tag_checkin(tag_mac: str) -> None:
+        """Flush queued deep-sleep uploads when a tag checks in."""
+        get_hub_from_hass(hass)
+
+        async def _flush() -> None:
+            queued_upload = await deep_sleep_upload_queue.pop_upload(tag_mac)
+            if queued_upload is None:
+                return
+            await hub_upload_queue.add_to_queue(
+                queued_upload.upload_func,
+                *queued_upload.args,
+                **queued_upload.kwargs,
+            )
+            _LOGGER.info("Flushed queued deep-sleep upload for %s", tag_mac)
+
+        hass.async_create_task(_flush())
+
+    async_dispatcher_connect(hass, SIGNAL_TAG_CHECKIN, _handle_tag_checkin)
 
     async def get_device_ids_from_label_id(label_id: str) -> list[str]:
         """Get device_ids for OpenDisplay devices with a specific label."""
@@ -348,14 +377,43 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 # 0→1 (full), 1→3 (fast), 2→2 (fast no-reds), 3→0 (no-repeats)
                 ap_lut_mapping = {0: 1, 1: 3, 2: 2, 3: 0}
                 ap_lut = ap_lut_mapping.get(refresh_type, 1)  # Default to 1 (full) if invalid
-                await hub_upload_queue.add_to_queue(
-                    upload_to_hub, hub, entity_id, image, dither,
+                upload_args = (
+                    hub,
+                    entity_id,
+                    image,
+                    dither,
                     service.data.get("ttl", 60),
                     service.data.get("preload_type", 0),
                     service.data.get("preload_lut", 0),
                     ap_lut,
                     render_duration,
                 )
+                tag_mac = get_mac_from_entity_id(entity_id)
+                if hub.should_queue_image_upload(tag_mac):
+                    expiry_hours_raw = hub.entry.options.get(
+                        CONF_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+                        DEFAULT_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+                    )
+                    try:
+                        expiry_hours = int(expiry_hours_raw)
+                    except (TypeError, ValueError):
+                        expiry_hours = DEFAULT_DEEP_SLEEP_QUEUE_EXPIRY_HOURS
+                    expiry_hours = max(
+                        MIN_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+                        min(expiry_hours, MAX_DEEP_SLEEP_QUEUE_EXPIRY_HOURS),
+                    )
+                    await deep_sleep_upload_queue.queue_upload(
+                        tag_mac,
+                        upload_to_hub,
+                        *upload_args,
+                        expiry=timedelta(hours=expiry_hours),
+                    )
+                    _LOGGER.info(
+                        "Tag %s is sleeping in deep sleep mode, image queued until next check-in",
+                        tag_mac,
+                    )
+                else:
+                    await hub_upload_queue.add_to_queue(upload_to_hub, *upload_args)
 
         except ServiceValidationError:
             raise  # User input errors - propagate unchanged

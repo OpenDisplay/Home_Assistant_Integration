@@ -1,7 +1,12 @@
 DOMAIN = "opendisplay"
 SIGNAL_TAG_UPDATE = f"{DOMAIN}_tag_update"
 SIGNAL_TAG_IMAGE_UPDATE = f"{DOMAIN}_tag_image_update"
+SIGNAL_TAG_CHECKIN = f"{DOMAIN}_tag_checkin"
 SIGNAL_AP_UPDATE = f"{DOMAIN}_ap_update"
+CONF_DEEP_SLEEP_QUEUE_EXPIRY_HOURS = "deep_sleep_queue_expiry_hours"
+DEFAULT_DEEP_SLEEP_QUEUE_EXPIRY_HOURS = 4
+MIN_DEEP_SLEEP_QUEUE_EXPIRY_HOURS = 1
+MAX_DEEP_SLEEP_QUEUE_EXPIRY_HOURS = 24
 OPENDISPLAY_CONFIG_URL = "https://opendisplay.org/firmware/config/"
 ATC_CONFIG_URL = "https://atc1441.github.io/ATC_BLE_OEPL_Image_Upload.html"
 

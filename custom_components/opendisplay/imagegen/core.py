@@ -19,7 +19,6 @@ from .fonts import FontManager
 from .registry import get_all_handlers
 
 # Import handler modules to trigger decorator registration
-from . import text, shapes, icons, media, visualizations, debug
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -222,7 +221,6 @@ class ImageGen:
                 if runtime_data is not None and isinstance(runtime_data, OpenDisplayBLERuntimeData):
                     if runtime_data.mac_address.upper() == tag_mac:
                         device_metadata = runtime_data.device_metadata
-                        protocol_type = runtime_data.protocol_type
                         break
 
             if not device_metadata:
@@ -236,7 +234,6 @@ class ImageGen:
             metadata = BLEDeviceMetadata(device_metadata)
 
             # Extract device capabilities
-            hw_type = metadata.hw_type
             width = metadata.width
             height = metadata.height
 

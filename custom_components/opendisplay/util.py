@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from .const import DOMAIN
-import requests
 import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.dispatcher import async_dispatcher_send
 from .runtime_data import OpenDisplayBLERuntimeData
 
 _LOGGER = logging.getLogger(__name__)

@@ -12,7 +12,6 @@ from homeassistant.const import (
     CONF_PLATFORM,
     CONF_TYPE,
 )
-from homeassistant.helpers import device_registry as dr
 from .const import DOMAIN
 
 _LOGGER: Final = logging.getLogger(__name__)

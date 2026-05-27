@@ -31,7 +31,6 @@ from .entity import OpenDisplayTagEntity, OpenDisplayAPEntity, OpenDisplayBLEEnt
 from .runtime_data import OpenDisplayConfigEntry
 from .const import DOMAIN
 from .util import is_ble_entry
-from .tag_types import get_hw_string, get_hw_dimensions
 
 _LOGGER: Final = logging.getLogger(__name__)
 

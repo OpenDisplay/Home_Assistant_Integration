@@ -172,7 +172,7 @@ async def draw_polygon(ctx: DrawingContext, element: dict) -> None:
     # Get polygon properties
     fill = ctx.colors.resolve(element.get("fill"))
     outline = ctx.colors.resolve(element.get("outline", "black"))
-    width = element.get("width", 1)
+    element.get("width", 1)
 
     # Draw the polygon
     draw.polygon(vertices, fill=fill, outline=outline)
@@ -346,7 +346,7 @@ def draw_dashed_line(draw: ImageDraw.ImageDraw,
         if dash_end >= line_length:
             # A partial dash exists that ends exactly or beyond the line_end
             dash_end = line_length
-            segment_len = dash_end - current_pos
+            dash_end - current_pos
 
             segment_start_x = x1 + step_x * current_pos
             segment_start_y = y1 + step_y * current_pos

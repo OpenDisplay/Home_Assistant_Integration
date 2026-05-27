@@ -49,13 +49,15 @@
           "blacklisted_tags": "Etiquetas na Lista Negra",
           "button_debounce": "Tempo de Debounce do Botão (segundos)",
           "nfc_debounce": "Tempo de Debounce NFC (segundos)",
-          "custom_font_dirs": "Diretórios de Fontes Personalizadas"
+          "custom_font_dirs": "Diretórios de Fontes Personalizadas",
+          "deep_sleep_queue_expiry_hours": "Expiração da Fila de Deep Sleep (horas)"
         },
         "data_description": {
           "blacklisted_tags": "Tags para ocultar; tags na lista negra não serão atualizadas nem disparam serviços.",
           "button_debounce": "Atraso antes de aceitar outro acionamento do botão (segundos).",
           "nfc_debounce":  "Atraso antes de aceitar outro toque NFC (segundos).",
-          "custom_font_dirs":  "Diretórios separados por vírgula com fontes adicionais para imagens geradas."
+          "custom_font_dirs":  "Diretórios separados por vírgula com fontes adicionais para imagens geradas.",
+          "deep_sleep_queue_expiry_hours": "Por quanto tempo uploads em fila para etiquetas em deep sleep são mantidos antes de serem descartados."
         }
       }
     },

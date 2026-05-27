@@ -216,4 +216,4 @@ class OpenDisplayBLEEntity(Entity):
     @property
     def available(self) -> bool:
         """Return if the entity is available."""
-        return bluetooth.async_address_present(self.hass, self._mac_address)
+        return bluetooth.async_address_present(self.hass, self._mac_address, connectable=False)

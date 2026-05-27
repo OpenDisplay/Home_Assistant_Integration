@@ -5,7 +5,7 @@ PARALLEL_UPDATES = 1
 from dataclasses import dataclass
 
 from homeassistant.components.switch import SwitchEntity, SwitchDeviceClass, SwitchEntityDescription
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback

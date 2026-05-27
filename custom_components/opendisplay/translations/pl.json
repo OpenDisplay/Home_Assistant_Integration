@@ -49,13 +49,15 @@
           "blacklisted_tags": "Czarna lista tagów",
           "button_debounce": "Opóźnienie przycisku (sekundy)",
           "nfc_debounce": "Opóźnienie NFC (sekundy)",
-          "custom_font_dirs": "Niestandardowe katalogi czcionek"
+          "custom_font_dirs": "Niestandardowe katalogi czcionek",
+          "deep_sleep_queue_expiry_hours": "Czas wygaśnięcia kolejki deep sleep (godziny)"
         },
         "data_description": {
           "blacklisted_tags": "Tagi do ukrycia; tagi na czarnej liście nie będą aktualizowane ani wywoływały usług.",
           "button_debounce": "Opóźnienie przed przyjęciem kolejnego naciśnięcia przycisku (sekundy).",
           "nfc_debounce": "Opóźnienie przed przyjęciem kolejnego odczytu NFC (sekundy).",
-          "custom_font_dirs": "Katalogi z dodatkowymi czcionkami do generowanych obrazów (oddzielone przecinkami)."
+          "custom_font_dirs": "Katalogi z dodatkowymi czcionkami do generowanych obrazów (oddzielone przecinkami).",
+          "deep_sleep_queue_expiry_hours": "Jak długo przesłane zadania dla śpiących tagów są przechowywane przed usunięciem."
         }
       }
     },

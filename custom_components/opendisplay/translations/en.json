@@ -49,13 +49,15 @@
                     "blacklisted_tags": "Blacklisted Tags",
                     "button_debounce": "Button Debounce Time (seconds)",
                     "nfc_debounce": "NFC Debounce Time (seconds)",
-                    "custom_font_dirs": "Custom Font Directories"
+                    "custom_font_dirs": "Custom Font Directories",
+                    "deep_sleep_queue_expiry_hours": "Deep Sleep Queue Expiry (hours)"
                 },
                 "data_description": {
                     "blacklisted_tags": "Tags to hide; blacklisted tags will not update or trigger services.",
                     "button_debounce": "Delay before another button press is accepted (seconds).",
                     "nfc_debounce": "Delay before another NFC tap is accepted (seconds).",
-                    "custom_font_dirs": "Comma-separated directories containing additional fonts for generated images."
+                    "custom_font_dirs": "Comma-separated directories containing additional fonts for generated images.",
+                    "deep_sleep_queue_expiry_hours": "How long queued uploads for sleeping tags are kept before being dropped."
                 }
             }
         },

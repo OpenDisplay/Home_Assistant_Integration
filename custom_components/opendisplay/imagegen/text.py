@@ -226,7 +226,7 @@ async def draw_multiline(ctx: DrawingContext, element: dict) -> None:
 
             for segment in segments:
                 color = ctx.colors.resolve(segment.color)
-                bbox = draw.textbbox(
+                draw.textbbox(
                     (segment.start_x, current_y),
                     segment.text,
                     font=font,
@@ -242,7 +242,7 @@ async def draw_multiline(ctx: DrawingContext, element: dict) -> None:
                     stroke_fill=stroke_fill
                 )
         else:
-            bbox = draw.textbbox(
+            draw.textbbox(
                 (x, current_y),
                 str(line),
                 font=font,

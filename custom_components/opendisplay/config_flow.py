@@ -1,23 +1,28 @@
 """Config flow for OpenDisplay integration."""
 from __future__ import annotations
 
-from typing import Any, Final, Mapping
+from typing import Any, Final
 import asyncio
 
 import aiohttp
 import voluptuous as vol
 from habluetooth.models import BluetoothServiceInfoBleak
 from homeassistant import config_entries
-from homeassistant.config_entries import ConfigEntry, OptionsFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, OptionsFlow
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import TextSelectorType
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    CONF_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+    DEFAULT_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+    MIN_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+    MAX_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+)
 from .ble import (
     get_protocol_by_manufacturer_id,
     BLEConnection,
@@ -569,6 +574,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self._button_debounce = 0.5
         self._nfc_debounce = 1.0
         self._custom_font_dirs = ""
+        self._deep_sleep_queue_expiry_hours = DEFAULT_DEEP_SLEEP_QUEUE_EXPIRY_HOURS
 
     async def async_step_init(self, user_input=None):
         """Manage OpenDisplay options.
@@ -589,6 +595,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self._button_debounce = self.config_entry.options.get("button_debounce", 0.5)
         self._nfc_debounce = self.config_entry.options.get("nfc_debounce", 1.0)
         self._custom_font_dirs = self.config_entry.options.get("custom_font_dirs", "")
+        self._deep_sleep_queue_expiry_hours = self.config_entry.options.get(
+            CONF_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+            DEFAULT_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+        )
 
         # Check if this is a BLE device
         entry_data = self.config_entry.runtime_data
@@ -600,6 +610,18 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         if user_input is not None:
             # Update blacklisted tags
+            deep_sleep_queue_expiry_hours = user_input.get(
+                CONF_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+                DEFAULT_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+            )
+            try:
+                deep_sleep_queue_expiry_hours = int(deep_sleep_queue_expiry_hours)
+            except (TypeError, ValueError):
+                deep_sleep_queue_expiry_hours = DEFAULT_DEEP_SLEEP_QUEUE_EXPIRY_HOURS
+            deep_sleep_queue_expiry_hours = max(
+                MIN_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+                min(deep_sleep_queue_expiry_hours, MAX_DEEP_SLEEP_QUEUE_EXPIRY_HOURS),
+            )
             return self.async_create_entry(
                 title="",
                 data={
@@ -607,6 +629,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     "button_debounce": user_input.get("button_debounce", 0.5),
                     "nfc_debounce": user_input.get("nfc_debounce", 1.0),
                     "custom_font_dirs": user_input.get("custom_font_dirs", ""),
+                    CONF_DEEP_SLEEP_QUEUE_EXPIRY_HOURS: deep_sleep_queue_expiry_hours,
                 }
             )
 
@@ -670,6 +693,18 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     selector.TextSelectorConfig(
                         type=TextSelectorType.TEXT,
                         autocomplete="path"
+                    )
+                ),
+                vol.Optional(
+                    CONF_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+                    default=self._deep_sleep_queue_expiry_hours,
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=MIN_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+                        max=MAX_DEEP_SLEEP_QUEUE_EXPIRY_HOURS,
+                        step=1,
+                        unit_of_measurement="h",
+                        mode=selector.NumberSelectorMode.BOX,
                     )
                 ),
             }),

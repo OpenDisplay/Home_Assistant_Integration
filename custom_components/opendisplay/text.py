@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import requests
 
 from homeassistant.components.text import TextEntity, TextMode, TextEntityDescription
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
