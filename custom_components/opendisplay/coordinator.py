@@ -47,7 +47,7 @@ class OpenDisplayCoordinator(PassiveBluetoothDataUpdateCoordinator):
             _LOGGER,
             address,
             BluetoothScanningMode.PASSIVE,
-            connectable=True,
+            connectable=False,
         )
         self.data: OpenDisplayUpdate | None = None
         self._tracker: AdvertisementTracker = AdvertisementTracker()

@@ -1,326 +1,326 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Device is already configured",
-            "already_in_progress": "Configuration flow is already in progress",
-            "cannot_connect": "Failed to connect",
-            "no_devices_found": "No devices found on the network",
-            "reauth_successful": "Re-authentication was successful",
-            "unknown": "Unexpected error"
-        },
-        "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_auth": "Invalid authentication",
-            "invalid_key_format": "The encryption key must be exactly 32 hexadecimal characters (0-9, a-f).",
-            "unknown": "Unexpected error"
-        },
-        "flow_title": "{name}",
-        "step": {
-            "bluetooth_confirm": {
-                "description": "Do you want to set up {name}?"
-            },
-            "encryption_key": {
-                "data": {
-                    "encryption_key": "Encryption key"
-                },
-                "data_description": {
-                    "encryption_key": "Enter the 32-character hexadecimal AES-128 encryption key for this device."
-                },
-                "description": "{name} requires an encryption key to connect.",
-                "title": "Encryption required"
-            },
-            "reauth_confirm": {
-                "data": {
-                    "encryption_key": "Encryption key"
-                },
-                "data_description": {
-                    "encryption_key": "Enter the 32-character hexadecimal AES-128 encryption key for this device."
-                },
-                "description": "Authentication failed for {name}. Enter the correct encryption key, or leave blank if encryption has been disabled on the device.",
-                "title": "Re-authentication required"
-            },
-            "user": {
-                "data": {
-                    "address": "Device"
-                },
-                "data_description": {
-                    "address": "Select the Bluetooth device to set up."
-                },
-                "description": "Choose a device to set up"
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured",
+      "already_in_progress": "Configuration flow is already in progress",
+      "cannot_connect": "Failed to connect",
+      "no_devices_found": "No devices found on the network",
+      "reauth_successful": "Re-authentication was successful",
+      "unknown": "Unexpected error"
     },
-    "entity": {
-        "image": {
-            "content": {
-                "name": "Display content"
-            }
-        },
-        "event": {
-            "button": {
-                "name": "Button {number}",
-                "state_attributes": {
-                    "event_type": {
-                        "state": {
-                            "button_down": "Button down",
-                            "button_up": "Button up"
-                        }
-                    }
-                }
-            },
-            "touch": {
-                "name": "Touch {number}",
-                "state_attributes": {
-                    "event_type": {
-                        "state": {
-                            "touch_down": "Touch down",
-                            "touch_move": "Touch move",
-                            "touch_up": "Touch up"
-                        }
-                    }
-                }
-            }
-        },
-        "sensor": {
-            "battery_voltage": {
-                "name": "Battery voltage"
-            },
-            "rssi": {
-                "name": "Signal strength (RSSI)"
-            },
-            "last_seen": {
-                "name": "Last seen"
-            }
-        },
-        "update": {
-            "firmware": {
-                "name": "Firmware"
-            }
-        }
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "invalid_key_format": "The encryption key must be exactly 32 hexadecimal characters (0-9, a-f).",
+      "unknown": "Unexpected error"
     },
-    "exceptions": {
-        "authentication_error": {
-            "message": "Authentication failed. Please update the encryption key."
+    "flow_title": "{name}",
+    "step": {
+      "bluetooth_confirm": {
+        "description": "Do you want to set up {name}?"
+      },
+      "encryption_key": {
+        "data": {
+          "encryption_key": "Encryption key"
         },
-        "device_not_found": {
-            "message": "Could not find Bluetooth device with address `{address}`."
+        "data_description": {
+          "encryption_key": "Enter the 32-character hexadecimal AES-128 encryption key for this device."
         },
-        "invalid_device_id": {
-            "message": "Device `{device_id}` is not a valid OpenDisplay device."
+        "description": "{name} requires an encryption key to connect.",
+        "title": "Encryption required"
+      },
+      "reauth_confirm": {
+        "data": {
+          "encryption_key": "Encryption key"
         },
-        "media_download_error": {
-            "message": "Failed to download media: {error}"
+        "data_description": {
+          "encryption_key": "Enter the 32-character hexadecimal AES-128 encryption key for this device."
         },
-        "multiple_errors": {
-            "message": "Errors occurred for one or more devices:\n{errors}"
+        "description": "Authentication failed for {name}. Enter the correct encryption key, or leave blank if encryption has been disabled on the device.",
+        "title": "Re-authentication required"
+      },
+      "user": {
+        "data": {
+          "address": "Device"
         },
-        "no_buzzers": {
-            "message": "Device `{device_id}` has no buzzer configured."
+        "data_description": {
+          "address": "Select the Bluetooth device to set up."
         },
-        "no_leds": {
-            "message": "Device `{device_id}` has no LEDs configured."
-        },
-        "no_targets_specified": {
-            "message": "No target devices specified."
-        },
-        "upload_error": {
-            "message": "Failed to upload to the display: {error}"
-        }
+        "description": "Choose a device to set up"
+      }
+    }
+  },
+  "entity": {
+    "image": {
+      "content": {
+        "name": "Display content"
+      }
     },
-    "selector": {
+    "event": {
+      "button": {
+        "name": "Button {number}",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "button_down": "Button down",
+              "button_up": "Button up"
+            }
+          }
+        }
+      },
+      "touch": {
+        "name": "Touch {number}",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "touch_down": "Touch down",
+              "touch_move": "Touch move",
+              "touch_up": "Touch up"
+            }
+          }
+        }
+      }
+    },
+    "sensor": {
+      "battery_voltage": {
+        "name": "Battery voltage"
+      },
+      "rssi": {
+        "name": "Signal strength (RSSI)"
+      },
+      "last_seen": {
+        "name": "Last seen"
+      }
+    },
+    "update": {
+      "firmware": {
+        "name": "Firmware"
+      }
+    }
+  },
+  "exceptions": {
+    "authentication_error": {
+      "message": "Authentication failed. Please update the encryption key."
+    },
+    "device_not_found": {
+      "message": "Could not find Bluetooth device with address `{address}`."
+    },
+    "invalid_device_id": {
+      "message": "Device `{device_id}` is not a valid OpenDisplay device."
+    },
+    "media_download_error": {
+      "message": "Failed to download media: {error}"
+    },
+    "multiple_errors": {
+      "message": "Errors occurred for one or more devices:\n{errors}"
+    },
+    "no_buzzers": {
+      "message": "Device `{device_id}` has no buzzer configured."
+    },
+    "no_leds": {
+      "message": "Device `{device_id}` has no LEDs configured."
+    },
+    "no_targets_specified": {
+      "message": "No target devices specified."
+    },
+    "upload_error": {
+      "message": "Failed to upload to the display: {error}"
+    }
+  },
+  "selector": {
+    "dither_mode": {
+      "options": {
+        "atkinson": "Atkinson",
+        "burkes": "Burkes",
+        "floyd_steinberg": "Floyd-Steinberg",
+        "jarvis_judice_ninke": "Jarvis, Judice & Ninke",
+        "none": "None",
+        "ordered": "Ordered",
+        "sierra": "Sierra",
+        "sierra_lite": "Sierra Lite",
+        "stucki": "Stucki"
+      }
+    },
+    "fit_mode": {
+      "options": {
+        "contain": "Contain",
+        "cover": "Cover",
+        "crop": "Crop",
+        "stretch": "Stretch"
+      }
+    },
+    "refresh_mode": {
+      "options": {
+        "fast": "Fast",
+        "full": "Full"
+      }
+    }
+  },
+  "services": {
+    "upload_image": {
+      "description": "Uploads an image to an OpenDisplay device.",
+      "fields": {
+        "device_id": {
+          "description": "The OpenDisplay device to upload the image to.",
+          "name": "Device"
+        },
         "dither_mode": {
-            "options": {
-                "atkinson": "Atkinson",
-                "burkes": "Burkes",
-                "floyd_steinberg": "Floyd-Steinberg",
-                "jarvis_judice_ninke": "Jarvis, Judice & Ninke",
-                "none": "None",
-                "ordered": "Ordered",
-                "sierra": "Sierra",
-                "sierra_lite": "Sierra Lite",
-                "stucki": "Stucki"
-            }
+          "description": "The dithering algorithm to use for converting the image to the display's color palette.",
+          "name": "Dither mode"
         },
         "fit_mode": {
-            "options": {
-                "contain": "Contain",
-                "cover": "Cover",
-                "crop": "Crop",
-                "stretch": "Stretch"
-            }
+          "description": "How the image is fitted to the display dimensions.",
+          "name": "Fit mode"
+        },
+        "image": {
+          "description": "The image to upload to the display.",
+          "name": "Image"
         },
         "refresh_mode": {
-            "options": {
-                "fast": "Fast",
-                "full": "Full"
-            }
+          "description": "The display refresh mode. Full refresh clears ghosting but is slower. Fast refresh is not supported on all displays.",
+          "name": "Refresh mode"
+        },
+        "rotation": {
+          "description": "The rotation angle in degrees, applied clockwise.",
+          "name": "Rotation"
+        },
+        "tone_compression": {
+          "description": "Dynamic range compression strength. Leave empty for automatic.",
+          "name": "Tone compression"
         }
+      },
+      "name": "Upload image",
+      "sections": {
+        "additional_fields": {
+          "name": "Additional options"
+        }
+      }
     },
-    "services": {
-        "upload_image": {
-            "description": "Uploads an image to an OpenDisplay device.",
-            "fields": {
-                "device_id": {
-                    "description": "The OpenDisplay device to upload the image to.",
-                    "name": "Device"
-                },
-                "dither_mode": {
-                    "description": "The dithering algorithm to use for converting the image to the display's color palette.",
-                    "name": "Dither mode"
-                },
-                "fit_mode": {
-                    "description": "How the image is fitted to the display dimensions.",
-                    "name": "Fit mode"
-                },
-                "image": {
-                    "description": "The image to upload to the display.",
-                    "name": "Image"
-                },
-                "refresh_mode": {
-                    "description": "The display refresh mode. Full refresh clears ghosting but is slower. Fast refresh is not supported on all displays.",
-                    "name": "Refresh mode"
-                },
-                "rotation": {
-                    "description": "The rotation angle in degrees, applied clockwise.",
-                    "name": "Rotation"
-                },
-                "tone_compression": {
-                    "description": "Dynamic range compression strength. Leave empty for automatic.",
-                    "name": "Tone compression"
-                }
-            },
-            "name": "Upload image",
-            "sections": {
-                "additional_fields": {
-                    "name": "Additional options"
-                }
-            }
+    "activate_led": {
+      "name": "Activate LED",
+      "description": "Triggers an LED flash pattern on an OpenDisplay device.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The OpenDisplay device."
         },
-        "activate_led": {
-            "name": "Activate LED",
-            "description": "Triggers an LED flash pattern on an OpenDisplay device.",
-            "fields": {
-                "device_id": {
-                    "name": "Device",
-                    "description": "The OpenDisplay device."
-                },
-                "instance": {
-                    "name": "LED instance",
-                    "description": "LED instance index (0-based)."
-                },
-                "brightness": {
-                    "name": "Brightness",
-                    "description": "LED brightness (1-16)."
-                },
-                "repeats": {
-                    "name": "Repeats",
-                    "description": "Number of times to repeat the full pattern (0 = infinite)."
-                },
-                "color1": {
-                    "name": "Color 1",
-                    "description": "First step color."
-                },
-                "flash_count1": {
-                    "name": "Flash count 1",
-                    "description": "Number of flashes for the first step (0 skips this step)."
-                },
-                "loop_delay1": {
-                    "name": "Flash delay 1",
-                    "description": "Delay between flashes in the first step."
-                },
-                "inter_delay1": {
-                    "name": "Step delay 1",
-                    "description": "Delay after the first step before moving to the next."
-                },
-                "color2": {
-                    "name": "Color 2",
-                    "description": "Second step color (omit or set flash count to 0 to skip)."
-                },
-                "flash_count2": {
-                    "name": "Flash count 2",
-                    "description": "Number of flashes for the second step (0 skips this step)."
-                },
-                "loop_delay2": {
-                    "name": "Flash delay 2",
-                    "description": "Delay between flashes in the second step."
-                },
-                "inter_delay2": {
-                    "name": "Step delay 2",
-                    "description": "Delay after the second step before moving to the next."
-                },
-                "color3": {
-                    "name": "Color 3",
-                    "description": "Third step color (omit or set flash count to 0 to skip)."
-                },
-                "flash_count3": {
-                    "name": "Flash count 3",
-                    "description": "Number of flashes for the third step (0 skips this step)."
-                },
-                "loop_delay3": {
-                    "name": "Flash delay 3",
-                    "description": "Delay between flashes in the third step."
-                },
-                "inter_delay3": {
-                    "name": "Step delay 3",
-                    "description": "Delay after the third step before repeating."
-                }
-            }
+        "instance": {
+          "name": "LED instance",
+          "description": "LED instance index (0-based)."
         },
-        "activate_buzzer": {
-            "name": "Activate buzzer",
-            "description": "Triggers a buzzer tone on an OpenDisplay device.",
-            "fields": {
-                "device_id": {
-                    "name": "Device",
-                    "description": "The OpenDisplay device."
-                },
-                "instance": {
-                    "name": "Buzzer instance",
-                    "description": "Buzzer instance index (0-based)."
-                },
-                "frequency_hz": {
-                    "name": "Frequency",
-                    "description": "Tone frequency in Hz (0 = silence, 400-12000)."
-                },
-                "duration_ms": {
-                    "name": "Duration",
-                    "description": "Tone duration in milliseconds (5-1275)."
-                },
-                "repeats": {
-                    "name": "Repeats",
-                    "description": "Number of times to repeat the tone (1-255)."
-                }
-            }
+        "brightness": {
+          "name": "Brightness",
+          "description": "LED brightness (1-16)."
         },
-        "drawcustom": {
-            "description": "Draws a custom image on one or more OpenDisplay devices.",
-            "fields": {
-                "payload": {
-                    "description": "Array of drawing elements.",
-                    "name": "Payload"
-                },
-                "background": {
-                    "description": "Background fill color.",
-                    "name": "Background color"
-                },
-                "rotate": {
-                    "description": "Clockwise rotation in degrees.",
-                    "name": "Rotation"
-                },
-                "dither": {
-                    "description": "Dithering algorithm for color palette conversion.",
-                    "name": "Dither mode"
-                },
-                "refresh_type": {
-                    "description": "Display refresh mode.",
-                    "name": "Refresh type"
-                },
-                "dry-run": {
-                    "description": "Generate image without uploading to the device.",
-                    "name": "Dry run"
-                }
-            },
-            "name": "Draw custom image"
+        "repeats": {
+          "name": "Repeats",
+          "description": "Number of times to repeat the full pattern (0 = infinite)."
+        },
+        "color1": {
+          "name": "Color 1",
+          "description": "First step color."
+        },
+        "flash_count1": {
+          "name": "Flash count 1",
+          "description": "Number of flashes for the first step (0 skips this step)."
+        },
+        "loop_delay1": {
+          "name": "Flash delay 1",
+          "description": "Delay between flashes in the first step."
+        },
+        "inter_delay1": {
+          "name": "Step delay 1",
+          "description": "Delay after the first step before moving to the next."
+        },
+        "color2": {
+          "name": "Color 2",
+          "description": "Second step color (omit or set flash count to 0 to skip)."
+        },
+        "flash_count2": {
+          "name": "Flash count 2",
+          "description": "Number of flashes for the second step (0 skips this step)."
+        },
+        "loop_delay2": {
+          "name": "Flash delay 2",
+          "description": "Delay between flashes in the second step."
+        },
+        "inter_delay2": {
+          "name": "Step delay 2",
+          "description": "Delay after the second step before moving to the next."
+        },
+        "color3": {
+          "name": "Color 3",
+          "description": "Third step color (omit or set flash count to 0 to skip)."
+        },
+        "flash_count3": {
+          "name": "Flash count 3",
+          "description": "Number of flashes for the third step (0 skips this step)."
+        },
+        "loop_delay3": {
+          "name": "Flash delay 3",
+          "description": "Delay between flashes in the third step."
+        },
+        "inter_delay3": {
+          "name": "Step delay 3",
+          "description": "Delay after the third step before repeating."
         }
+      }
+    },
+    "activate_buzzer": {
+      "name": "Activate buzzer",
+      "description": "Triggers a buzzer tone on an OpenDisplay device.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The OpenDisplay device."
+        },
+        "instance": {
+          "name": "Buzzer instance",
+          "description": "Buzzer instance index (0-based)."
+        },
+        "frequency_hz": {
+          "name": "Frequency",
+          "description": "Tone frequency in Hz (0 = silence, 400-12000)."
+        },
+        "duration_ms": {
+          "name": "Duration",
+          "description": "Tone duration in milliseconds (5-1275)."
+        },
+        "repeats": {
+          "name": "Repeats",
+          "description": "Number of times to repeat the tone (1-255)."
+        }
+      }
+    },
+    "drawcustom": {
+      "description": "Draws a custom image on one or more OpenDisplay devices.",
+      "fields": {
+        "payload": {
+          "description": "Array of drawing elements.",
+          "name": "Payload"
+        },
+        "background": {
+          "description": "Background fill color.",
+          "name": "Background color"
+        },
+        "rotate": {
+          "description": "Clockwise rotation in degrees.",
+          "name": "Rotation"
+        },
+        "dither": {
+          "description": "Dithering algorithm for color palette conversion.",
+          "name": "Dither mode"
+        },
+        "refresh_type": {
+          "description": "Display refresh mode.",
+          "name": "Refresh type"
+        },
+        "dry-run": {
+          "description": "Generate image without uploading to the device.",
+          "name": "Dry run"
+        }
+      },
+      "name": "Draw custom image"
     }
+  }
 }

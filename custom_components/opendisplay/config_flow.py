@@ -21,8 +21,12 @@ from homeassistant.components.bluetooth import (
 )
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
+from homeassistant.core import callback
 
-from .const import CONF_ENCRYPTION_KEY, DOMAIN
+from .const import (
+    CONF_ENCRYPTION_KEY,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 

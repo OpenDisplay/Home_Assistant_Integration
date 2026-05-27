@@ -1,5 +1,7 @@
 """Integration for OpenDisplay BLE e-paper displays."""
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 from dataclasses import dataclass
@@ -27,8 +29,12 @@ from homeassistant.helpers.typing import ConfigType
 if TYPE_CHECKING:
     from opendisplay.models import FirmwareVersion
 
-from .const import CONF_ENCRYPTION_KEY, DOMAIN
+from .const import (
+    CONF_ENCRYPTION_KEY,
+    DOMAIN,
+)
 from .coordinator import OpenDisplayCoordinator
+from .deep_sleep import DeepSleepQueuedUpload
 from .services import async_setup_services
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -46,6 +52,8 @@ class OpenDisplayRuntimeData:
     device_config: GlobalConfig
     is_flex: bool
     upload_task: asyncio.Task | None = None
+    deep_sleep_upload: DeepSleepQueuedUpload | None = None
+    deep_sleep_expiry_handle: asyncio.TimerHandle | None = None
 
 
 type OpenDisplayConfigEntry = ConfigEntry[OpenDisplayRuntimeData]
@@ -150,6 +158,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
     )
     entry.async_on_unload(coordinator.async_start())
 
+    # Register coordinator listener to flush queued deep-sleep uploads when
+    # the device wakes up and becomes connectable again.
+    def _on_coordinator_update() -> None:
+        """Try to flush any queued deep-sleep upload when device advertises."""
+        queued = entry.runtime_data.deep_sleep_upload
+        if queued is None:
+            return
+        if queued.is_expired:
+            entry.runtime_data.deep_sleep_upload = None
+            if (handle := entry.runtime_data.deep_sleep_expiry_handle) is not None:
+                handle.cancel()
+                entry.runtime_data.deep_sleep_expiry_handle = None
+            return
+        if async_ble_device_from_address(hass, address, connectable=True) is None:
+            return
+        # Device is now connectable – flush the queued upload
+        entry.runtime_data.deep_sleep_upload = None
+        if (handle := entry.runtime_data.deep_sleep_expiry_handle) is not None:
+            handle.cancel()
+            entry.runtime_data.deep_sleep_expiry_handle = None
+        from .services import _async_connect_and_run  # noqa: PLC0415 – avoid circular import at module level
+        hass.async_create_task(
+            _async_connect_and_run(hass, entry, queued.action),
+            name=f"opendisplay_deepsleep_flush_{address}",
+        )
+
+    entry.async_on_unload(coordinator.async_add_listener(_on_coordinator_update))
+
     return True
 
 
@@ -165,6 +201,10 @@ async def async_unload_entry(
     hass: HomeAssistant, entry: OpenDisplayConfigEntry
 ) -> bool:
     """Unload a config entry."""
+    if (handle := entry.runtime_data.deep_sleep_expiry_handle) is not None:
+        handle.cancel()
+        entry.runtime_data.deep_sleep_expiry_handle = None
+
     if (task := entry.runtime_data.upload_task) and not task.done():
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):

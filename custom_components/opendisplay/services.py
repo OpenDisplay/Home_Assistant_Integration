@@ -1,9 +1,11 @@
 """Service registration for the OpenDisplay integration."""
 
+from __future__ import annotations
+
 import asyncio
 from collections.abc import Awaitable, Callable
 import contextlib
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import IntEnum
 import io
 import logging
@@ -293,7 +295,10 @@ async def _async_send_image(
     tone: float | str = "auto",
     rotate: Rotation = Rotation.ROTATE_0,
 ) -> None:
-    """Upload a PIL image to the device."""
+    """Upload a PIL image to the device, queuing if the device is sleeping."""
+    address = entry.unique_id
+    assert address is not None
+
     async def _upload(device: OpenDisplayDevice) -> None:
         await device.upload_image(
             img,
@@ -303,6 +308,50 @@ async def _async_send_image(
             fit=fit,
             rotate=rotate,
         )
+
+    deep_sleep_seconds = entry.runtime_data.device_config.power.deep_sleep_time_seconds
+    if (
+        async_ble_device_from_address(hass, address, connectable=True) is None
+        and deep_sleep_seconds > 0
+    ):
+        # Device is sleeping right now – queue the upload for when it wakes.
+        # Expire slightly after the configured deep-sleep interval.
+        expiry_seconds = (
+            int(deep_sleep_seconds * 1.1)
+        )
+        if (handle := entry.runtime_data.deep_sleep_expiry_handle) is not None:
+            handle.cancel()
+            entry.runtime_data.deep_sleep_expiry_handle = None
+
+        from .deep_sleep import DeepSleepQueuedUpload
+        queued_upload = DeepSleepQueuedUpload(
+            action=_upload,
+            jpeg_bytes=b"",
+            queued_at=datetime.now(),
+            expiry=timedelta(seconds=expiry_seconds),
+        )
+        entry.runtime_data.deep_sleep_upload = queued_upload
+
+        def _purge_if_expired() -> None:
+            """Drop queued upload if it still exists when the expiry window closes."""
+            current_queued = entry.runtime_data.deep_sleep_upload
+            if current_queued is queued_upload:
+                entry.runtime_data.deep_sleep_upload = None
+                _LOGGER.info(
+                    "Dropped queued image upload for %s after expiry timeout",
+                    address,
+                )
+            entry.runtime_data.deep_sleep_expiry_handle = None
+
+        entry.runtime_data.deep_sleep_expiry_handle = hass.loop.call_later(
+            expiry_seconds, _purge_if_expired
+        )
+        _LOGGER.info(
+            "Device %s is not connectable; image upload queued for next wake-up",
+            address,
+        )
+        return
+
     await _async_connect_and_run(hass, entry, _upload)
     jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)
     async_dispatcher_send(hass, f"{SIGNAL_IMAGE_UPDATED}_{entry.unique_id}", jpeg)
