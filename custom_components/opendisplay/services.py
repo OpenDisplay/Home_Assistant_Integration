@@ -35,6 +35,8 @@ from PIL import Image as PILImage, ImageOps
 import voluptuous as vol
 
 from homeassistant.components.bluetooth import (
+    BluetoothReachabilityIntent,
+    async_address_reachability_diagnostics,
     async_ble_device_from_address,
     async_clear_advertisement_history,
 )
@@ -123,11 +125,42 @@ def _coerce_none_to_default(default: Any) -> Callable[[Any], Any]:
     return validate
 
 
+def _dither_value(value: Any) -> DitherMode:
+    """Accept new dither names ("ordered") and legacy numeric values (0/1/2...)."""
+    if isinstance(value, (int, float)) or (
+        isinstance(value, str) and value.lstrip("-").isdigit()
+    ):
+        try:
+            return DitherMode(int(value))
+        except ValueError as err:
+            raise vol.Invalid(f"Invalid dither value: {value}") from err
+    return _str_to_int_enum(DitherMode)(value)
+
+
+def _refresh_type_value(value: Any) -> RefreshMode:
+    """Accept names ("full"/"fast") and legacy numeric values."""
+    if isinstance(value, (int, float)) or (
+        isinstance(value, str) and value.lstrip("-").isdigit()
+    ):
+        n = int(value)
+        if n in (2, 3):
+            return RefreshMode.FAST
+        try:
+            mode = RefreshMode(n)
+        except ValueError as err:
+            raise vol.Invalid(f"Invalid refresh_type: {value}") from err
+    else:
+        mode = _str_to_int_enum(RefreshMode)(value)
+    if mode is RefreshMode.PARTIAL:
+        return RefreshMode.FAST
+    return mode
+
+
 SCHEMA_UPLOAD_IMAGE = vol.Schema(
     {
         vol.Required(ATTR_DEVICE_ID): cv.string,
-        vol.Required(ATTR_IMAGE): MediaSelector(
-            MediaSelectorConfig(accept=["image/*"])
+        vol.Required(ATTR_IMAGE): vol.Any(
+            cv.url, MediaSelector(MediaSelectorConfig(accept=["image/*"]))
         ),
         vol.Optional(ATTR_ROTATION, default=Rotation.ROTATE_0): vol.All(
             _coerce_none_to_default(Rotation.ROTATE_0),
@@ -154,9 +187,11 @@ SCHEMA_DRAWCUSTOM = vol.Schema(
         vol.Optional("rotate", default=0): vol.All(
             _coerce_none_to_default(0), vol.Coerce(int), vol.In([0, 90, 180, 270])
         ),
-        vol.Optional("dither", default="ordered"): _str_to_int_enum(DitherMode),
-        vol.Optional("refresh_type", default=0): vol.All(
-            _coerce_none_to_default(0), vol.Coerce(int), vol.In([0, 1])
+        vol.Optional("dither", default="ordered"): vol.All(
+            _coerce_none_to_default("ordered"), _dither_value
+        ),
+        vol.Optional("refresh_type", default="full"): vol.All(
+            _coerce_none_to_default("full"), _refresh_type_value
         ),
         vol.Optional("dry-run", default=False): cv.boolean,
     }
@@ -526,7 +561,14 @@ async def _async_connect_and_run(
         raise HomeAssistantError(
             translation_domain=DOMAIN,
             translation_key="device_not_found",
-            translation_placeholders={"address": address},
+            translation_placeholders={
+                "address": address,
+                "reason": async_address_reachability_diagnostics(
+                    hass,
+                    address.upper(),
+                    BluetoothReachabilityIntent.CONNECTION,
+                ),
+            },
         )
 
     raw_key = entry.data.get(CONF_ENCRYPTION_KEY)
@@ -1271,9 +1313,19 @@ async def _drawcustom_for_device(
     cs = display.color_scheme_enum
     color_scheme = cs if isinstance(cs, ColorScheme) else ColorScheme.from_value(cs)
 
+    rotate: int = call.data["rotate"]
+    # Keep generated dimensions aligned with effective display rotation so the
+    # device-side fit does not rescale unexpectedly for 90/270 paths.
+    base = display.rotation_enum
+    base_deg = base.value if isinstance(base, Rotation) else 0
+    if (base_deg + rotate) % 360 in (90, 270):
+        gen_width, gen_height = display.pixel_height, display.pixel_width
+    else:
+        gen_width, gen_height = display.pixel_width, display.pixel_height
+
     img = await generate_image(
-        width=display.pixel_width,
-        height=display.pixel_height,
+        width=gen_width,
+        height=gen_height,
         elements=call.data["payload"],
         background=call.data["background"],
         accent_color=color_scheme.accent_color,
@@ -1282,10 +1334,6 @@ async def _drawcustom_for_device(
         font_dirs=_font_search_dirs(hass),
     )
 
-    rotate: int = call.data["rotate"]
-    if rotate:
-        img = img.rotate(rotate, expand=True)
-
     if call.data["dry-run"]:
         _LOGGER.info("Drawcustom dry run for device %s", device_id)
         jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)
@@ -1293,16 +1341,13 @@ async def _drawcustom_for_device(
         return
 
     dither_mode: DitherMode = call.data["dither"]
-    refresh_mode = (
-        RefreshMode.FAST
-        if call.data["refresh_type"] == 1
-        else RefreshMode.FULL
-    )
+    refresh_mode: RefreshMode = call.data["refresh_type"]
 
     pending = PendingDisplayUpload(
         image=img,
         dither_mode=dither_mode,
         refresh_mode=refresh_mode,
+        rotate=Rotation(rotate),
         source="drawcustom",
     )
     _LOGGER.info(

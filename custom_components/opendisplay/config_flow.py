@@ -104,33 +104,36 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured()
         self._discovery_info = discovery_info
         self.context["title_placeholders"] = {"name": discovery_info.name}
-
-        try:
-            await self._async_test_connection(discovery_info.address)
-        except AuthenticationRequiredError:
-            return await self.async_step_encryption_key()
-        except OpenDisplayError:
-            return self.async_abort(reason="cannot_connect")
-        except Exception:
-            _LOGGER.exception("Unexpected error")
-            return self.async_abort(reason="unknown")
-
         return await self.async_step_bluetooth_confirm()
 
     async def async_step_bluetooth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Confirm discovery."""
+        """Confirm discovery and connect to the device."""
         assert self._discovery_info is not None
+        errors: dict[str, str] = {}
 
-        if user_input is None:
-            self._set_confirm_only()
-            return self.async_show_form(
-                step_id="bluetooth_confirm",
-                description_placeholders=self.context["title_placeholders"],
-            )
+        if user_input is not None:
+            try:
+                await self._async_test_connection(self._discovery_info.address)
+            except AuthenticationRequiredError:
+                return await self.async_step_encryption_key()
+            except OpenDisplayError:
+                errors["base"] = "cannot_connect"
+            except Exception:
+                _LOGGER.exception("Unexpected error")
+                errors["base"] = "unknown"
+            else:
+                return self.async_create_entry(
+                    title=self._discovery_info.name, data={}
+                )
 
-        return self.async_create_entry(title=self._discovery_info.name, data={})
+        self._set_confirm_only()
+        return self.async_show_form(
+            step_id="bluetooth_confirm",
+            description_placeholders=self.context["title_placeholders"],
+            errors=errors,
+        )
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None

@@ -25,16 +25,15 @@ except ImportError:
     config_to_json = None
 
 from homeassistant.components.bluetooth import (
+    BluetoothReachabilityIntent,
+    async_address_reachability_diagnostics,
     async_ble_device_from_address,
     async_clear_advertisement_history,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import (
-    ConfigEntryAuthFailed,
-    ConfigEntryNotReady,
-)
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
 from homeassistant.helpers.typing import ConfigType
@@ -335,8 +334,12 @@ def _cache_last_seen(
     )
 
 
-def _get_encryption_key(entry_data: Mapping[str, Any]) -> bytes | None:
+def _get_encryption_key(
+    entry_data: Mapping[str, Any] | OpenDisplayConfigEntry,
+) -> bytes | None:
     """Return the encryption key bytes from entry data, or None."""
+    if isinstance(entry_data, ConfigEntry):
+        entry_data = entry_data.data
     raw = _normalize_stored_encryption_key(entry_data.get(CONF_ENCRYPTION_KEY))
     if raw is None:
         return None
@@ -375,12 +378,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
     fw: FirmwareVersion
     device_config: GlobalConfig
     is_flex: bool
+    landing_url: str | None = None
     startup_from_cache = False
 
     if ble_device is None:
         if cached_runtime is None or _deep_sleep_seconds(cached_runtime[1]) <= 0:
             raise ConfigEntryNotReady(
-                f"Could not find OpenDisplay device with address {address}"
+                translation_domain=DOMAIN,
+                translation_key="device_not_found",
+                translation_placeholders={
+                    "address": address,
+                    "reason": async_address_reachability_diagnostics(
+                        hass,
+                        address.upper(),
+                        BluetoothReachabilityIntent.CONNECTION,
+                    ),
+                },
             )
         fw, device_config, is_flex = cached_runtime
         startup_from_cache = True
@@ -400,6 +413,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
                 ) as device:
                     fw = await device.read_firmware_version()
                     is_flex = device.is_flex
+                    landing_url = device.landing_url()
                     device_config = device.config
                     if TYPE_CHECKING:
                         assert device_config is not None
@@ -497,15 +511,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
         manufacturer=manufacturer.manufacturer_name,
         model=f"{size} {color_scheme}",
         sw_version=f"{fw['major']}.{fw['minor']}",
-        hw_version=(
-            f"{manufacturer.board_type_name or manufacturer.board_type}"
-            f" rev. {manufacturer.board_revision}"
-        )
+        hw_version=f"{manufacturer.board_type_name or manufacturer.board_type}"
         if is_flex
         else None,
-        configuration_url="https://opendisplay.org/firmware/config/"
-        if is_flex
-        else None,
+        configuration_url=landing_url,
     )
 
     entry.runtime_data = OpenDisplayRuntimeData(
@@ -583,6 +592,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
     entry.async_on_unload(coordinator.async_add_listener(_on_coordinator_update))
     entry.async_on_unload(async_register_pending_upload_listener(hass, entry))
 
+    @callback
+    def _schedule_reboot_reload() -> None:
+        """Re-read firmware/config after the device signals a reboot."""
+        hass.async_create_task(_async_reload_after_reboot(hass, entry))
+
+    entry.async_on_unload(coordinator.async_subscribe_reboot(_schedule_reboot_reload))
+
     return True
 
 
@@ -592,6 +608,24 @@ def _get_platforms(runtime_data: OpenDisplayRuntimeData) -> list[Platform]:
     if not runtime_data.is_flex and runtime_data.device_config.touch_controllers:
         platforms.append(Platform.EVENT)
     return platforms
+
+
+async def _async_reload_after_reboot(
+    hass: HomeAssistant, entry: OpenDisplayConfigEntry
+) -> None:
+    """Re-read firmware/config after a device reboot by reloading the entry.
+
+    Triggered by the coordinator when the advertised reboot flag goes
+    False -> True. Reloading re-runs async_setup_entry, which reconnects (clearing
+    the device's reboot flag), re-reads firmware + config, and rebuilds device
+    info and platforms. Defers until any in-progress image upload finishes so an
+    unrelated reboot detection does not abort the user's upload.
+    """
+    runtime = entry.runtime_data
+    upload_task = runtime.upload_task if runtime is not None else None
+    if upload_task is not None and not upload_task.done():
+        await asyncio.gather(upload_task, return_exceptions=True)
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(

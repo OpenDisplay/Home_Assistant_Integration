@@ -259,6 +259,7 @@ drawcustom:
       name: Background color
       description: Background color
       required: true
+      default: "white"
       example: white
       selector:
         select:
@@ -298,16 +299,15 @@ drawcustom:
             - "jarvis_judice_ninke"
     refresh_type:
       name: Refresh type
-      description: E-paper refresh mode (0=full, 1=fast)
-      required: false
-      default: "0"
+      description: E-paper refresh mode
+      required: true
+      default: "full"
       selector:
         select:
+          translation_key: refresh_mode
           options:
-            - label: "Full (best quality)"
-              value: "0"
-            - label: "Fast"
-              value: "1"
+            - "full"
+            - "fast"
     dry-run:
       name: Dry run
       description: Generate image without sending to device

@@ -152,6 +152,9 @@
     },
     "upload_error": {
       "message": "Failed to upload to the display: {error}"
+    },
+    "url_not_allowed": {
+      "message": "URL `{url}` is not allowed. Add it to `allowlist_external_urls` in your configuration.yaml."
     }
   },
   "selector": {
@@ -200,7 +203,7 @@
           "name": "Fit mode"
         },
         "image": {
-          "description": "The image to upload to the display.",
+          "description": "The image to upload to the display. Pick a media item, or provide a direct image URL (the URL must be added to allowlist_external_urls).",
           "name": "Image"
         },
         "refresh_mode": {
