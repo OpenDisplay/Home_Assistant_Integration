@@ -30,7 +30,11 @@ class OpenDisplayImageEntity(ImageEntity):
     _attr_translation_key = "content"
     _attr_content_type = "image/jpeg"
 
-    def __init__(self, hass: HomeAssistant, coordinator: OpenDisplayCoordinator) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        coordinator: OpenDisplayCoordinator,
+    ) -> None:
         """Initialize the image entity."""
         super().__init__(hass)
         self._coordinator = coordinator

@@ -20,6 +20,7 @@ class OpenDisplayEntity(
     """Base class for all OpenDisplay entities."""
 
     _attr_has_entity_name = True
+    _attr_assumed_state = False
     entity_description: _DescriptionT
 
     def __init__(
@@ -35,3 +36,13 @@ class OpenDisplayEntity(
         self._attr_device_info = DeviceInfo(
             connections={(CONNECTION_BLUETOOTH, coordinator.address)},
         )
+
+    @property
+    def available(self) -> bool:
+        """Return True when coordinator reports device available."""
+        return self.coordinator.available
+
+    @property
+    def assumed_state(self) -> bool:
+        """OpenDisplay entities do not expose assumed state."""
+        return False

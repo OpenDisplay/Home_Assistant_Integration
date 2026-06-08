@@ -50,7 +50,28 @@
       }
     }
   },
+  "options": {
+    "error": {
+      "invalid_timeout_margin": "Enter a value between 0 and 1440 minutes."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "deep_sleep_timeout_margin_minutes": "Deep sleep timeout margin"
+        },
+        "data_description": {
+          "deep_sleep_timeout_margin_minutes": "Additional time, in minutes, to keep a deep-sleep device available after its expected wake-up time."
+        },
+        "title": "OpenDisplay options"
+      }
+    }
+  },
   "entity": {
+    "binary_sensor": {
+      "pending_upload": {
+        "name": "Pending upload"
+      }
+    },
     "image": {
       "content": {
         "name": "Display content"
@@ -90,6 +111,12 @@
       },
       "last_seen": {
         "name": "Last seen"
+      },
+      "deep_sleep_time": {
+        "name": "Deep sleep time"
+      },
+      "expected_wakeup": {
+        "name": "Expected wake-up"
       }
     },
     "update": {

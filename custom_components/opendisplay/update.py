@@ -7,7 +7,11 @@ import logging
 import aiohttp
 from opendisplay.models.firmware import firmware_release_repo
 
-from homeassistant.components.update import UpdateDeviceClass, UpdateEntity, UpdateEntityDescription
+from homeassistant.components.update import (
+    UpdateDeviceClass,
+    UpdateEntity,
+    UpdateEntityDescription,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -39,11 +43,14 @@ async def async_setup_entry(
     )
 
 
-class OpenDisplayFirmwareUpdateEntity(OpenDisplayEntity[UpdateEntityDescription], UpdateEntity):
+class OpenDisplayFirmwareUpdateEntity(
+    OpenDisplayEntity[UpdateEntityDescription],
+    UpdateEntity,
+):
     """Firmware update entity for an OpenDisplay device."""
 
     _attr_latest_version: str | None = None
-    should_poll = True  # override coordinator's should_poll=False; GitHub needs regular polling
+    should_poll = True
 
     def __init__(self, coordinator, entry: OpenDisplayConfigEntry) -> None:
         """Initialize the entity."""
@@ -68,7 +75,10 @@ class OpenDisplayFirmwareUpdateEntity(OpenDisplayEntity[UpdateEntityDescription]
     def release_url(self) -> str | None:
         """Return URL to the GitHub release page."""
         if self._firmware_repo and self._attr_latest_version:
-            return f"https://github.com/{self._firmware_repo}/releases/tag/{self._attr_latest_version}"
+            return (
+                f"https://github.com/{self._firmware_repo}/releases/tag/"
+                f"{self._attr_latest_version}"
+            )
         return None
 
     async def async_added_to_hass(self) -> None:

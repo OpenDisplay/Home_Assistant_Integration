@@ -17,25 +17,61 @@ import voluptuous as vol
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_ble_device_from_address,
+    async_clear_advertisement_history,
     async_discovered_service_info,
 )
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlowWithReload,
+)
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import callback
 
 from .const import (
+    CONF_DEEP_SLEEP_TIMEOUT_MARGIN_MINUTES,
     CONF_ENCRYPTION_KEY,
     DOMAIN,
+    MAX_DEEP_SLEEP_TIMEOUT_MARGIN_MINUTES,
+    MIN_DEEP_SLEEP_TIMEOUT_MARGIN_MINUTES,
 )
+from .deep_sleep import deep_sleep_timeout_margin_minutes
 
 _LOGGER = logging.getLogger(__name__)
 
 
 _ENCRYPTION_KEY_VALIDATOR = vol.All(str.strip, str.lower, vol.Match(r"^[0-9a-f]{32}$"))
+_DEEP_SLEEP_TIMEOUT_MARGIN_VALIDATOR = vol.All(
+    vol.Coerce(int),
+    vol.Range(
+        min=MIN_DEEP_SLEEP_TIMEOUT_MARGIN_MINUTES,
+        max=MAX_DEEP_SLEEP_TIMEOUT_MARGIN_MINUTES,
+    ),
+)
+
+
+def _options_schema(config_entry: ConfigEntry) -> vol.Schema:
+    """Return the options form schema."""
+    current_margin = deep_sleep_timeout_margin_minutes(config_entry.options)
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_DEEP_SLEEP_TIMEOUT_MARGIN_MINUTES,
+                default=current_margin,
+            ): _DEEP_SLEEP_TIMEOUT_MARGIN_VALIDATOR
+        }
+    )
 
 
 class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for OpenDisplay."""
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlowWithReload:
+        """Return the options flow."""
+        return OpenDisplayOptionsFlow()
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -50,10 +86,15 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
         if ble_device is None:
             raise BLEConnectionError(f"Could not find connectable device for {address}")
 
-        async with OpenDisplayDevice(
-            mac_address=address, ble_device=ble_device, encryption_key=encryption_key
-        ) as device:
-            await device.read_firmware_version()
+        try:
+            async with OpenDisplayDevice(
+                mac_address=address,
+                ble_device=ble_device,
+                encryption_key=encryption_key,
+            ) as device:
+                await device.read_firmware_version()
+        finally:
+            async_clear_advertisement_history(self.hass, address)
 
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfoBleak
@@ -155,7 +196,7 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
         """Test connection, populate errors, and return True on success."""
         try:
             await self._async_test_connection(address, encryption_key)
-        except AuthenticationFailedError, AuthenticationRequiredError:
+        except (AuthenticationFailedError, AuthenticationRequiredError):
             errors[CONF_ENCRYPTION_KEY] = "invalid_auth"
         except OpenDisplayError:
             errors["base"] = "cannot_connect"
@@ -240,5 +281,36 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
                 {vol.Optional(CONF_ENCRYPTION_KEY, default=""): str}
             ),
             description_placeholders={"name": reauth_entry.title},
+            errors=errors,
+        )
+
+
+class OpenDisplayOptionsFlow(OptionsFlowWithReload):
+    """Handle OpenDisplay options."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage OpenDisplay options."""
+        errors: dict[str, str] = {}
+        config_entry = self.config_entry
+
+        if user_input is not None:
+            try:
+                timeout_margin = _DEEP_SLEEP_TIMEOUT_MARGIN_VALIDATOR(
+                    user_input[CONF_DEEP_SLEEP_TIMEOUT_MARGIN_MINUTES]
+                )
+            except vol.Invalid:
+                errors[CONF_DEEP_SLEEP_TIMEOUT_MARGIN_MINUTES] = (
+                    "invalid_timeout_margin"
+                )
+            else:
+                options = dict(config_entry.options)
+                options[CONF_DEEP_SLEEP_TIMEOUT_MARGIN_MINUTES] = timeout_margin
+                return self.async_create_entry(title="", data=options)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_options_schema(config_entry),
             errors=errors,
         )

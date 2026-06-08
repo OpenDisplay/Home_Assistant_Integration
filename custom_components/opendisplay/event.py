@@ -39,7 +39,7 @@ async def async_setup_entry(
     entry: OpenDisplayConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up OpenDisplay event entities from binary_inputs and touch_controllers config."""
+    """Set up OpenDisplay event entities from binary and touch controller config."""
     coordinator = entry.runtime_data.coordinator
     entity_registry = er.async_get(hass)
 
@@ -92,7 +92,9 @@ async def async_setup_entry(
                 icon="mdi:gesture-tap",
             )
         )
-        touch_trackers.append(TouchTracker(tc.instance_number, tc.touch_data_start_byte))
+        touch_trackers.append(
+            TouchTracker(tc.instance_number, tc.touch_data_start_byte)
+        )
 
     coordinator.touch_trackers = touch_trackers
 
