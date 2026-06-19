@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 import contextlib
+from dataclasses import replace
 from datetime import timedelta
 from enum import IntEnum
 import io
@@ -26,6 +27,7 @@ from opendisplay import (
     RefreshMode,
     Rotation,
 )
+from opendisplay.partial import PartialState, align_rect, compute_partial_region
 from PIL import Image as PILImage, ImageOps
 import voluptuous as vol
 
@@ -59,6 +61,25 @@ ATTR_REFRESH_MODE = "refresh_mode"
 ATTR_FIT_MODE = "fit_mode"
 ATTR_TONE_COMPRESSION = "tone_compression"
 
+try:
+    REFRESH_PARTIAL_FULL = RefreshMode.PARTIAL_FULL
+except AttributeError:
+
+    class _RefreshPartialFull:
+        """Partial refresh with a full-screen aligned rectangle."""
+
+        value = 3
+
+    REFRESH_PARTIAL_FULL = _RefreshPartialFull()
+
+
+def _is_partial_refresh(refresh_mode: Any) -> bool:
+    return refresh_mode in (RefreshMode.PARTIAL, REFRESH_PARTIAL_FULL)
+
+
+def _is_partial_full(refresh_mode: Any) -> bool:
+    return refresh_mode is REFRESH_PARTIAL_FULL
+
 
 def _str_to_int_enum(enum_class: type[IntEnum]) -> Callable[[str], Any]:
     """Convert a lowercase enum name string to an enum member."""
@@ -84,27 +105,23 @@ def _dither_value(value: Any) -> DitherMode:
     return _str_to_int_enum(DitherMode)(value)
 
 
-def _refresh_type_value(value: Any) -> RefreshMode:
-    """Accept names ("full"/"fast") and legacy numeric values.
-
-    `partial` is not implemented yet, so it is not offered and any partial-ish
-    input (legacy 2/3, or an explicit "partial") falls back to fast.
-    """
+def _refresh_type_value(value: Any) -> RefreshMode | Any:
+    """Accept refresh mode names and legacy numeric values."""
     if isinstance(value, (int, float)) or (
         isinstance(value, str) and value.lstrip("-").isdigit()
     ):
         n = int(value)
-        if n in (2, 3):  # legacy partial / partial2 -> fast (partial not implemented)
-            return RefreshMode.FAST
+        if n == 2:
+            return RefreshMode.PARTIAL
+        if n == 3:
+            return REFRESH_PARTIAL_FULL
         try:
-            mode = RefreshMode(n)
+            return RefreshMode(n)
         except ValueError as err:
             raise vol.Invalid(f"Invalid refresh_type: {value}") from err
-    else:
-        mode = _str_to_int_enum(RefreshMode)(value)
-    if mode is RefreshMode.PARTIAL:  # reserved for the future, not implemented yet
-        return RefreshMode.FAST
-    return mode
+    if isinstance(value, str) and value == "partial_full":
+        return REFRESH_PARTIAL_FULL
+    return _str_to_int_enum(RefreshMode)(value)
 
 
 SCHEMA_UPLOAD_IMAGE = vol.Schema(
@@ -117,7 +134,7 @@ SCHEMA_UPLOAD_IMAGE = vol.Schema(
             vol.Coerce(int), vol.Coerce(Rotation)
         ),
         vol.Optional(ATTR_DITHER_MODE, default="burkes"): _str_to_int_enum(DitherMode),
-        vol.Optional(ATTR_REFRESH_MODE, default="full"): _str_to_int_enum(RefreshMode),
+        vol.Optional(ATTR_REFRESH_MODE, default="full"): _refresh_type_value,
         vol.Optional(ATTR_FIT_MODE, default="contain"): _str_to_int_enum(FitMode),
         vol.Optional(ATTR_TONE_COMPRESSION): vol.All(
             vol.Coerce(float), vol.Range(min=0.0, max=100.0)
@@ -332,6 +349,17 @@ async def _async_connect_and_run(
         ) from err
 
 
+def _full_screen_partial_region(*args: Any, **kwargs: Any) -> Any:
+    """Wrap compute_partial_region to always use the full aligned screen rect."""
+    region = compute_partial_region(*args, **kwargs)
+    if isinstance(region, str):
+        return region
+    rx, ry, rw, rh = align_rect(
+        0, 0, region.width, region.height, region.width, region.height, 8
+    )
+    return replace(region, rx=rx, ry=ry, rw=rw, rh=rh)
+
+
 async def _async_send_image(
     hass: HomeAssistant,
     entry: "OpenDisplayConfigEntry",
@@ -344,7 +372,41 @@ async def _async_send_image(
     rotate: Rotation = Rotation.ROTATE_0,
 ) -> None:
     """Upload a PIL image to the device."""
+    partial_state = entry.runtime_data.partial_state
+    if refresh_mode is RefreshMode.FULL:
+        entry.runtime_data.partial_state = PartialState()
+        upload_state: PartialState | None = entry.runtime_data.partial_state
+    elif refresh_mode is RefreshMode.FAST:
+        entry.runtime_data.partial_state = PartialState()
+        upload_state = None
+    elif _is_partial_refresh(refresh_mode):
+        upload_state = partial_state
+    else:
+        upload_state = None
+
     async def _upload(device: OpenDisplayDevice) -> None:
+        if _is_partial_full(refresh_mode):
+            import opendisplay.device as device_module
+            import opendisplay.partial as partial_module
+
+            original_partial = partial_module.compute_partial_region
+            original_device = device_module.compute_partial_region
+            partial_module.compute_partial_region = _full_screen_partial_region
+            device_module.compute_partial_region = _full_screen_partial_region
+            try:
+                await device.upload_image(
+                    img,
+                    refresh_mode=RefreshMode.PARTIAL,
+                    dither_mode=dither_mode,
+                    tone=tone,
+                    fit=fit,
+                    rotate=rotate,
+                    state=upload_state,
+                )
+            finally:
+                partial_module.compute_partial_region = original_partial
+                device_module.compute_partial_region = original_device
+            return
         await device.upload_image(
             img,
             refresh_mode=refresh_mode,
@@ -352,6 +414,7 @@ async def _async_send_image(
             tone=tone,
             fit=fit,
             rotate=rotate,
+            state=upload_state,
         )
     await _async_connect_and_run(hass, entry, _upload)
     jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)

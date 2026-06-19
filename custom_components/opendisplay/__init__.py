@@ -2,7 +2,7 @@
 
 import asyncio
 import contextlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from opendisplay import (
@@ -14,6 +14,7 @@ from opendisplay import (
     OpenDisplayDevice,
     OpenDisplayError,
 )
+from opendisplay.partial import PartialState
 
 from homeassistant.components.bluetooth import (
     BluetoothReachabilityIntent,
@@ -50,6 +51,7 @@ class OpenDisplayRuntimeData:
     device_config: GlobalConfig
     is_flex: bool
     upload_task: asyncio.Task | None = None
+    partial_state: PartialState = field(default_factory=PartialState)
 
 
 type OpenDisplayConfigEntry = ConfigEntry[OpenDisplayRuntimeData]

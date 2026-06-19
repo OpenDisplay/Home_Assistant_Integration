@@ -158,7 +158,9 @@
     "refresh_mode": {
       "options": {
         "fast": "Fast",
-        "full": "Full"
+        "full": "Full",
+        "partial": "Partial (changed region)",
+        "partial_full": "Partial (full screen)"
       }
     }
   },
@@ -183,7 +185,7 @@
           "name": "Image"
         },
         "refresh_mode": {
-          "description": "The display refresh mode. Full refresh clears ghosting but is slower. Fast refresh is not supported on all displays.",
+          "description": "The display refresh mode. Partial updates only the changed region on B/W displays with partial_update_support; use full first in a session to seed state.",
           "name": "Refresh mode"
         },
         "rotation": {

@@ -48,6 +48,8 @@ upload_image:
               options:
                 - "full"
                 - "fast"
+                - "partial"
+                - "partial_full"
         fit_mode:
           required: false
           default: "contain"
@@ -308,6 +310,8 @@ drawcustom:
           options:
             - "full"
             - "fast"
+            - "partial"
+            - "partial_full"
     tone_compression:
       name: Tone compression
       description: Tone compression strength (0–100%). Omit to use automatic tone mapping.
