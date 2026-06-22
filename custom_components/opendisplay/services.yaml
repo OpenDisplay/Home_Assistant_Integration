@@ -308,6 +308,17 @@ drawcustom:
           options:
             - "full"
             - "fast"
+    tone_compression:
+      name: Tone compression
+      description: Tone compression strength (0–100%). Omit to use automatic tone mapping.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          mode: slider
+          unit_of_measurement: "%"
     dry-run:
       name: Dry run
       description: Generate image without sending to device

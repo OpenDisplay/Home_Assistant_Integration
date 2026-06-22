@@ -193,8 +193,13 @@ SCHEMA_DRAWCUSTOM = vol.Schema(
         vol.Optional("refresh_type", default="full"): vol.All(
             _coerce_none_to_default("full"), _refresh_type_value
         ),
+        vol.Optional(ATTR_TONE_COMPRESSION): vol.All(
+            vol.Coerce(float), vol.Range(min=0.0, max=100.0)
+        ),
         vol.Optional("dry-run", default=False): cv.boolean,
-    }
+    },
+    # Silently drop legacy keys (ttl, preload_type, preload_lut, ...).
+    extra=vol.REMOVE_EXTRA,
 )
 
 
@@ -1342,11 +1347,16 @@ async def _drawcustom_for_device(
 
     dither_mode: DitherMode = call.data["dither"]
     refresh_mode: RefreshMode = call.data["refresh_type"]
+    tone_compression_pct: float | None = call.data.get(ATTR_TONE_COMPRESSION)
+    tone_compression: float | str = (
+        tone_compression_pct / 100.0 if tone_compression_pct is not None else "auto"
+    )
 
     pending = PendingDisplayUpload(
         image=img,
         dither_mode=dither_mode,
         refresh_mode=refresh_mode,
+        tone=tone_compression,
         rotate=Rotation(rotate),
         source="drawcustom",
     )
