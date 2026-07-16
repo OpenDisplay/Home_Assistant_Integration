@@ -513,16 +513,12 @@ async def _async_send_image(
         device_id=device_id,
     )
 
-    # If HA already has a fresh/connectable device, ask the queue to drain now
-    # in the background. Stale sleepy devices wait for the next advertisement,
-    # keeping the service response deterministic and fast.
-    ble_device = async_ble_device_from_address(hass, entry.unique_id, connectable=True)
-    last_seen = runtime.coordinator.data.last_seen if runtime.coordinator.data else None
-    if ble_device is not None and (
-        not runtime.sleep_profile.is_sleepy
-        or not runtime.sleep_profile.probably_asleep(last_seen)
-    ):
-        manager.notify_device_seen("queued-submit")
+    # Always ask the queue to drain in the background after a new submission.
+    # The service does not decide whether the device is currently reachable; the
+    # drain path owns reachability checks and leaves the frame queued if there is
+    # no connectable device yet. "queued-submit" is only an internal source label
+    # for logging/diagnostics, not a Home Assistant or BLE protocol term.
+    manager.notify_device_seen("queued-submit")
 
     return receipt
 

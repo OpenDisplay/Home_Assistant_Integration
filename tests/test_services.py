@@ -80,16 +80,13 @@ def _send(hass, entry):
     )
 
 
-def _patches(ble_device="ble-device"):
+def _patches():
     """Common patch set for a _async_send_image drive."""
     return (
         patch.object(
             services_mod, "prepare_image", return_value=(b"img", None, object())
         ),
         patch.object(services_mod, "_pil_to_jpeg", return_value=b"jpeg"),
-        patch.object(
-            services_mod, "async_ble_device_from_address", return_value=ble_device
-        ),
         patch.object(services_mod, "OpenDisplayDevice"),
     )
 
@@ -97,8 +94,8 @@ def _patches(ble_device="ble-device"):
 @pytest.mark.asyncio
 async def test_image_send_always_queues_and_does_not_open_live_connection():
     hass, entry, _, manager = _make_env(last_seen=None)
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4 as od:
+    p1, p2, p3 = _patches()
+    with p1, p2, p3 as od:
         receipt = await _send(hass, entry)
 
     assert receipt.status == "queued"
@@ -109,8 +106,8 @@ async def test_image_send_always_queues_and_does_not_open_live_connection():
 @pytest.mark.asyncio
 async def test_queue_submission_threads_prepared_frame_state_and_refresh_mode():
     hass, entry, _, manager = _make_env(last_seen=None)
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4:
+    p1, p2, p3 = _patches()
+    with p1, p2, p3:
         await _send(hass, entry)
 
     kwargs = manager.submit_upload.call_args.kwargs
@@ -124,8 +121,8 @@ async def test_queue_submission_threads_prepared_frame_state_and_refresh_mode():
 @pytest.mark.asyncio
 async def test_fresh_sleepy_device_kicks_background_drain():
     hass, entry, _, manager = _make_env(last_seen=time.time())
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4:
+    p1, p2, p3 = _patches()
+    with p1, p2, p3:
         receipt = await _send(hass, entry)
 
     assert receipt.status == "queued"
@@ -133,25 +130,31 @@ async def test_fresh_sleepy_device_kicks_background_drain():
 
 
 @pytest.mark.asyncio
-async def test_stale_sleepy_device_waits_for_next_advert():
+async def test_stale_sleepy_device_still_kicks_background_drain():
     hass, entry, _, manager = _make_env(last_seen=None)
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4:
+    p1, p2, p3 = _patches()
+    with p1, p2, p3:
         receipt = await _send(hass, entry)
 
     assert receipt.status == "queued"
-    manager.notify_device_seen.assert_not_called()
+    manager.notify_device_seen.assert_called_once_with("queued-submit")
 
 
 @pytest.mark.asyncio
-async def test_no_connectable_ble_device_waits_for_next_advert():
+async def test_image_send_does_not_check_ble_reachability():
     hass, entry, _, manager = _make_env(last_seen=time.time())
-    p1, p2, p3, p4 = _patches(ble_device=None)
-    with p1, p2, p3, p4:
+    p1, p2, p3 = _patches()
+    with (
+        p1,
+        p2,
+        p3,
+        patch.object(services_mod, "async_ble_device_from_address") as ble_lookup,
+    ):
         receipt = await _send(hass, entry)
 
     assert receipt.status == "queued"
-    manager.notify_device_seen.assert_not_called()
+    ble_lookup.assert_not_called()
+    manager.notify_device_seen.assert_called_once_with("queued-submit")
 
 
 @pytest.mark.asyncio
@@ -159,8 +162,8 @@ async def test_not_sleepy_device_kicks_background_drain_when_connectable():
     hass, entry, _, manager = _make_env(
         profile=_profile(sleep_mode="off"), last_seen=None
     )
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4:
+    p1, p2, p3 = _patches()
+    with p1, p2, p3:
         receipt = await _send(hass, entry)
 
     assert receipt.status == "queued"
@@ -171,8 +174,8 @@ async def test_not_sleepy_device_kicks_background_drain_when_connectable():
 async def test_missing_delivery_manager_raises_upload_error():
     hass, entry, _, _ = _make_env(manager=None)
     entry.runtime_data.delivery = None
-    p1, p2, p3, p4 = _patches()
-    with p1, p2, p3, p4, pytest.raises(HomeAssistantError):
+    p1, p2, p3 = _patches()
+    with p1, p2, p3, pytest.raises(HomeAssistantError):
         await _send(hass, entry)
 
 
