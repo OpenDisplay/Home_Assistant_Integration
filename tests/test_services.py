@@ -7,6 +7,7 @@ service module's HA/BLE touchpoints (``prepare_image``, ``_pil_to_jpeg``,
 """
 
 import asyncio
+from datetime import timedelta
 import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from opendisplay import BLEConnectionError, RefreshMode, DitherMode
 from PIL import Image as PILImage
 import pytest
+import voluptuous as vol
 
 from custom_components.opendisplay import services as services_mod
 from custom_components.opendisplay.const import (
@@ -26,7 +28,11 @@ from custom_components.opendisplay.delivery import DeliveryReceipt
 from custom_components.opendisplay.services import (
     PROBE_CONNECT_TIMEOUT_S,
     PROBE_MAX_ATTEMPTS,
+    SCHEMA_DRAWCUSTOM,
+    SCHEMA_UPLOAD_IMAGE,
+    _async_drawcustom,
     _async_send_image,
+    _expire_seconds,
 )
 from custom_components.opendisplay.sleep import SleepProfile
 
@@ -99,7 +105,7 @@ def _device_ctx_factory(device=None, exc=None, on_enter=None):
     return MagicMock(side_effect=lambda **kwargs: _Ctx())
 
 
-def _send(hass, entry):
+def _send(hass, entry, expire_seconds=86400.0):
     img = PILImage.new("RGB", (1, 1))
     return _async_send_image(
         hass,
@@ -107,6 +113,7 @@ def _send(hass, entry):
         img,
         dither_mode=DitherMode.NONE,
         refresh_mode=RefreshMode.FULL,
+        expire_seconds=expire_seconds,
     )
 
 
@@ -156,6 +163,73 @@ async def test_probe_failure_queues():
     assert receipt.status == "queued"
     od.assert_called_once()
     manager.submit_upload.assert_called_once()
+    assert manager.submit_upload.call_args.kwargs["expire_seconds"] == 86400.0
+
+
+def test_expire_schema_accepts_seconds_zero_and_duration_strings():
+    upload = SCHEMA_UPLOAD_IMAGE(
+        {
+            "device_id": "device",
+            "image": "https://example.com/image.png",
+            "expire": 60,
+        }
+    )
+    draw = SCHEMA_DRAWCUSTOM(
+        {
+            "device_id": ["device"],
+            "payload": [],
+            "expire": 0,
+        }
+    )
+    duration = SCHEMA_DRAWCUSTOM(
+        {
+            "device_id": ["device"],
+            "payload": [],
+            "expire": "00:05:00",
+        }
+    )
+
+    assert upload["expire"] == timedelta(seconds=60)
+    assert draw["expire"] == timedelta(0)
+    assert duration["expire"] == timedelta(minutes=5)
+
+
+def test_expire_schema_rejects_negative_values():
+    with pytest.raises(vol.Invalid):
+        SCHEMA_UPLOAD_IMAGE(
+            {
+                "device_id": "device",
+                "image": "https://example.com/image.png",
+                "expire": -1,
+            }
+        )
+
+
+def test_expire_seconds_normalizes_default_positive_and_infinite():
+    _, entry, _, _ = _make_env(profile=_profile(queue_timeout_hours=2))
+
+    assert _expire_seconds(entry, SimpleNamespace(data={})) == 7200
+    assert _expire_seconds(
+        entry, SimpleNamespace(data={"expire": timedelta(seconds=30)})
+    ) == 30
+    assert _expire_seconds(entry, SimpleNamespace(data={"expire": timedelta(0)})) is None
+
+
+@pytest.mark.asyncio
+async def test_drawcustom_response_all_infinite_queued_expiry_is_none():
+    call = SimpleNamespace(
+        hass=MagicMock(),
+        data={"device_id": ["a", "b"], "label_id": [], "area_id": []},
+    )
+    with patch.object(
+        services_mod,
+        "_drawcustom_for_device",
+        return_value=DeliveryReceipt(status="queued", expires_at=None),
+    ):
+        response = await _async_drawcustom(call)
+
+    assert response["status"] == "queued"
+    assert response["expires_at"] is None
 
 
 @pytest.mark.asyncio

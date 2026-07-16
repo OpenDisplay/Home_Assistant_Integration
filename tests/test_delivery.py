@@ -67,7 +67,7 @@ def _make_env(profile=None, entry_data=None, last_seen=None, options=None):
     return hass, entry, coordinator
 
 
-def _submit(mgr, device_id="dev1"):
+def _submit(mgr, device_id="dev1", expire_seconds=86400.0):
     return mgr.submit_upload(
         prepared=(b"img", None, object()),
         refresh_mode=RefreshMode.FULL,
@@ -75,6 +75,7 @@ def _submit(mgr, device_id="dev1"):
         use_measured_palettes=False,
         preview_jpeg=b"jpeg",
         device_id=device_id,
+        expire_seconds=expire_seconds,
     )
 
 
@@ -118,8 +119,25 @@ def test_submit_upload_queues_and_reports():
     assert snap.queued_at is not None
     assert snap.attempts == 0
     later.assert_called_once()  # deadline armed
+    assert later.call_args.args[1] == 86400.0
     # Both the image preview and the pending-state signals were dispatched.
     assert dispatch.call_count == 2
+
+
+def test_submit_upload_with_infinite_expiry_queues_without_deadline():
+    hass, entry, _ = _make_env()
+    with (
+        patch.object(delivery_mod, "async_call_later") as later,
+        patch.object(delivery_mod, "async_dispatcher_send"),
+    ):
+        mgr = DeliveryManager(hass, entry)
+        receipt = _submit(mgr, expire_seconds=None)
+
+    assert receipt.status == "queued"
+    assert receipt.expires_at is None
+    assert mgr.state.pending is True
+    assert mgr.state.expires_at is None
+    later.assert_not_called()
 
 
 def test_latest_wins_cancels_previous_deadline():
@@ -135,6 +153,23 @@ def test_latest_wins_cancels_previous_deadline():
 
     cancels[0].assert_called_once()  # the first deadline timer was cancelled
     assert mgr.state.pending is True
+
+
+def test_latest_wins_replaces_finite_with_infinite_without_new_deadline():
+    hass, entry, _ = _make_env()
+    cancel = MagicMock()
+    with (
+        patch.object(delivery_mod, "async_call_later", return_value=cancel) as later,
+        patch.object(delivery_mod, "async_dispatcher_send"),
+    ):
+        mgr = DeliveryManager(hass, entry)
+        _submit(mgr, device_id="a", expire_seconds=60)
+        _submit(mgr, device_id="b", expire_seconds=None)
+
+    cancel.assert_called_once()
+    assert later.call_count == 1
+    assert mgr.state.pending is True
+    assert mgr.state.expires_at is None
 
 
 def test_expiry_clears_slot_and_fires_event():
@@ -456,6 +491,7 @@ async def test_drain_passes_state_and_refresh_mode():
             use_measured_palettes=False,
             preview_jpeg=b"jpeg",
             device_id="dev1",
+            expire_seconds=86400.0,
         )
         await mgr._deliver()
 

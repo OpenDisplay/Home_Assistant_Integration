@@ -79,6 +79,7 @@ ATTR_REFRESH_MODE = "refresh_mode"
 ATTR_FIT_MODE = "fit_mode"
 ATTR_TONE_COMPRESSION = "tone_compression"
 ATTR_USE_MEASURED_PALETTES = "measured_palette"
+ATTR_EXPIRE = "expire"
 
 
 def _str_to_int_enum(enum_class: type[IntEnum]) -> Callable[[str], Any]:
@@ -142,6 +143,7 @@ SCHEMA_UPLOAD_IMAGE = vol.Schema(
             vol.Coerce(float), vol.Range(min=0.0, max=100.0)
         ),
         vol.Optional(ATTR_USE_MEASURED_PALETTES, default=True): cv.boolean,
+        vol.Optional(ATTR_EXPIRE): cv.positive_time_period,
     }
 )
 
@@ -160,6 +162,7 @@ SCHEMA_DRAWCUSTOM = vol.Schema(
             vol.Coerce(float), vol.Range(min=0.0, max=100.0)
         ),
         vol.Optional(ATTR_USE_MEASURED_PALETTES, default=False): cv.boolean,
+        vol.Optional(ATTR_EXPIRE): cv.positive_time_period,
         vol.Optional("dry-run", default=False): cv.boolean,
     },
     extra=vol.REMOVE_EXTRA,  # silently drop legacy keys (ttl, preload_type, preload_lut, ...)
@@ -462,6 +465,7 @@ async def _async_send_image(
     tone: float | str = "auto",
     rotate: Rotation = Rotation.ROTATE_0,
     use_measured_palettes: bool = False,
+    expire_seconds: float | None,
 ) -> DeliveryReceipt:
     """Upload a PIL image, delivering live or queuing it for the next wake.
 
@@ -526,6 +530,7 @@ async def _async_send_image(
             use_measured_palettes=use_measured_palettes,
             preview_jpeg=jpeg,
             device_id=device_id,
+            expire_seconds=expire_seconds,
         )
 
     async def _upload(device: OpenDisplayDevice) -> None:
@@ -596,6 +601,15 @@ def _receipt_response(receipt: DeliveryReceipt) -> ServiceResponse:
     return {"status": receipt.status, "expires_at": expires_at}
 
 
+def _expire_seconds(entry: "OpenDisplayConfigEntry", call: ServiceCall) -> float | None:
+    """Resolve the service expiry option to seconds, or None for no expiry."""
+    expire = call.data.get(ATTR_EXPIRE)
+    if expire is None:
+        return entry.runtime_data.sleep_profile.queue_timeout_s
+    seconds = expire.total_seconds()
+    return None if seconds == 0 else seconds
+
+
 async def _async_upload_image(call: ServiceCall) -> ServiceResponse:
     """Handle the upload_image service call."""
     entry = _get_entry_for_device(call)
@@ -611,6 +625,7 @@ async def _async_upload_image(call: ServiceCall) -> ServiceResponse:
         tone_compression_pct / 100.0 if tone_compression_pct is not None else "auto"
     )
     use_measured_palettes: bool = call.data[ATTR_USE_MEASURED_PALETTES]
+    expire_seconds = _expire_seconds(entry, call)
 
     # A plain URL (e.g. an automation pushing a rendered snapshot) must be
     # explicitly allowlisted; media-source items are already trusted.
@@ -662,6 +677,7 @@ async def _async_upload_image(call: ServiceCall) -> ServiceResponse:
             tone=tone_compression,
             rotate=rotation,
             use_measured_palettes=use_measured_palettes,
+            expire_seconds=expire_seconds,
         )
         return _receipt_response(receipt)
     except asyncio.CancelledError:
@@ -806,11 +822,13 @@ async def _async_drawcustom(call: ServiceCall) -> ServiceResponse:
         )
 
     # Summarize across all targets: any queued device makes the batch "queued"
-    # (with the soonest expiry); otherwise delivered (or dry_run).
-    queued = [r for r in receipts if r.status == "queued" and r.expires_at is not None]
+    # (with the soonest finite expiry, or None if all queued uploads are infinite);
+    # otherwise delivered (or dry_run).
+    queued = [r for r in receipts if r.status == "queued"]
     if queued:
         status = "queued"
-        expires_epoch: float | None = min(r.expires_at for r in queued)  # type: ignore[type-var]
+        finite_expiries = [r.expires_at for r in queued if r.expires_at is not None]
+        expires_epoch: float | None = min(finite_expiries) if finite_expiries else None
     elif receipts and all(r.status == "dry_run" for r in receipts):
         status = "dry_run"
         expires_epoch = None
@@ -881,6 +899,7 @@ async def _drawcustom_for_device(
         tone_compression_pct / 100.0 if tone_compression_pct is not None else "auto"
     )
     use_measured_palettes: bool = call.data[ATTR_USE_MEASURED_PALETTES]
+    expire_seconds = _expire_seconds(entry, call)
 
     return await _async_send_image(
         hass,
@@ -892,6 +911,7 @@ async def _drawcustom_for_device(
         tone=tone_compression,
         rotate=Rotation(rotate),
         use_measured_palettes=use_measured_palettes,
+        expire_seconds=expire_seconds,
     )
 
 
