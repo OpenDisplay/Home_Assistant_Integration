@@ -67,13 +67,13 @@ def _make_env(profile=None, entry_data=None, last_seen=None, options=None):
     return hass, entry, coordinator
 
 
-def _submit(mgr, device_id="dev1"):
+def _submit(mgr, device_id="dev1", data=b"img", preview_jpeg=b"jpeg"):
     return mgr.submit_upload(
-        prepared=(b"img", None, object()),
+        prepared=(data, None, object()),
         refresh_mode=RefreshMode.FULL,
         partial_state=MagicMock(),
         use_measured_palettes=False,
-        preview_jpeg=b"jpeg",
+        preview_jpeg=preview_jpeg,
         device_id=device_id,
     )
 
@@ -214,6 +214,87 @@ async def test_drain_delivers_upload():
     assert mgr.state.pending is False
     fired = [call.args[0] for call in hass.bus.async_fire.call_args_list]
     assert EVENT_CONTENT_DELIVERED in fired
+
+
+@pytest.mark.asyncio
+async def test_drain_success_does_not_clear_newer_upload_queued_mid_send():
+    """A completed superseded upload must not clear the newer pending slot."""
+    hass, entry, _ = _make_env()
+    scheduled = []
+
+    def _capture(_hass, coro, _name):
+        scheduled.append(coro)
+        if len(scheduled) > 1:
+            coro.close()  # follow-up drain is asserted, not run in this test
+        return MagicMock()
+
+    entry.async_create_background_task = MagicMock(side_effect=_capture)
+    device = MagicMock()
+
+    async def _upload(_prepared, **_kwargs):
+        _submit(mgr, device_id="b", data=b"b", preview_jpeg=b"b-jpeg")
+        mgr.notify_device_seen("queued-submit")
+
+    device.upload_prepared_image = AsyncMock(side_effect=_upload)
+    with (
+        patch.object(delivery_mod, "async_call_later", return_value=MagicMock()),
+        patch.object(delivery_mod, "async_dispatcher_send"),
+        patch.object(delivery_mod, "async_ble_device_from_address", return_value=MagicMock()),
+        patch.object(delivery_mod, "OpenDisplayDevice", side_effect=_fake_device_ctx(device)),
+    ):
+        mgr = DeliveryManager(hass, entry)
+        _submit(mgr, device_id="a", data=b"a", preview_jpeg=b"a-jpeg")
+        mgr.notify_device_seen("ble")
+        await scheduled[0]
+
+    device.upload_prepared_image.assert_awaited_once()
+    assert device.upload_prepared_image.await_args.args[0][0] == b"a"
+    assert mgr._pending_upload is not None
+    assert mgr._pending_upload.device_id == "b"
+    assert mgr._pending_upload.attempts == 0
+    assert mgr.state.last_error is None
+    assert len(scheduled) == 2  # B requested a follow-up drain after A finished.
+
+
+@pytest.mark.asyncio
+async def test_drain_failure_does_not_penalize_newer_upload_queued_mid_send():
+    """A failed superseded upload must not count as an attempt against the replacement."""
+    hass, entry, _ = _make_env()
+    scheduled = []
+
+    def _capture(_hass, coro, _name):
+        scheduled.append(coro)
+        if len(scheduled) > 1:
+            coro.close()  # follow-up drain is asserted, not run in this test
+        return MagicMock()
+
+    entry.async_create_background_task = MagicMock(side_effect=_capture)
+    device = MagicMock()
+
+    async def _upload(_prepared, **_kwargs):
+        _submit(mgr, device_id="b", data=b"b", preview_jpeg=b"b-jpeg")
+        mgr.notify_device_seen("queued-submit")
+        raise BLEConnectionError("lost link")
+
+    device.upload_prepared_image = AsyncMock(side_effect=_upload)
+    with (
+        patch.object(delivery_mod, "async_call_later", return_value=MagicMock()),
+        patch.object(delivery_mod, "async_dispatcher_send"),
+        patch.object(delivery_mod, "async_ble_device_from_address", return_value=MagicMock()),
+        patch.object(delivery_mod, "OpenDisplayDevice", side_effect=_fake_device_ctx(device)),
+    ):
+        mgr = DeliveryManager(hass, entry)
+        _submit(mgr, device_id="a", data=b"a", preview_jpeg=b"a-jpeg")
+        mgr.notify_device_seen("ble")
+        await scheduled[0]
+
+    device.upload_prepared_image.assert_awaited_once()
+    assert device.upload_prepared_image.await_args.args[0][0] == b"a"
+    assert mgr._pending_upload is not None
+    assert mgr._pending_upload.device_id == "b"
+    assert mgr._pending_upload.attempts == 0
+    assert mgr.state.last_error is None
+    assert len(scheduled) == 2  # B requested a follow-up drain after A failed.
 
 
 @pytest.mark.asyncio
