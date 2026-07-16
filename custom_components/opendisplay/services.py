@@ -305,18 +305,6 @@ class _DeviceUnavailable(Exception):
     """
 
 
-# Probe budget for a probably-asleep tag: one connect attempt, short timeout.
-# 5 s is >2x the observed 1-3 s connect-during-window latency (plus proxy
-# slack), so a genuinely awake tag connects comfortably, while a dark ESP32
-# (radio fully off in timer deep sleep) costs at most ~5 s before queuing —
-# vs the ~40 s default budget (4 attempts x 10 s). Deliberately below both the
-# 10 s wake window and the 15 s freshness horizon (wake_window_s +
-# FRESHNESS_SLACK_S), so a probe triggered by a just-missed advert still lands
-# inside the window it is betting on.
-PROBE_CONNECT_TIMEOUT_S = 5.0
-PROBE_MAX_ATTEMPTS = 1
-
-
 async def _async_connect_and_run(
     hass: HomeAssistant,
     entry: "OpenDisplayConfigEntry",
@@ -463,17 +451,7 @@ async def _async_send_image(
     rotate: Rotation = Rotation.ROTATE_0,
     use_measured_palettes: bool = False,
 ) -> DeliveryReceipt:
-    """Upload a PIL image, delivering live or queuing it for the next wake.
-
-    Returns a receipt describing whether the frame was delivered immediately or
-    queued (for a sleeping device). Non-sleepy devices always deliver live and
-    keep the original strict-failure behavior.
-    """
-    # Split the upload into its heavy CPU half and its BLE-I/O half. The CPU
-    # work (rotate + fit + dither + encode + zlib on a full frame) is offloaded
-    # to an executor thread so it never blocks the event loop; only the BLE
-    # transfer runs on the loop. This mirrors what device.upload_image() does
-    # internally, but that call ran _prepare_image synchronously on the loop.
+    """Prepare and queue a PIL image for asynchronous delivery."""
     config = entry.runtime_data.device_config
     display_cfg = config.displays[0] if config and config.displays else None
     # Match upload_image(): only ask prepare_image() to build compressed data
@@ -513,77 +491,36 @@ async def _async_send_image(
     # image entity immediately (D6), not only after a successful delivery.
     jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)
 
-    profile = runtime.sleep_profile
+    # Image services are queue-only: a successful service call means "accepted
+    # for delivery", never "visible on the panel". Every set-up entry should
+    # have a DeliveryManager; fail loudly if setup invariants are broken.
     manager = runtime.delivery
-    sleepy = manager is not None and profile.is_sleepy
-
-    def _queue() -> DeliveryReceipt:
-        assert manager is not None
-        return manager.submit_upload(
-            prepared=prepared,
-            refresh_mode=refresh_mode,
-            partial_state=state,
-            use_measured_palettes=use_measured_palettes,
-            preview_jpeg=jpeg,
-            device_id=device_id,
+    if manager is None:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="upload_error",
+            translation_placeholders={"error": "delivery manager unavailable"},
         )
 
-    async def _upload(device: OpenDisplayDevice) -> None:
-        await device.upload_prepared_image(
-            prepared, refresh_mode=refresh_mode, state=state
-        )
+    # DeliveryManager owns latest-wins replacement, queue expiry, preview state,
+    # retries, and delivered/expired events. The service does not open BLE.
+    receipt = manager.submit_upload(
+        prepared=prepared,
+        refresh_mode=refresh_mode,
+        partial_state=state,
+        use_measured_palettes=use_measured_palettes,
+        preview_jpeg=jpeg,
+        device_id=device_id,
+    )
 
-    # Freshness gate: a probably-asleep tag will not usually answer a live
-    # connect. Instead of queuing blind, spend one short connect attempt (the
-    # "probe") in case the tag is actually awake: its wake adverts may have
-    # been missed by the scanner, and Silabs tags advertise continuously even
-    # when their power config looks sleepy. A dark ESP32 costs at most
-    # ~PROBE_CONNECT_TIMEOUT_S before falling back to the queue. HA drops the
-    # connectable BLEDevice ~3-5 min after the last advert, so a long-dark or
-    # never-seen tag short-circuits to the queue at near-zero cost (no
-    # BLEDevice -> _DeviceUnavailable without any radio traffic).
-    probing = False
-    connect_kwargs: dict[str, Any] = {}
-    if sleepy:
-        last_seen = (
-            runtime.coordinator.data.last_seen if runtime.coordinator.data else None
-        )
-        if profile.probably_asleep(last_seen):
-            if not profile.probe_before_queue:
-                return _queue()
-            probing = True
-            connect_kwargs = {
-                "connect_timeout": PROBE_CONNECT_TIMEOUT_S,
-                "max_attempts": PROBE_MAX_ATTEMPTS,
-            }
+    # Always ask the queue to drain in the background after a new submission.
+    # The service does not decide whether the device is currently reachable; the
+    # drain path owns reachability checks and leaves the frame queued if there is
+    # no connectable device yet. "queued-submit" is only an internal source label
+    # for logging/diagnostics, not a Home Assistant or BLE protocol term.
+    manager.notify_device_seen("queued-submit")
 
-    try:
-        await _async_connect_and_run(
-            hass,
-            entry,
-            _upload,
-            use_measured_palettes=use_measured_palettes,
-            reraise_ble=sleepy,
-            **connect_kwargs,
-        )
-    except _DeviceUnavailable:
-        # The device was dark, dropped, or refused the link; defer.
-        receipt = _queue()
-        if probing:
-            # Race: a wake advert arriving DURING the failed probe found no
-            # pending work (nothing queued yet), so no drain started. If the
-            # tag now looks fresh, kick a drain instead of waiting out a full
-            # sleep cycle. notify_device_seen is a no-op while one is running.
-            last_seen = (
-                runtime.coordinator.data.last_seen if runtime.coordinator.data else None
-            )
-            if not profile.probably_asleep(last_seen):
-                assert manager is not None
-                manager.notify_device_seen("post-probe")
-        return receipt
-
-    async_dispatcher_send(hass, f"{SIGNAL_IMAGE_UPDATED}_{entry.unique_id}", jpeg)
-    return DeliveryReceipt(status="delivered", expires_at=None)
+    return receipt
 
 
 def _receipt_response(receipt: DeliveryReceipt) -> ServiceResponse:
@@ -623,12 +560,10 @@ async def _async_upload_image(call: ServiceCall) -> ServiceResponse:
             translation_placeholders={"url": image_data},
         )
 
-    # Latest-wins for upload_image specifically: a newer upload cancels an
-    # older still-running one instead of queuing behind it (an automation
-    # pushing a fresh snapshot supersedes the stale one). This composes with the
-    # per-MAC ble_lock without deadlocking: the cancel + await below happens
-    # before _async_send_image acquires the lock, so the cancelled task releases
-    # the lock (its `async with ble_lock` unwinds) before this one takes it.
+    # Latest-wins for upload_image specifically: a newer upload cancels older
+    # still-running download/prepare work before it can replace the queue slot.
+    # Once a frame reaches DeliveryManager.submit_upload(), the queue's own
+    # latest-wins behavior supersedes the previous pending frame.
     current = asyncio.current_task()
     if (prev := entry.runtime_data.upload_task) is not None and not prev.done():
         prev.cancel()

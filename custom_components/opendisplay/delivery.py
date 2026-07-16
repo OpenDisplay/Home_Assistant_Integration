@@ -135,7 +135,9 @@ class DeliveryManager:
         self._pending_config_resync: bool = False
         self._last_error: str | None = None
 
+        self._active_upload: PendingUpload | None = None
         self._delivering: bool = False
+        self._delivery_requested: bool = False
         self._delivery_task: asyncio.Task[None] | None = None
         self._unsub_device_seen: CALLBACK_TYPE | None = None
 
@@ -165,7 +167,9 @@ class DeliveryManager:
             except Exception:  # noqa: BLE001 - shutdown must not raise
                 _LOGGER.debug("Delivery task raised during shutdown", exc_info=True)
         self._delivery_task = None
+        self._active_upload = None
         self._delivering = False
+        self._delivery_requested = False
 
     # -- public state -------------------------------------------------------
 
@@ -237,10 +241,17 @@ class DeliveryManager:
     @callback
     def notify_device_seen(self, source: str = "ble") -> None:
         """Start a delivery drain if there is pending work and none in flight."""
-        if self._delivering or not self._has_pending_work():
+        if not self._has_pending_work():
+            return
+        if self._delivering:
+            # A newer submission can arrive while an older frame is already
+            # streaming. Remember the request so latest-wins work is drained
+            # after the current BLE operation releases the single connection.
+            self._delivery_requested = True
             return
         _LOGGER.debug("%s: device seen (%s); starting delivery", self._address, source)
         self._delivering = True
+        self._delivery_requested = False
         self._delivery_task = self._entry.async_create_background_task(
             self._hass, self._deliver(), f"opendisplay_delivery_{self._address}"
         )
@@ -267,6 +278,7 @@ class DeliveryManager:
             # read/connect timeouts as BLETimeoutError, so a bare TimeoutError here
             # can only be the asyncio.timeout(DELIVERY_DEADLINE_S) firing.)
             self._register_attempt_failure(
+                self._active_upload,
                 f"delivery deadline exceeded ({DELIVERY_DEADLINE_S:.0f}s)"
             )
             _LOGGER.error(
@@ -283,21 +295,27 @@ class DeliveryManager:
         except (BLEConnectionError, BLETimeoutError) as err:
             # Device slept mid-connect or the wake window was missed; keep the
             # work queued and try again on the next wake.
-            self._register_attempt_failure(str(err))
+            self._register_attempt_failure(self._active_upload, str(err))
         except (AuthenticationFailedError, AuthenticationRequiredError):
             # Bad/rotated key: pause the upload and prompt the user to reauth.
             _LOGGER.warning("%s: delivery auth failed; starting reauth", self._address)
-            if self._pending_upload is not None:
-                self._pending_upload.paused = True
+            upload = self._active_upload or self._pending_upload
+            if upload is not None and self._pending_upload is upload:
+                upload.paused = True
             self._last_error = "auth"
             self._entry.async_start_reauth(self._hass)
             self._notify_state()
         except OpenDisplayError as err:
             _LOGGER.warning("%s: delivery failed: %s", self._address, err)
-            self._register_attempt_failure(str(err))
+            self._register_attempt_failure(self._active_upload, str(err))
         finally:
+            delivery_requested = self._delivery_requested
+            self._active_upload = None
             self._delivering = False
             self._delivery_task = None
+            self._delivery_requested = False
+            if delivery_requested and self._has_pending_work():
+                self.notify_device_seen("follow-up")
 
     async def _drain_once(self) -> None:
         """The connection + drain body (see `_deliver` for error handling)."""
@@ -313,7 +331,7 @@ class DeliveryManager:
             )
             if ble_device is None:
                 # The advertisement that woke us has already aged out; retry next.
-                self._register_attempt_failure("device not connectable")
+                self._register_attempt_failure(None, "device not connectable")
                 return
 
             upload = self._pending_upload
@@ -335,7 +353,9 @@ class DeliveryManager:
                 ) as device,
             ):
                 if upload is not None and not upload.paused:
+                    self._active_upload = upload
                     await self._drain_upload(device, upload)
+                    self._active_upload = None
                 if self._pending_config_resync:
                     await self._drain_resync(device)
 
@@ -350,6 +370,15 @@ class DeliveryManager:
         )
         if upload.cancel_deadline:
             upload.cancel_deadline()
+        if self._pending_upload is not upload:
+            # A newer image was queued while this frame was in flight. The BLE
+            # stream used the captured upload object, so the panel gets one whole
+            # old frame; keep the newer slot pending for the next drain.
+            _LOGGER.debug(
+                "%s: delivered superseded content; newer content remains queued",
+                self._address,
+            )
+            return
         self._pending_upload = None
         self._last_error = None
         # Bump the image entity's timestamp to when the frame actually landed.
@@ -434,14 +463,25 @@ class DeliveryManager:
 
     # -- helpers ------------------------------------------------------------
 
-    def _register_attempt_failure(self, reason: str) -> None:
+    def _register_attempt_failure(
+        self, upload: PendingUpload | None, reason: str
+    ) -> None:
         """Record a failed wake attempt and keep the work queued.
 
         After ``MAX_DELIVERY_ATTEMPTS`` failures the upload is given up and
         dropped (``_give_up_upload``) so a frame that can never be delivered does
         not retry on every wake until ``queue_timeout``.
         """
-        upload = self._pending_upload
+        upload = upload or self._pending_upload
+        if upload is not None and self._pending_upload is not upload:
+            # The failed BLE operation belonged to a superseded frame. Do not
+            # increment attempts or set errors on the newer pending frame.
+            _LOGGER.debug(
+                "%s: superseded delivery attempt failed (%s); newer content remains queued",
+                self._address,
+                reason,
+            )
+            return
         if upload is not None:
             upload.attempts += 1
             if upload.attempts >= MAX_DELIVERY_ATTEMPTS:
