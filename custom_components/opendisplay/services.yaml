@@ -74,6 +74,10 @@ upload_image:
           default: false
           selector:
             boolean:
+        expire:
+          required: false
+          selector:
+            duration:
 
 activate_led:
   fields:
@@ -333,6 +337,12 @@ drawcustom:
       default: false
       selector:
         boolean:
+    expire:
+      name: Expire
+      description: How long queued content remains valid. Omit to use the integration default; set to 0 for no time-based expiry.
+      required: false
+      selector:
+        duration:
     dry-run:
       name: Dry run
       description: Generate image without sending to device

@@ -235,6 +235,10 @@
                 "measured_palette": {
                     "description": "Use the panel's measured color palette when available. Turn off to dither against the theoretical color scheme. No effect on panels without measured data.",
                     "name": "Use measured palette"
+                },
+                "expire": {
+                    "description": "How long queued content remains valid. Leave empty to use the integration default; set to 0 for no time-based expiry.",
+                    "name": "Expire"
                 }
             },
             "name": "Upload image",
@@ -366,6 +370,10 @@
                 "measured_palette": {
                     "description": "Use the panel's measured color palette when available. Turn off to dither against the theoretical color scheme. No effect on panels without measured data.",
                     "name": "Use measured palette"
+                },
+                "expire": {
+                    "description": "How long queued content remains valid. Leave empty to use the integration default; set to 0 for no time-based expiry.",
+                    "name": "Expire"
                 },
                 "dry-run": {
                     "description": "Generate image without uploading to the device.",

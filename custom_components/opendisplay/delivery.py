@@ -92,7 +92,7 @@ class PendingUpload:
     preview_jpeg: bytes
     device_id: str | None
     queued_at: float
-    expires_at: float
+    expires_at: float | None
     attempts: int = 0
     # Set when a delivery hit an auth failure; suppresses further doomed
     # attempts until the entry reloads after reauth.
@@ -193,13 +193,14 @@ class DeliveryManager:
         use_measured_palettes: bool,
         preview_jpeg: bytes,
         device_id: str | None,
+        expire_seconds: float | None,
     ) -> DeliveryReceipt:
         """Queue a prepared image for delivery at the next wake (latest-wins)."""
         now = time.time()
         # Latest-wins: drop any previously queued image and its deadline timer.
         if self._pending_upload is not None and self._pending_upload.cancel_deadline:
             self._pending_upload.cancel_deadline()
-        expires_at = now + self._profile.queue_timeout_s
+        expires_at = None if expire_seconds is None else now + expire_seconds
         slot = PendingUpload(
             prepared=prepared,
             refresh_mode=refresh_mode,
@@ -210,7 +211,8 @@ class DeliveryManager:
             queued_at=now,
             expires_at=expires_at,
         )
-        self._schedule_expiry(slot)
+        if expire_seconds is not None:
+            self._schedule_expiry(slot, expire_seconds)
         self._pending_upload = slot
         self._last_error = None
         # Show the intended frame immediately (the image entity now reflects
@@ -383,7 +385,7 @@ class DeliveryManager:
     # -- expiry -------------------------------------------------------------
 
     @callback
-    def _schedule_expiry(self, slot: PendingUpload) -> None:
+    def _schedule_expiry(self, slot: PendingUpload, expire_seconds: float) -> None:
         """Arm the deadline timer that expires this queued upload."""
 
         @callback
@@ -393,7 +395,7 @@ class DeliveryManager:
                 self._expire_upload(slot)
 
         slot.cancel_deadline = async_call_later(
-            self._hass, self._profile.queue_timeout_s, _expired
+            self._hass, expire_seconds, _expired
         )
 
     @callback
@@ -402,9 +404,8 @@ class DeliveryManager:
         self._pending_upload = None
         self._last_error = "expired"
         _LOGGER.warning(
-            "%s: queued content expired after %s h without a wake",
+            "%s: queued content expired without a wake",
             self._address,
-            self._profile.queue_timeout_hours,
         )
         self._fire_content_event(EVENT_CONTENT_EXPIRED, slot)
         self._notify_state()
