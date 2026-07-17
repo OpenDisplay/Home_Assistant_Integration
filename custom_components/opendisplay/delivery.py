@@ -44,6 +44,7 @@ from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later
 
+from .ble_lock import ble_connection
 from .const import (
     CONF_BLOCKS_PER_ACK,
     CONF_ENCRYPTION_KEY,
@@ -307,7 +308,7 @@ class DeliveryManager:
             return
 
         runtime = self._entry.runtime_data
-        async with runtime.ble_lock:
+        async with ble_connection(self._address, "queued content delivery"):
             ble_device = async_ble_device_from_address(
                 self._hass, self._address, connectable=True
             )

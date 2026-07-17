@@ -33,6 +33,7 @@ from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
 from homeassistant.helpers.typing import ConfigType
 
+from .ble_lock import async_get_ble_lock, ble_connection
 from .const import CONF_CACHED_STATE, CONF_ENCRYPTION_KEY, DOMAIN, SETUP_DEADLINE_S
 from .coordinator import OpenDisplayCoordinator
 from .delivery import DeliveryManager
@@ -70,12 +71,15 @@ class OpenDisplayRuntimeData:
     is_flex: bool
     # Resolved deep-sleep behavior (options + device power config).
     sleep_profile: SleepProfile
+    # Serializes every BLE connection to this tag. Process-global per-MAC
+    # (ble_lock.py), so the same lock object is shared across every connect site
+    # and survives entry reloads. The device exposes a single BLE link with no
+    # per-address lock in the library, so drawcustom/upload_image, LED, buzzer
+    # and OTA must not open overlapping connections or they race and surface a
+    # confusing upload_error. Required (no default) so a future construction
+    # can't silently mint a private, non-shared lock and recreate this bug.
+    ble_lock: asyncio.Lock
     upload_task: asyncio.Task | None = None
-    # Serializes every BLE connection to this tag (one config entry == one MAC).
-    # The device exposes a single BLE link with no per-address lock in the
-    # library, so drawcustom/upload_image, LED, buzzer and OTA must not open
-    # overlapping connections or they race and surface a confusing upload_error.
-    ble_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     # Tracks the last uploaded frame + etag for differential partial updates
     # (0x76). Replaced with a fresh instance on every full/fast refresh so the
     # next partial diffs against the frame actually on the panel.
@@ -235,7 +239,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
             # wedged BLE link can't stall setup forever; a breach is treated like
             # any other connect failure below (sleepy-cache fallback / retry).
             async with asyncio.timeout(SETUP_DEADLINE_S):
-                async with OpenDisplayDevice(
+                async with ble_connection(address, "setup interrogation"), OpenDisplayDevice(
                     mac_address=address,
                     ble_device=ble_device,
                     encryption_key=encryption_key,
@@ -308,6 +312,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
         device_config=device_config,
         is_flex=is_flex,
         sleep_profile=profile,
+        ble_lock=async_get_ble_lock(address),
         config_resync_pending=from_cache,
     )
 

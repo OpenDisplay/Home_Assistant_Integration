@@ -39,6 +39,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 
+from .ble_lock import ble_connection
 from .const import (
     CONF_BLOCKS_PER_ACK,
     CONF_ENCRYPTION_KEY,
@@ -156,7 +157,9 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
         # maps to "cannot_connect"; AuthenticationRequiredError still propagates.
         try:
             async with asyncio.timeout(CONNECT_PROBE_DEADLINE_S):
-                async with OpenDisplayDevice(
+                async with ble_connection(
+                    address, "connection probe (config flow)"
+                ), OpenDisplayDevice(
                     mac_address=address,
                     ble_device=ble_device,
                     encryption_key=encryption_key,

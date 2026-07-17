@@ -32,6 +32,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import OpenDisplayConfigEntry, _get_encryption_key
+from .ble_lock import ble_connection
 from .const import DOMAIN
 from .entity import OpenDisplayEntity
 
@@ -245,7 +246,7 @@ class OpenDisplayFirmwareUpdateEntity(OpenDisplayEntity[UpdateEntityDescription]
             # half-connecting can't hold the lock forever (OTA_INSTALL_DEADLINE_S).
             async with (
                 asyncio.timeout(OTA_INSTALL_DEADLINE_S) as ota_deadline,
-                self._entry.runtime_data.ble_lock,
+                ble_connection(self._ble_address, "firmware update (OTA)"),
             ):
                 # Only EFR32BG22 (Silabs AppLoader) is flashed over BLE here — see
                 # _OTA_INSTALL_IC_TYPES. The device is either in app mode (and needs

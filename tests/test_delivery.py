@@ -6,6 +6,7 @@ and ``OpenDisplayDevice``) are patched in the delivery module namespace.
 """
 
 import asyncio
+import logging
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -15,6 +16,7 @@ import pytest
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.opendisplay import delivery as delivery_mod
+from custom_components.opendisplay.ble_lock import async_get_ble_lock, ble_connection
 from custom_components.opendisplay.const import (
     CONF_BLOCKS_PER_ACK,
     CONF_MAX_QUEUE_SIZE,
@@ -52,7 +54,6 @@ def _make_env(profile=None, entry_data=None, last_seen=None, options=None):
         coordinator=coordinator,
         sleep_profile=profile,
         device_config=MagicMock(),
-        ble_lock=asyncio.Lock(),
         config_resync_pending=False,
         firmware=None,
         is_flex=False,
@@ -463,6 +464,94 @@ async def test_drain_passes_state_and_refresh_mode():
     call = device.upload_prepared_image.await_args
     assert call.kwargs["state"] is sentinel_state
     assert call.kwargs["refresh_mode"] is RefreshMode.PARTIAL
+
+
+@pytest.mark.asyncio
+async def test_drain_holds_registry_lock_during_connection():
+    """The drain body runs while the process-global per-MAC lock is held."""
+    hass, entry, _ = _make_env()
+    device = MagicMock()
+    device.upload_prepared_image = AsyncMock()
+    held: dict[str, bool] = {}
+
+    def _factory(**kwargs):
+        class _Ctx:
+            async def __aenter__(self):
+                held["locked"] = async_get_ble_lock(ADDRESS).locked()
+                return device
+
+            async def __aexit__(self, *exc):
+                return False
+
+        return _Ctx()
+
+    with (
+        patch.object(delivery_mod, "async_call_later", return_value=MagicMock()),
+        patch.object(delivery_mod, "async_dispatcher_send"),
+        patch.object(delivery_mod, "async_ble_device_from_address", return_value=MagicMock()),
+        patch.object(delivery_mod, "OpenDisplayDevice", side_effect=_factory),
+    ):
+        mgr = DeliveryManager(hass, entry)
+        _submit(mgr)
+        await mgr._deliver()
+
+    assert held["locked"] is True
+
+
+@pytest.mark.asyncio
+async def test_drain_waits_for_preheld_registry_lock(caplog):
+    """A drain queued behind a pre-held registry lock warns and waits."""
+    caplog.set_level(logging.WARNING, logger="custom_components.opendisplay.ble_lock")
+    hass, entry, _ = _make_env()
+    device = MagicMock()
+    device.upload_prepared_image = AsyncMock()
+    order: list[str] = []
+    release = asyncio.Event()
+
+    async def _hold() -> None:
+        async with ble_connection(ADDRESS, "external holder"):
+            order.append("holder-enter")
+            await release.wait()
+            order.append("holder-exit")
+
+    def _factory(**kwargs):
+        class _Ctx:
+            async def __aenter__(self):
+                order.append("drain-connect")
+                return device
+
+            async def __aexit__(self, *exc):
+                return False
+
+        return _Ctx()
+
+    with (
+        patch.object(delivery_mod, "async_call_later", return_value=MagicMock()),
+        patch.object(delivery_mod, "async_dispatcher_send"),
+        patch.object(delivery_mod, "async_ble_device_from_address", return_value=MagicMock()),
+        patch.object(delivery_mod, "OpenDisplayDevice", side_effect=_factory),
+    ):
+        mgr = DeliveryManager(hass, entry)
+        _submit(mgr)
+        holder = asyncio.create_task(_hold())
+        while "holder-enter" not in order:
+            await asyncio.sleep(0)
+        drain = asyncio.create_task(mgr._deliver())
+        # The drain must block on the held lock before it ever connects.
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert "drain-connect" not in order
+        release.set()
+        await asyncio.gather(holder, drain)
+
+    assert order == ["holder-enter", "holder-exit", "drain-connect"]
+    device.upload_prepared_image.assert_awaited_once()
+    warnings = [
+        r for r in caplog.records
+        if r.name == "custom_components.opendisplay.ble_lock"
+        and r.levelno == logging.WARNING
+    ]
+    assert len(warnings) == 1
 
 
 if __name__ == "__main__":

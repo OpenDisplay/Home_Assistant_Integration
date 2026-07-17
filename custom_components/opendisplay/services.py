@@ -61,6 +61,7 @@ from homeassistant.helpers.selector import MediaSelector, MediaSelectorConfig
 if TYPE_CHECKING:
     from . import OpenDisplayConfigEntry
 
+from .ble_lock import ble_connection
 from .const import (
     CONF_BLOCKS_PER_ACK,
     CONF_ENCRYPTION_KEY,
@@ -397,15 +398,15 @@ async def _async_connect_and_run(
         # and the library has no per-address lock, so overlapping connections
         # (two automations, or a drawcustom racing an LED/buzzer/upload on the
         # same MAC) fail with a confusing upload_error. The lock is held for the
-        # full connection lifetime and released on error. Held per config entry,
-        # i.e. per MAC, so different tags are not serialized against each other.
+        # full connection lifetime and released on error. Keyed per MAC, so
+        # different tags are not serialized against each other.
         # Same wall-clock ceiling as the queued-delivery drain: without it a
-        # wedged transfer would hold ble_lock forever and block every later
+        # wedged transfer would hold the lock forever and block every later
         # operation on this MAC (the library's per-read timeouts bound normal
         # failures, but not adversarial/buggy-firmware frame streams).
         async with (
             asyncio.timeout(DELIVERY_DEADLINE_S),
-            entry.runtime_data.ble_lock,
+            ble_connection(address, "service call (upload/drawcustom/LED/buzzer)"),
             OpenDisplayDevice(
                 mac_address=address,
                 ble_device=ble_device,
