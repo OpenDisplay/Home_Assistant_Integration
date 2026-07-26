@@ -2,7 +2,9 @@
 
 from dataclasses import dataclass
 
-from opendisplay.models.advertisement import TouchTracker
+from opendisplay.models import BinaryInputs
+from opendisplay.models.advertisement import ButtonChangeEvent, TouchTracker
+from opendisplay.models.enums import BinaryInputType
 
 from homeassistant.components.event import (
     EventDeviceClass,
@@ -34,6 +36,26 @@ class OpenDisplayTouchEntityDescription(EventEntityDescription):
     instance: int
 
 
+def _button_ids(bi: BinaryInputs) -> list[int]:
+    """Return the button ids reported by one binary_inputs block.
+
+    Digital blocks: one button per set ``input_flags`` bit. Ladder blocks
+    share one ADC pin and report ids id_base..id_base+count-1, with count
+    and id_base at the start of the reserved tail.
+    """
+    if bi.input_type == BinaryInputType.ADC_LADDER:
+        if len(bi.reserved) < 2:
+            return []
+        count = bi.reserved[0]
+        id_base = bi.reserved[1]
+        if not 1 <= count <= BinaryInputs.MAX_LADDER_BUTTONS:
+            return []
+        if id_base + count > BinaryInputs.MAX_BUTTON_ID + 1:
+            return []
+        return list(range(id_base, id_base + count))
+    return [i for i in range(8) if bi.input_flags & (1 << i)]
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: OpenDisplayConfigEntry,
@@ -57,21 +79,25 @@ async def async_setup_entry(
     # --- Button entities ---
     button_descriptions: list[OpenDisplayEventEntityDescription] = []
     button_number = 0
+
+    def _add_button(bi, button_id: int) -> None:
+        nonlocal button_number
+        button_number += 1
+        button_descriptions.append(
+            OpenDisplayEventEntityDescription(
+                key=f"button_{bi.instance_number}_{button_id}",
+                translation_key="button",
+                translation_placeholders={"number": str(button_number)},
+                device_class=EventDeviceClass.BUTTON,
+                event_types=["button_down", "button_up"],
+                byte_index=bi.button_data_byte_index,
+                button_id=button_id,
+            )
+        )
+
     for bi in entry.runtime_data.device_config.binary_inputs:
-        for button_id in range(8):  # input_flags is a bitmask over 8 pin slots
-            if bi.input_flags & (1 << button_id):
-                button_number += 1
-                button_descriptions.append(
-                    OpenDisplayEventEntityDescription(
-                        key=f"button_{bi.instance_number}_{button_id}",
-                        translation_key="button",
-                        translation_placeholders={"number": str(button_number)},
-                        device_class=EventDeviceClass.BUTTON,
-                        event_types=["button_down", "button_up"],
-                        byte_index=bi.button_data_byte_index,
-                        button_id=button_id,
-                    )
-                )
+        for button_id in _button_ids(bi):
+            _add_button(bi, button_id)
 
     _remove_stale(
         f"{coordinator.address}-button_",
@@ -111,6 +137,43 @@ async def async_setup_entry(
     )
 
 
+def _events_for_button(event: ButtonChangeEvent, button_id: int) -> list[str]:
+    """Translate one tracker transition into down/up events for one button.
+
+    Ladder buttons share a report byte: pressing a different button arrives
+    as ``button_slot_changed``, and a press whose frames were dropped by BLE
+    sampling arrives only as ``press_count_changed``.
+    """
+    if event.event_type in ("button_down", "button_up"):
+        return [event.event_type] if event.button_id == button_id else []
+
+    if event.event_type == "button_slot_changed":
+        fired: list[str] = []
+        previous_id = event.previous_raw & 0x07
+        previous_pressed = bool(event.previous_raw & 0x80)
+        if previous_id == button_id and previous_pressed:
+            fired.append("button_up")  # release frame of the old button was lost
+        if event.button_id == button_id:
+            fired.append("button_down")
+            if not event.pressed:
+                fired.append("button_up")  # press and release both in one hop
+        return fired
+
+    if event.event_type == "press_count_changed":
+        # A normal press emits this alongside button_down; only an unchanged
+        # pressed state means presses were dropped between advertisements.
+        if event.button_id != button_id:
+            return []
+        previous_pressed = bool(event.previous_raw & 0x80)
+        if previous_pressed != event.pressed:
+            return []  # the down/up transition was already reported
+        if event.pressed:
+            return ["button_up", "button_down"]  # missed release + re-press
+        return ["button_down", "button_up"]  # missed a full press
+
+    return []
+
+
 class OpenDisplayEventEntity(
     OpenDisplayEntity[OpenDisplayEventEntityDescription], EventEntity
 ):
@@ -124,12 +187,12 @@ class OpenDisplayEventEntity(
         data = self.coordinator.data
         if data is not None and data is not self._last_processed_data:
             for event in data.button_events:
-                if (
-                    event.byte_index == self.entity_description.byte_index
-                    and event.button_id == self.entity_description.button_id
-                    and event.event_type in self.event_types
+                if event.byte_index != self.entity_description.byte_index:
+                    continue
+                for event_type in _events_for_button(
+                    event, self.entity_description.button_id
                 ):
-                    self._trigger_event(event.event_type)
+                    self._trigger_event(event_type)
             self._last_processed_data = data
             self.async_write_ha_state()
 
