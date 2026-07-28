@@ -24,11 +24,11 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from opendisplay import voltage_to_percent
 from opendisplay.models.advertisement import Sht40Reading
-from opendisplay.models.config import SensorData
-from opendisplay.models.enums import CapacityEstimator, PowerMode, SensorType
+from opendisplay.models.config import DisplayConfig, SensorData
+from opendisplay.models.enums import CapacityEstimator, PowerMode, Rotation, SensorType
 
 from . import OpenDisplayConfigEntry
-from .coordinator import OpenDisplayUpdate
+from .coordinator import OpenDisplayCoordinator, OpenDisplayUpdate
 from .entity import OpenDisplayEntity
 
 PARALLEL_UPDATES = 0
@@ -38,7 +38,9 @@ PARALLEL_UPDATES = 0
 class OpenDisplaySensorEntityDescription(SensorEntityDescription):
     """Describes an OpenDisplay sensor entity."""
 
-    value_fn: Callable[[OpenDisplayUpdate], float | int | str | datetime | None]
+    value_fn: (
+        Callable[[OpenDisplayUpdate], float | int | str | datetime | None] | None
+    ) = None
 
 
 # The MCU's own temperature, not an attached sensor. translation_key only sets
@@ -132,9 +134,13 @@ _LAST_SEEN_DESCRIPTION = OpenDisplaySensorEntityDescription(
     device_class=SensorDeviceClass.TIMESTAMP,
     entity_category=EntityCategory.DIAGNOSTIC,
     entity_registry_enabled_default=False,
-    # native_value is overridden by OpenDisplayLastSeenSensor, so this value_fn
-    # is dead code; value_fn is a required field, hence the no-op.
-    value_fn=lambda _upd: None,
+)
+
+_RESOLUTION_DESCRIPTION = OpenDisplaySensorEntityDescription(
+    key="resolution",
+    translation_key="resolution",
+    entity_category=EntityCategory.DIAGNOSTIC,
+    entity_registry_enabled_default=False,
 )
 
 
@@ -173,14 +179,21 @@ async def async_setup_entry(
             ),
         ]
 
-    async_add_entities(
+    entities: list[OpenDisplaySensorEntity] = [
         (
             OpenDisplayLastSeenSensor(coordinator, description)
             if description.key == "last_seen"
             else OpenDisplaySensorEntity(coordinator, description)
         )
         for description in descriptions
-    )
+    ]
+
+    if device_config.displays:
+        entities.append(
+            OpenDisplayResolutionSensor(coordinator, _RESOLUTION_DESCRIPTION, entry)
+        )
+
+    async_add_entities(entities)
 
 
 class OpenDisplaySensorEntity(OpenDisplayEntity, SensorEntity):
@@ -191,9 +204,10 @@ class OpenDisplaySensorEntity(OpenDisplayEntity, SensorEntity):
     @property
     def native_value(self) -> float | int | str | datetime | None:
         """Return the sensor value."""
-        if self.coordinator.data is None:
+        value_fn = self.entity_description.value_fn
+        if value_fn is None or self.coordinator.data is None:
             return None
-        return self.entity_description.value_fn(self.coordinator.data)
+        return value_fn(self.coordinator.data)
 
 
 class OpenDisplayLastSeenSensor(OpenDisplaySensorEntity):
@@ -214,3 +228,55 @@ class OpenDisplayLastSeenSensor(OpenDisplaySensorEntity):
         # wall time with the same offset the advertisement monitor uses.
         wall = info.time + (time.time() - time.monotonic())
         return datetime.fromtimestamp(wall, tz=UTC)
+
+
+class OpenDisplayResolutionSensor(OpenDisplaySensorEntity):
+    """A panel's native resolution, with its physical size and colour scheme."""
+
+    def __init__(
+        self,
+        coordinator: OpenDisplayCoordinator,
+        description: OpenDisplaySensorEntityDescription,
+        entry: OpenDisplayConfigEntry,
+    ) -> None:
+        """Initialize against the config entry whose display is reported."""
+        super().__init__(coordinator, description)
+        self._entry = entry
+
+    @property
+    def _display(self) -> DisplayConfig | None:
+        """Return the display config, re-read since a resync replaces it."""
+        displays = self._entry.runtime_data.device_config.displays
+        return displays[0] if displays else None
+
+    @property
+    def available(self) -> bool:
+        """Return True while the display is in the config, awake or not."""
+        return self._display is not None
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the native resolution as ``WIDTHxHEIGHT``."""
+        display = self._display
+        if display is None:
+            return None
+        return f"{display.pixel_width}x{display.pixel_height}"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, int | str | None] | None:
+        """Return the panel's pixel and physical dimensions, scheme and rotation."""
+        display = self._display
+        if display is None:
+            return None
+        color_scheme = display.color_scheme_enum
+        rotation = display.rotation_enum
+        return {
+            "pixel_width": display.pixel_width,
+            "pixel_height": display.pixel_height,
+            "active_width_mm": display.active_width_mm,
+            "active_height_mm": display.active_height_mm,
+            "color_scheme": (
+                color_scheme if isinstance(color_scheme, int) else color_scheme.name
+            ),
+            "rotation": int(rotation) if isinstance(rotation, Rotation) else None,
+        }

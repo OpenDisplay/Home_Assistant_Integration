@@ -5,6 +5,7 @@ from copy import deepcopy
 from dataclasses import replace
 from datetime import timedelta
 import time
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from habluetooth import CONNECTABLE_FALLBACK_MAXIMUM_STALE_ADVERTISEMENT_SECONDS
@@ -14,6 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from opendisplay import voltage_to_percent
+from opendisplay.models.config import DisplayConfig
 from opendisplay.models.enums import CapacityEstimator, PowerMode
 import pytest
 from pytest_homeassistant_custom_component.common import (
@@ -24,7 +26,9 @@ from pytest_homeassistant_custom_component.common import (
 from syrupy.assertion import SnapshotAssertion
 
 from custom_components.opendisplay.sensor import (
+    _RESOLUTION_DESCRIPTION,
     _TEMPERATURE_DESCRIPTION,
+    OpenDisplayResolutionSensor,
     _sht40_descriptions,
 )
 from tests.bluetooth import (
@@ -389,3 +393,65 @@ async def test_last_seen_unknown_before_any_advertisement(
     assert (
         hass.states.get("sensor.opendisplay_1234_last_seen").state == STATE_UNAVAILABLE
     )
+
+
+# --- resolution ------------------------------------------------------------
+
+
+def _resolution_sensor(*displays: DisplayConfig) -> OpenDisplayResolutionSensor:
+    """Return a resolution sensor over a runtime_data whose config can be swapped."""
+    entry = SimpleNamespace(
+        runtime_data=SimpleNamespace(
+            device_config=SimpleNamespace(displays=list(displays))
+        )
+    )
+    coordinator = MagicMock()
+    coordinator.address = TEST_ADDRESS
+    return OpenDisplayResolutionSensor(coordinator, _RESOLUTION_DESCRIPTION, entry)
+
+
+def test_resolution_reports_the_panel_as_configured() -> None:
+    """The state is the native geometry; the rest of the packet becomes attributes."""
+    sensor = _resolution_sensor(DEVICE_CONFIG.displays[0])
+
+    assert sensor.available
+    assert sensor.native_value == "296x128"
+    assert sensor.extra_state_attributes == {
+        "pixel_width": 296,
+        "pixel_height": 128,
+        "active_width_mm": 67,
+        "active_height_mm": 29,
+        "color_scheme": "BWR",
+        "rotation": 0,
+    }
+
+
+def test_unrecognised_values_do_not_masquerade_as_valid_ones() -> None:
+    """Rotation is reported in degrees, so an unmapped index must not pass for one."""
+    display = replace(DEVICE_CONFIG.displays[0], rotation=99, color_scheme=99)
+
+    attrs = _resolution_sensor(display).extra_state_attributes
+
+    assert attrs["rotation"] is None
+    assert attrs["color_scheme"] == 99
+
+
+def test_config_is_re_read_so_a_wake_time_resync_is_picked_up() -> None:
+    """delivery.py replaces device_config wholesale; a cached display would go stale."""
+    sensor = _resolution_sensor(DEVICE_CONFIG.displays[0])
+    assert sensor.native_value == "296x128"
+
+    sensor._entry.runtime_data.device_config = SimpleNamespace(
+        displays=[replace(DEVICE_CONFIG.displays[0], pixel_width=960, pixel_height=640)]
+    )
+
+    assert sensor.native_value == "960x640"
+
+
+def test_a_display_less_device_reports_nothing() -> None:
+    """No display in the config means no geometry to report, not a zero-sized panel."""
+    sensor = _resolution_sensor()
+
+    assert not sensor.available
+    assert sensor.native_value is None
+    assert sensor.extra_state_attributes is None
