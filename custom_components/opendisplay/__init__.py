@@ -38,6 +38,7 @@ from .coordinator import OpenDisplayCoordinator
 from .delivery import DeliveryManager
 from .services import async_setup_services
 from .sleep import SleepProfile
+from .storage import OpenDisplayContentStore
 
 if TYPE_CHECKING:
     from opendisplay.models import FirmwareVersion
@@ -83,6 +84,8 @@ class OpenDisplayRuntimeData:
     # Set when the entry was set up from cache without connecting; the delivery
     # manager re-reads firmware/config at the next wake and refreshes the cache.
     config_resync_pending: bool = False
+    # Persists the displayed content preview and one latest-wins queued upload.
+    content_store: OpenDisplayContentStore | None = None
     # Owns queued work delivered at the next wake (set in async_setup_entry).
     delivery: DeliveryManager | None = None
 
@@ -308,6 +311,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
         configuration_url=landing_url,
     )
 
+    content_store = OpenDisplayContentStore(hass, entry.entry_id)
+    await content_store.async_load()
+
     entry.runtime_data = OpenDisplayRuntimeData(
         coordinator=coordinator,
         firmware=fw,
@@ -315,6 +321,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
         is_flex=is_flex,
         sleep_profile=profile,
         config_resync_pending=from_cache,
+        content_store=content_store,
     )
 
     # Persist a fresh interrogation so the next dark startup can set up from
@@ -332,6 +339,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
 
     manager = DeliveryManager(hass, entry)
     entry.runtime_data.delivery = manager
+    manager.restore_pending_upload(content_store.pending_upload)
 
     await hass.config_entries.async_forward_entry_setups(
         entry, _get_platforms(entry.runtime_data)

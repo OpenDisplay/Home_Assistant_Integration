@@ -9,7 +9,12 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from opendisplay import AuthenticationFailedError, BLEConnectionError, RefreshMode
+from opendisplay import (
+    AuthenticationFailedError,
+    BLEConnectionError,
+    PartialState,
+    RefreshMode,
+)
 import pytest
 
 from homeassistant.exceptions import HomeAssistantError
@@ -25,6 +30,7 @@ from custom_components.opendisplay.const import (
 )
 from custom_components.opendisplay.delivery import DeliveryManager
 from custom_components.opendisplay.sleep import SleepProfile
+from custom_components.opendisplay.storage import StoredPendingUpload
 
 ADDRESS = "AA:BB:CC:DD:EE:FF"
 
@@ -169,6 +175,38 @@ def test_request_config_resync_sets_flags():
     mgr.request_config_resync()
     assert entry.runtime_data.config_resync_pending is True
     assert mgr._has_pending_work() is True
+
+
+def test_restore_pending_upload_rearms_existing_expiry():
+    hass, entry, _ = _make_env()
+    expires_at = 1234.0
+    upload = StoredPendingUpload(
+        prepared=(b"img", None, MagicMock()),
+        refresh_mode=RefreshMode.FAST,
+        partial_state=PartialState(),
+        use_measured_palettes=True,
+        preview_jpeg=b"jpeg",
+        device_id="dev1",
+        queued_at=1000.0,
+        expires_at=expires_at,
+        attempts=2,
+    )
+
+    with (
+        patch.object(delivery_mod.time, "time", return_value=1200.0),
+        patch.object(delivery_mod, "async_call_later", return_value=MagicMock()) as later,
+        patch.object(delivery_mod, "async_dispatcher_send") as dispatch,
+    ):
+        mgr = DeliveryManager(hass, entry)
+        mgr.restore_pending_upload(upload)
+
+    assert mgr.state.pending is True
+    assert mgr.state.queued_at == 1000.0
+    assert mgr.state.expires_at == expires_at
+    assert mgr.state.attempts == 2
+    later.assert_called_once()
+    assert later.call_args.args[1] == 34.0
+    dispatch.assert_called_once()
 
 
 def test_notify_device_seen_starts_one_delivery():

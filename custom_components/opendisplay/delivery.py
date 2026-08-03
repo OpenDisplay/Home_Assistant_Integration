@@ -14,7 +14,8 @@ Design (see docs/DEEP_SLEEP_IMPLEMENTATION_PLAN_2026-07-06.md, D4):
   pending work drains over a single session in priority order (upload first).
 * Transport-agnostic trigger — `notify_device_seen(source)` is the entry point;
   today the BLE coordinator calls it, a future WiFi presence tracker could too.
-* Memory-only in v1 — a HA restart drops a pending upload (documented).
+* Persistent queued upload — a HA restart reloads the latest queued image and
+  keeps waiting for the next wake, respecting the original expiry timestamp.
 """
 
 from __future__ import annotations
@@ -55,6 +56,7 @@ from .const import (
     SIGNAL_IMAGE_UPDATED,
     SIGNAL_PENDING_STATE,
 )
+from .storage import StoredPendingUpload
 
 if TYPE_CHECKING:
     from . import OpenDisplayConfigEntry
@@ -133,7 +135,10 @@ class DeliveryManager:
 
         self._pending_upload: PendingUpload | None = None
         self._pending_config_resync: bool = False
-        self._last_error: str | None = None
+        content_store = getattr(runtime, "content_store", None)
+        self._last_error: str | None = (
+            content_store.content.last_error if content_store is not None else None
+        )
 
         self._delivering: bool = False
         self._delivery_task: asyncio.Task[None] | None = None
@@ -213,6 +218,7 @@ class DeliveryManager:
         self._schedule_expiry(slot)
         self._pending_upload = slot
         self._last_error = None
+        self._store_pending_upload(slot)
         # Show the intended frame immediately (the image entity now reflects
         # what will be delivered, not what is on the panel).
         async_dispatcher_send(
@@ -220,6 +226,30 @@ class DeliveryManager:
         )
         self._notify_state()
         return DeliveryReceipt(status="queued", expires_at=expires_at)
+
+    @callback
+    def restore_pending_upload(self, upload: StoredPendingUpload | None) -> None:
+        """Restore a persisted queued upload, if it has not expired."""
+        if upload is None:
+            return
+        if upload.expires_at <= time.time():
+            self._last_error = "expired"
+            self._persist_pending_snapshot()
+            return
+        self._pending_upload = PendingUpload(
+            prepared=upload.prepared,
+            refresh_mode=upload.refresh_mode,
+            partial_state=upload.partial_state,
+            use_measured_palettes=upload.use_measured_palettes,
+            preview_jpeg=upload.preview_jpeg,
+            device_id=upload.device_id,
+            queued_at=upload.queued_at,
+            expires_at=upload.expires_at,
+            attempts=upload.attempts,
+            paused=upload.paused,
+        )
+        self._schedule_expiry(self._pending_upload)
+        self._notify_state()
 
     @callback
     def request_config_resync(self) -> None:
@@ -287,9 +317,11 @@ class DeliveryManager:
         except (AuthenticationFailedError, AuthenticationRequiredError):
             # Bad/rotated key: pause the upload and prompt the user to reauth.
             _LOGGER.warning("%s: delivery auth failed; starting reauth", self._address)
+            self._last_error = "auth"
             if self._pending_upload is not None:
                 self._pending_upload.paused = True
-            self._last_error = "auth"
+                self._store_pending_upload(self._pending_upload)
+            self._persist_pending_snapshot()
             self._entry.async_start_reauth(self._hass)
             self._notify_state()
         except OpenDisplayError as err:
@@ -350,8 +382,12 @@ class DeliveryManager:
         )
         if upload.cancel_deadline:
             upload.cancel_deadline()
-        self._pending_upload = None
+        delivered_current = self._pending_upload is upload
+        if delivered_current:
+            self._pending_upload = None
         self._last_error = None
+        if delivered_current:
+            self._clear_pending_upload()
         # Bump the image entity's timestamp to when the frame actually landed.
         async_dispatcher_send(
             self._hass, f"{SIGNAL_IMAGE_UPDATED}_{self._address}", upload.preview_jpeg
@@ -393,7 +429,7 @@ class DeliveryManager:
                 self._expire_upload(slot)
 
         slot.cancel_deadline = async_call_later(
-            self._hass, self._profile.queue_timeout_s, _expired
+            self._hass, max(0.0, slot.expires_at - time.time()), _expired
         )
 
     @callback
@@ -401,6 +437,7 @@ class DeliveryManager:
         """Drop an expired queued upload and fire the expired event."""
         self._pending_upload = None
         self._last_error = "expired"
+        self._clear_pending_upload(last_error="expired")
         _LOGGER.warning(
             "%s: queued content expired after %s h without a wake",
             self._address,
@@ -423,6 +460,7 @@ class DeliveryManager:
             slot.cancel_deadline = None
         self._pending_upload = None
         self._last_error = "failed"
+        self._clear_pending_upload(last_error="failed")
         _LOGGER.error(
             "%s: giving up queued content after %s failed delivery attempts (%s)",
             self._address,
@@ -447,7 +485,9 @@ class DeliveryManager:
             if upload.attempts >= MAX_DELIVERY_ATTEMPTS:
                 self._give_up_upload(upload, reason)
                 return
+            self._store_pending_upload(upload)
         self._last_error = reason
+        self._persist_pending_snapshot()
         _LOGGER.debug(
             "%s: delivery attempt %s/%s failed (%s); will retry next wake",
             self._address,
@@ -456,6 +496,48 @@ class DeliveryManager:
             reason,
         )
         self._notify_state()
+
+    @callback
+    def _store_pending_upload(self, slot: PendingUpload) -> None:
+        """Persist the current queued upload slot."""
+        store = getattr(self._entry.runtime_data, "content_store", None)
+        if store is None:
+            return
+        store.store_pending_upload(
+            StoredPendingUpload(
+                prepared=slot.prepared,
+                refresh_mode=slot.refresh_mode,
+                partial_state=slot.partial_state,
+                use_measured_palettes=slot.use_measured_palettes,
+                preview_jpeg=slot.preview_jpeg,
+                device_id=slot.device_id,
+                queued_at=slot.queued_at,
+                expires_at=slot.expires_at,
+                attempts=slot.attempts,
+                paused=slot.paused,
+            )
+        )
+
+    @callback
+    def _clear_pending_upload(self, *, last_error: str | None = None) -> None:
+        """Clear the persisted queued upload slot."""
+        store = getattr(self._entry.runtime_data, "content_store", None)
+        if store is not None:
+            store.clear_pending_upload(last_error=last_error)
+
+    @callback
+    def _persist_pending_snapshot(self) -> None:
+        """Persist queue attributes for entity restore."""
+        store = getattr(self._entry.runtime_data, "content_store", None)
+        if store is not None:
+            state = self.state
+            store.update_pending_snapshot(
+                pending=state.pending,
+                queued_at=state.queued_at,
+                expires_at=state.expires_at,
+                attempts=state.attempts,
+                last_error=state.last_error,
+            )
 
     def _resolve_key(self) -> bytes | None | object:
         """Return the encryption key bytes, None, or a sentinel on bad format."""

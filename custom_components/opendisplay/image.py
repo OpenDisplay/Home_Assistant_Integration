@@ -12,8 +12,8 @@ import homeassistant.util.dt as dt_util
 
 from . import OpenDisplayConfigEntry
 from .const import SIGNAL_IMAGE_UPDATED, SIGNAL_PENDING_STATE
-from .coordinator import OpenDisplayCoordinator
 from .delivery import DeliverySnapshot
+from .storage import OpenDisplayContentStore
 
 PARALLEL_UPDATES = 0
 
@@ -25,7 +25,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the OpenDisplay image entity."""
     async_add_entities(
-        [OpenDisplayImageEntity(hass, entry.runtime_data.coordinator)]
+        [OpenDisplayImageEntity(hass, entry)]
     )
 
 
@@ -43,20 +43,29 @@ class OpenDisplayImageEntity(ImageEntity):
     _attr_translation_key = "content"
     _attr_content_type = "image/jpeg"
 
-    def __init__(self, hass: HomeAssistant, coordinator: OpenDisplayCoordinator) -> None:
+    def __init__(self, hass: HomeAssistant, entry: OpenDisplayConfigEntry) -> None:
         """Initialize the image entity."""
         super().__init__(hass)
+        coordinator = entry.runtime_data.coordinator
         self._coordinator = coordinator
+        self._store: OpenDisplayContentStore | None = entry.runtime_data.content_store
         self._attr_unique_id = f"{coordinator.address}-display_content"
         self._attr_device_info = DeviceInfo(
             connections={(CONNECTION_BLUETOOTH, coordinator.address)},
         )
-        self._image_bytes: bytes | None = None
+        stored = self._store.content if self._store is not None else None
+        self._image_bytes: bytes | None = stored.image_jpeg if stored else None
         # When True the shown frame is queued for the next wake, not yet on the
         # panel (D6).
-        self._pending: bool = False
-        self._queued_at: float | None = None
-        self._last_error: str | None = None
+        self._pending: bool = stored.pending if stored else False
+        self._queued_at: float | None = stored.queued_at if stored else None
+        self._expires_at: float | None = stored.expires_at if stored else None
+        self._attempts: int = stored.attempts if stored else 0
+        self._last_error: str | None = stored.last_error if stored else None
+        if stored and stored.image_last_updated is not None:
+            self._attr_image_last_updated = datetime.fromtimestamp(
+                stored.image_last_updated, tz=timezone.utc
+            )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -94,6 +103,7 @@ class OpenDisplayImageEntity(ImageEntity):
         """Handle a new image from a completed or queued upload."""
         self._image_bytes = image_bytes
         self._attr_image_last_updated = dt_util.utcnow()
+        self._store_content()
         self.async_write_ha_state()
 
     @callback
@@ -101,5 +111,26 @@ class OpenDisplayImageEntity(ImageEntity):
         """Reflect the delivery manager's pending state on the entity."""
         self._pending = snapshot.pending
         self._queued_at = snapshot.queued_at
+        self._expires_at = snapshot.expires_at
+        self._attempts = snapshot.attempts
         self._last_error = snapshot.last_error
+        self._store_content()
         self.async_write_ha_state()
+
+    @callback
+    def _store_content(self) -> None:
+        """Persist the current image entity state."""
+        if self._store is None or self._image_bytes is None:
+            return
+        last_updated = self._attr_image_last_updated
+        self._store.store_content(
+            self._image_bytes,
+            image_last_updated=last_updated.timestamp()
+            if last_updated is not None
+            else datetime.now(tz=timezone.utc).timestamp(),
+            pending=self._pending,
+            queued_at=self._queued_at,
+            expires_at=self._expires_at,
+            attempts=self._attempts,
+            last_error=self._last_error,
+        )

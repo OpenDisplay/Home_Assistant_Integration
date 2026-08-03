@@ -59,6 +59,20 @@ def test_native_value_none_when_no_service_info():
         assert entity.native_value is None
 
 
+def test_native_value_keeps_previous_timestamp_when_service_info_disappears():
+    entity = _make_sensor()
+    mono = time.monotonic()
+    with patch.object(
+        sensor_mod,
+        "async_last_service_info",
+        return_value=SimpleNamespace(time=mono),
+    ):
+        first = entity.native_value
+
+    with patch.object(sensor_mod, "async_last_service_info", return_value=None):
+        assert entity.native_value == first
+
+
 if __name__ == "__main__":
     import pytest
 

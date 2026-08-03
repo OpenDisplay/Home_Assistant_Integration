@@ -21,11 +21,15 @@ from homeassistant.const import (
     PERCENTAGE,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     EntityCategory,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
     UnitOfElectricPotential,
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
+import homeassistant.util.dt as dt_util
 
 from . import OpenDisplayConfigEntry
 from .coordinator import OpenDisplayUpdate
@@ -195,8 +199,22 @@ class OpenDisplaySensorEntity(OpenDisplayEntity, SensorEntity):
         return self.entity_description.value_fn(self.coordinator.data)
 
 
-class OpenDisplayLastSeenSensor(OpenDisplaySensorEntity):
+class OpenDisplayLastSeenSensor(OpenDisplaySensorEntity, RestoreEntity):
     """last_seen sourced from the bluetooth stack, not the gated callback."""
+
+    def __init__(
+        self,
+        coordinator,
+        description: OpenDisplaySensorEntityDescription,
+    ) -> None:
+        """Initialize the last_seen sensor."""
+        super().__init__(coordinator, description)
+        self._last_seen: datetime | None = None
+
+    @property
+    def available(self) -> bool:
+        """Stay available once a last_seen value has been observed."""
+        return self._last_seen is not None or super().available
 
     @property
     def native_value(self) -> datetime | None:
@@ -207,8 +225,18 @@ class OpenDisplayLastSeenSensor(OpenDisplaySensorEntity):
             self.hass, self.coordinator.address, connectable=False
         )
         if info is None:
-            return None
+            return self._last_seen
         # info.time is a monotonic clock (monotonic_time_coarse); convert to
         # wall time with the same offset the advertisement monitor uses.
         wall = info.time + (time.time() - time.monotonic())
-        return datetime.fromtimestamp(wall, tz=timezone.utc)
+        self._last_seen = datetime.fromtimestamp(wall, tz=timezone.utc)
+        return self._last_seen
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the previous last_seen timestamp until Bluetooth has one."""
+        await super().async_added_to_hass()
+        if (last_state := await self.async_get_last_state()) is None:
+            return
+        if last_state.state in {STATE_UNKNOWN, STATE_UNAVAILABLE}:
+            return
+        self._last_seen = dt_util.parse_datetime(last_state.state)
