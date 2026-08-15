@@ -1,0 +1,2 @@
+# Vendored frontend artifacts — hide from GitHub language / PR review noise.
+custom_components/opendisplay/designer/frontend/vendor/** linguist-generated=true

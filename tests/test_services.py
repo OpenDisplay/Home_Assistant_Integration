@@ -36,6 +36,7 @@ from custom_components.opendisplay.services import (
     SCHEMA_PLAY_MELODY,
     _async_play_melody,
     _async_send_image,
+    normalize_drawcustom_elements,
 )
 from custom_components.opendisplay.sleep import SleepProfile
 
@@ -584,3 +585,24 @@ async def test_send_image_forwards_measured_palette_choice(measured):
             use_measured_palettes=measured,
         )
     assert prep.call_args.kwargs.get("use_measured_palettes") is measured
+
+
+def test_normalize_drawcustom_elements_repairs_yaml11_y_key():
+    """PyYAML turns bare ``y:`` into boolean True — restore string key ``y`` (#97)."""
+    repaired = normalize_drawcustom_elements(
+        [
+            {"type": "text", "value": "a", "x": 10, True: 10, "size": 32},
+            {"type": "text", "value": "b", "x": 10, "y": 250, "size": 32},
+            {
+                "type": "plot",
+                "x_start": 0,
+                True: 0,
+                "data": [{"x": 1, True: 2}],
+            },
+        ]
+    )
+    assert repaired[0]["y"] == 10
+    assert True not in repaired[0]
+    assert repaired[1]["y"] == 250
+    assert repaired[2]["y"] == 0
+    assert repaired[2]["data"][0]["y"] == 2

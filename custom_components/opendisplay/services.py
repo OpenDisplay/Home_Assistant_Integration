@@ -909,6 +909,29 @@ def _font_search_dirs(hass: HomeAssistant) -> list[str]:
     return [p for p in candidates if os.path.isdir(p)]
 
 
+def normalize_drawcustom_elements(elements: Any) -> list[Any]:
+    """Restore ``y`` keys booleanized by YAML 1.1 (HA Actions UI / #97)."""
+    if not isinstance(elements, list):
+        return elements
+
+    def _fix(value: Any) -> Any:
+        if isinstance(value, list):
+            return [_fix(item) for item in value]
+        if not isinstance(value, dict):
+            return value
+        out: dict[str, Any] = {}
+        for key, item in value.items():
+            if key is True or key == "true" or key == "True":
+                out.setdefault("y", _fix(item))
+            elif key is False or key == "false" or key == "False":
+                out.setdefault("n", _fix(item))
+            elif not isinstance(key, bool):
+                out[str(key)] = _fix(item)
+        return out
+
+    return [_fix(el) for el in elements]
+
+
 async def _drawcustom_for_device(
     hass: HomeAssistant, device_id: str, call: ServiceCall
 ) -> DeliveryReceipt:
@@ -931,10 +954,12 @@ async def _drawcustom_for_device(
     else:
         gen_width, gen_height = display.pixel_width, display.pixel_height
 
+    elements = normalize_drawcustom_elements(call.data["payload"])
+
     img = await generate_image(
         width=gen_width,
         height=gen_height,
-        elements=call.data["payload"],
+        elements=elements,
         background=call.data["background"],
         accent_color=color_scheme.accent_color,
         session=async_get_clientsession(hass),

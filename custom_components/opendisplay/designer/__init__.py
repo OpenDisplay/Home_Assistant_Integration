@@ -7,11 +7,13 @@ import logging
 from homeassistant.core import HomeAssistant
 
 from ..const import DOMAIN
-from .const import DESIGNER_PANEL_PATH
-from .panel import OpenDisplayDesignerStaticView, async_get_panel_module_url
+from .panel import (
+    DESIGNER_PANEL_PATH,
+    OpenDisplayDesignerStaticView,
+    async_get_panel_module_url,
+)
 
 _LOGGER = logging.getLogger(__name__)
-
 _DESIGNER_KEY = "designer"
 
 
@@ -23,7 +25,6 @@ async def async_setup_designer(hass: HomeAssistant) -> None:
     if not designer_data.get("views_registered"):
         hass.http.register_view(OpenDisplayDesignerStaticView(hass))
         designer_data["views_registered"] = True
-        _LOGGER.debug("Registered OpenDisplay designer static assets")
 
     if designer_data.get("panel_registered"):
         return

@@ -17,46 +17,29 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-_DEFAULT_PLACEHOLDER_SIZE = (296, 128)
-
 
 def _blank_white_jpeg(width: int, height: int) -> bytes:
-    w = max(1, min(int(width), 4096))
-    h = max(1, min(int(height), 4096))
-    img = PILImage.new("RGB", (w, h), (255, 255, 255))
+    img = PILImage.new(
+        "RGB",
+        (max(1, min(width, 4096)), max(1, min(height, 4096))),
+        (255, 255, 255),
+    )
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=90)
     return buf.getvalue()
-
-
-def _placeholder_size(entry: OpenDisplayConfigEntry) -> tuple[int, int]:
-    try:
-        display = entry.runtime_data.device_config.displays[0]
-        w = int(display.pixel_width)
-        h = int(display.pixel_height)
-        if w > 0 and h > 0:
-            return w, h
-    except (AttributeError, IndexError, TypeError, ValueError):
-        pass
-    return _DEFAULT_PLACEHOLDER_SIZE
-
-
-def _capability_device_id(entity: Any, entry: OpenDisplayConfigEntry) -> str:
-    registry_entry = getattr(entity, "registry_entry", None)
-    if registry_entry is not None and registry_entry.device_id:
-        return registry_entry.device_id
-    return resolve_device_id_for_entry(entity.hass, entry) or ""
 
 
 def _refresh_capability_attributes(
     entity: Any, entry: OpenDisplayConfigEntry
 ) -> dict[str, Any]:
     try:
-        return build_capabilities(
-            entry,
-            _capability_device_id(entity, entry),
-            user_rotate_deg=0,
-        )
+        device_id = ""
+        registry_entry = getattr(entity, "registry_entry", None)
+        if registry_entry is not None and registry_entry.device_id:
+            device_id = registry_entry.device_id
+        else:
+            device_id = resolve_device_id_for_entry(entity.hass, entry) or ""
+        return build_capabilities(entry, device_id)
     except Exception:
         _LOGGER.exception(
             "Failed to build designer capabilities for %s",
@@ -77,18 +60,22 @@ async def designer_on_entity_added(
     if entity._image_bytes:
         entity.async_write_ha_state()
         return
-    width, height = _placeholder_size(entry)
+    try:
+        display = entry.runtime_data.device_config.displays[0]
+        width, height = int(display.pixel_width), int(display.pixel_height)
+        if width <= 0 or height <= 0:
+            width, height = 296, 128
+    except (AttributeError, IndexError, TypeError, ValueError):
+        width, height = 296, 128
     try:
         entity._image_bytes = await entity.hass.async_add_executor_job(
             _blank_white_jpeg, width, height
         )
+        entity._attr_image_last_updated = dt_util.utcnow()
     except Exception:
         _LOGGER.exception(
             "Failed to create placeholder image for %s", entity.entity_id
         )
-        entity.async_write_ha_state()
-        return
-    entity._attr_image_last_updated = dt_util.utcnow()
     entity.async_write_ha_state()
 
 
