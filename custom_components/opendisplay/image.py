@@ -14,6 +14,10 @@ from . import OpenDisplayConfigEntry
 from .const import SIGNAL_IMAGE_UPDATED, SIGNAL_PENDING_STATE
 from .coordinator import OpenDisplayCoordinator
 from .delivery import DeliverySnapshot
+from .designer.image_entity import (
+    designer_extra_state_attributes,
+    designer_on_entity_added,
+)
 
 PARALLEL_UPDATES = 0
 
@@ -25,7 +29,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the OpenDisplay image entity."""
     async_add_entities(
-        [OpenDisplayImageEntity(hass, entry.runtime_data.coordinator)]
+        [OpenDisplayImageEntity(hass, entry.runtime_data.coordinator, entry)]
     )
 
 
@@ -43,10 +47,16 @@ class OpenDisplayImageEntity(ImageEntity):
     _attr_translation_key = "content"
     _attr_content_type = "image/jpeg"
 
-    def __init__(self, hass: HomeAssistant, coordinator: OpenDisplayCoordinator) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        coordinator: OpenDisplayCoordinator,
+        entry: OpenDisplayConfigEntry | None = None,
+    ) -> None:
         """Initialize the image entity."""
         super().__init__(hass)
         self._coordinator = coordinator
+        self._designer_entry = entry
         self._attr_unique_id = f"{coordinator.address}-display_content"
         self._attr_device_info = DeviceInfo(
             connections={(CONNECTION_BLUETOOTH, coordinator.address)},
@@ -60,12 +70,14 @@ class OpenDisplayImageEntity(ImageEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Expose whether the shown frame is still waiting to be delivered."""
-        return {
+        """Expose delivery state and designer display capabilities."""
+        attrs: dict[str, Any] = {
             "pending": self._pending,
             "queued_at": _to_iso(self._queued_at),
             "last_error": self._last_error,
         }
+        attrs.update(designer_extra_state_attributes(self, self._designer_entry))
+        return attrs
 
     async def async_image(self) -> bytes | None:
         """Return the last uploaded (or queued) image bytes."""
@@ -88,6 +100,7 @@ class OpenDisplayImageEntity(ImageEntity):
                 self._handle_pending_state,
             )
         )
+        await designer_on_entity_added(self, self._designer_entry)
 
     @callback
     def _handle_image_update(self, image_bytes: bytes) -> None:

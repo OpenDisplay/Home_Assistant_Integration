@@ -1,0 +1,19 @@
+ODL/OEPL Drawcustom Designer (vendored)
+=======================================
+
+This integration vendors the embeddable library build of:
+
+  https://github.com/schlomo/odl-drawcustom-designer
+
+File: designer/frontend/vendor/odl-drawcustom-designer.js
+Pinned release: v1.0.2
+License: Apache License 2.0 (see LICENSE.odl-drawcustom-designer)
+
+Copyright © 2026 Schlomo Schapiro
+
+js-yaml (vendored for the HA panel host adapter)
+================================================
+
+File: designer/frontend/vendor/js-yaml.mjs
+License: MIT
+Homepage: https://github.com/nodeca/js-yaml
