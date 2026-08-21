@@ -7,14 +7,25 @@
       "manufacturer_id": 9286
     }
   ],
-  "codeowners": ["@g4bri3lDev"],
+  "codeowners": [
+    "@g4bri3lDev"
+  ],
   "config_flow": true,
-  "dependencies": ["bluetooth_adapters", "http", "recorder"],
+  "dependencies": [
+    "bluetooth_adapters",
+    "http",
+    "recorder"
+  ],
   "documentation": "https://github.com/OpenDisplay/Home_Assistant_Integration",
   "integration_type": "device",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/OpenDisplay/Home_Assistant_Integration/issues",
-  "loggers": ["opendisplay"],
-  "requirements": ["py-opendisplay[silabs-ota]==7.15.0", "odl-renderer==0.5.12"],
-  "version": "3.0.0-beta.10"
+  "loggers": [
+    "opendisplay"
+  ],
+  "requirements": [
+    "py-opendisplay[silabs-ota]==7.15.0",
+    "odl-renderer==0.5.12"
+  ],
+  "version": "3.0.0"
 }

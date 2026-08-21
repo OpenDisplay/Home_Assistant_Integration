@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.0.0](https://github.com/OpenDisplay/Home_Assistant_Integration/compare/v3.0.0-beta.10...3.0.0) (2026-08-21)
+
+
+### Features
+
+* rewrite integration (3.0.0) ([6ddd641](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/6ddd6410a323009f72bce7a41971195dc34ec244))
+
+
+### Miscellaneous Chores
+
+* prepare 3.0.0 stable release ([882df96](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/882df961b82c841ea4732ee9012bc4309afe887a))
+
 ## [2.0.2](https://github.com/OpenDisplay/Home_Assistant_Integration/compare/2.0.1...2.0.2) (2026-05-12)
 
 
