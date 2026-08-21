@@ -59,6 +59,35 @@ def test_native_value_none_when_no_service_info():
         assert entity.native_value is None
 
 
+def test_last_seen_available_after_first_value_when_coordinator_unavailable():
+    entity = _make_sensor()
+    entity.coordinator.available = False
+    mono = time.monotonic()
+
+    with patch.object(
+        sensor_mod,
+        "async_last_service_info",
+        return_value=SimpleNamespace(time=mono),
+    ):
+        value = entity.native_value
+
+    assert value is not None
+    assert entity.available is True
+
+    with patch.object(sensor_mod, "async_last_service_info", return_value=None):
+        assert entity.native_value == value
+    assert entity.available is True
+
+
+def test_last_seen_unavailable_before_first_value_when_coordinator_unavailable():
+    entity = _make_sensor()
+    entity.coordinator.available = False
+
+    with patch.object(sensor_mod, "async_last_service_info", return_value=None):
+        assert entity.native_value is None
+    assert entity.available is False
+
+
 if __name__ == "__main__":
     import pytest
 

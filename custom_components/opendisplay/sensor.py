@@ -198,6 +198,20 @@ class OpenDisplaySensorEntity(OpenDisplayEntity, SensorEntity):
 class OpenDisplayLastSeenSensor(OpenDisplaySensorEntity):
     """last_seen sourced from the bluetooth stack, not the gated callback."""
 
+    def __init__(
+        self,
+        coordinator,
+        description: OpenDisplaySensorEntityDescription,
+    ) -> None:
+        """Initialize the last_seen sensor."""
+        super().__init__(coordinator, description)
+        self._last_seen: datetime | None = None
+
+    @property
+    def available(self) -> bool:
+        """Stay available once a last_seen value has been observed."""
+        return self._last_seen is not None or super().available
+
     @property
     def native_value(self) -> datetime | None:
         # connectable=False matches the Bluetooth advertisement monitor's
@@ -207,8 +221,9 @@ class OpenDisplayLastSeenSensor(OpenDisplaySensorEntity):
             self.hass, self.coordinator.address, connectable=False
         )
         if info is None:
-            return None
+            return self._last_seen
         # info.time is a monotonic clock (monotonic_time_coarse); convert to
         # wall time with the same offset the advertisement monitor uses.
         wall = info.time + (time.time() - time.monotonic())
-        return datetime.fromtimestamp(wall, tz=timezone.utc)
+        self._last_seen = datetime.fromtimestamp(wall, tz=timezone.utc)
+        return self._last_seen
