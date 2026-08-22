@@ -238,8 +238,8 @@
     "sleep_mode": {
       "options": {
         "auto": "Automatisch (Gerät folgen)",
-        "off": "Zwangsaus",
-        "on": "Zwangsanz"
+        "off": "Aus (erzwungen)",
+        "on": "An (erzwungen)"
       }
     }
   },
@@ -271,22 +271,22 @@
       "name": "Summer aktivieren"
     },
     "activate_led": {
-      "description": "Löst ein LED-Blitzmuster auf einem OpenDisplay-Gerät aus.",
+      "description": "Löst ein LED-Blinkmuster auf einem OpenDisplay-Gerät aus.",
       "fields": {
         "brightness": {
           "description": "LED-Helligkeit (1-16).",
           "name": "Helligkeit"
         },
         "color1": {
-          "description": "Farbe des ersten Schritts.",
+          "description": "1. Farbe des Blinkmusters.",
           "name": "Farbe 1"
         },
         "color2": {
-          "description": "Farbe des zweiten Schritts (weglassen oder Blitzanzahl auf 0 setzen, um zu überspringen).",
+          "description": "2. Farbe des Blinkmusters (weglassen oder Blinkvorgänge auf 0 setzen, um sie zu überspringen).",
           "name": "Farbe 2"
         },
         "color3": {
-          "description": "Farbe des dritten Schritts (weglassen oder Blitzanzahl auf 0 setzen, um zu überspringen).",
+          "description": "3. Farbe des Blinkmusters (weglassen oder Blinkvorgänge auf 0 setzen, um sie zu überspringen)",
           "name": "Farbe 3"
         },
         "device_id": {
@@ -294,47 +294,47 @@
           "name": "Gerät"
         },
         "flash_count1": {
-          "description": "Anzahl der Blitze im ersten Schritt (0 überspringt diesen Schritt).",
-          "name": "Blitzanzahl 1"
+          "description": "Anzahl der Blinkvorgänge mit der 1. Farbe (0 überspringt diese Farbe).",
+          "name": "Blinkvorgänge 1"
         },
         "flash_count2": {
-          "description": "Anzahl der Blitze im zweiten Schritt (0 überspringt diesen Schritt).",
-          "name": "Blitzanzahl 2"
+          "description": "Anzahl der Blinkvorgänge mit der 2. Farbe (0 überspringt diese Farbe).",
+          "name": "Blinkvorgänge 2"
         },
         "flash_count3": {
-          "description": "Anzahl der Blitze im dritten Schritt (0 überspringt diesen Schritt).",
-          "name": "Blitzanzahl 3"
+          "description": "Anzahl der Blinkvorgänge mit der 3. Farbe (0 überspringt diese Farbe).",
+          "name": "Blinkvorgänge 3"
         },
         "instance": {
           "description": "Index der LED-Instanz (0-basiert).",
           "name": "LED-Instanz"
         },
         "inter_delay1": {
-          "description": "Verzögerung nach dem ersten Schritt vor dem nächsten.",
-          "name": "Schrittverzögerung 1"
+          "description": "Wartezeit nach der 1. Farbe bis zum Wechsel zur 2. Farbe.",
+          "name": "Wartezeit 1"
         },
         "inter_delay2": {
-          "description": "Verzögerung nach dem zweiten Schritt vor dem nächsten.",
-          "name": "Schrittverzögerung 2"
+          "description": "Wartezeit nach der 2. Farbe bis zum Wechsel zur 3. Farbe.",
+          "name": "Wartezeit 2"
         },
         "inter_delay3": {
-          "description": "Verzögerung nach dem dritten Schritt vor der Wiederholung.",
-          "name": "Schrittverzögerung 3"
+          "description": "Wartezeit nach der 3. Farbe vor dem Wiederholen.",
+          "name": "Wartezeit 3"
         },
         "loop_delay1": {
-          "description": "Verzögerung zwischen Blitzen im ersten Schritt.",
-          "name": "Blitzverzögerung 1"
+          "description": "Zeit zwischen den Blinkvorgängen der 1. Farbe.",
+          "name": "Blinkabstand 1"
         },
         "loop_delay2": {
-          "description": "Verzögerung zwischen Blitzen im zweiten Schritt.",
-          "name": "Blitzverzögerung 2"
+          "description": "Zeit zwischen den Blinkvorgängen der 2. Farbe.",
+          "name": "Blinkabstand 1"
         },
         "loop_delay3": {
-          "description": "Verzögerung zwischen Blitzen im dritten Schritt.",
-          "name": "Blitzverzögerung 3"
+          "description": "Zeit zwischen den Blinkvorgängen der 3. Farbe.",
+          "name": "Blinkabstand 1"
         },
         "repeats": {
-          "description": "Anzahl der Wiederholungen des gesamten Musters (0 = unendlich).",
+          "description": "Anzahl der Wiederholungen des gesamten Blinkmusters (0 = unendlich).",
           "name": "Wiederholungen"
         }
       },
