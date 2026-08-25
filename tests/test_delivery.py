@@ -7,6 +7,7 @@ Home Assistant's clock rather than by hand-calling a captured callback.
 """
 
 import asyncio
+from dataclasses import replace
 from datetime import timedelta
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -37,10 +38,11 @@ from custom_components.opendisplay.const import (
     CONF_MAX_QUEUE_SIZE,
     DEFAULT_BLOCKS_PER_ACK,
     DEFAULT_MAX_QUEUE_SIZE,
+    EVENT_CONTENT_CONFIG_MISMATCH,
     EVENT_CONTENT_DELIVERED,
     EVENT_CONTENT_EXPIRED,
 )
-from custom_components.opendisplay.delivery import DeliveryManager
+from custom_components.opendisplay.delivery import DeliveryManager, display_fingerprint
 
 from . import (
     TEST_ADDRESS as ADDRESS,
@@ -87,6 +89,7 @@ def _submit(mgr: DeliveryManager, device_id: str = "dev1", **overrides):
         "use_measured_palettes": False,
         "preview_jpeg": b"jpeg",
         "device_id": device_id,
+        "fingerprint": display_fingerprint(make_sleepy_device_config()),
     }
     kwargs.update(overrides)
     return mgr.submit_upload(**kwargs)
@@ -102,9 +105,18 @@ def _reauth_flows(hass: HomeAssistant) -> list:
 
 
 def _uploading_device() -> MagicMock:
-    """Return a device mock that accepts a prepared image."""
+    """Return a device mock that accepts a prepared image.
+
+    ``config`` defaults to None so the unconditional pre-upload refresh
+    (``_refresh_config_from_device``) short-circuits right after
+    ``interrogate()`` without touching firmware/cache — tests that care about
+    the refresh itself (or a fingerprint mismatch) override ``config``
+    explicitly.
+    """
     device = MagicMock()
     device.upload_prepared_image = AsyncMock()
+    device.interrogate = AsyncMock()
+    device.config = None
     return device
 
 
@@ -200,6 +212,78 @@ async def test_drain_delivers_the_queued_upload(
     device.upload_prepared_image.assert_awaited_once()
     assert manager.state.pending is False
     assert len(delivered) == 1
+
+
+async def test_drain_interrogates_before_uploading(
+    entry: MockConfigEntry, manager: DeliveryManager
+) -> None:
+    """The device is always re-interrogated before a queued frame is sent.
+
+    This is what fixes the original ordering bug: a config resync must never
+    be able to run *after* an already-stale-encoded upload went out.
+    """
+    call_order: list[str] = []
+    device = _uploading_device()
+    device.interrogate.side_effect = lambda: call_order.append("interrogate")
+    device.config = make_sleepy_device_config()
+    device.read_firmware_version = AsyncMock(
+        side_effect=lambda: (
+            call_order.append("read_firmware_version")
+            or {"major": 1, "minor": 0, "sha": "abc"}
+        )
+    )
+    device.is_flex = True
+    device.landing_url = MagicMock(return_value="http://landing")
+    device.upload_prepared_image.side_effect = lambda *a, **k: call_order.append(
+        "upload_prepared_image"
+    )
+
+    with connects_to(device):
+        _submit(manager, fingerprint=display_fingerprint(device.config))
+        await manager._deliver()
+
+    assert call_order == [
+        "interrogate",
+        "read_firmware_version",
+        "upload_prepared_image",
+    ]
+    assert entry.runtime_data.device_config is device.config
+
+
+async def test_drain_config_mismatch_drops_the_upload(
+    hass: HomeAssistant, entry: MockConfigEntry, manager: DeliveryManager
+) -> None:
+    """A frame prepared against a since-changed config is dropped, not sent.
+
+    Sending it anyway would encode the image for the wrong panel format (the
+    exact bug this whole mechanism exists to prevent) rather than a merely
+    stale-but-still-valid frame.
+    """
+    mismatched = async_capture_events(hass, EVENT_CONTENT_CONFIG_MISMATCH)
+    prepared_config = make_sleepy_device_config()
+    live_config = replace(
+        prepared_config,
+        displays=[replace(prepared_config.displays[0], color_scheme=99)],
+    )
+    device = _uploading_device()
+    device.config = live_config
+    device.read_firmware_version = AsyncMock(
+        return_value={"major": 1, "minor": 0, "sha": "abc"}
+    )
+    device.is_flex = True
+    device.landing_url = MagicMock(return_value="http://landing")
+
+    with connects_to(device):
+        _submit(manager, fingerprint=display_fingerprint(prepared_config))
+        await manager._deliver()
+    await hass.async_block_till_done()
+
+    device.upload_prepared_image.assert_not_awaited()
+    assert manager.state.pending is False
+    assert manager.state.last_error == "config_mismatch"
+    assert len(mismatched) == 1
+    # The live config was still adopted even though the stale upload was dropped.
+    assert entry.runtime_data.device_config is live_config
 
 
 async def test_drain_ble_failure_keeps_the_slot_and_counts_an_attempt(

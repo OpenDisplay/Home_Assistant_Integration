@@ -102,6 +102,7 @@ async def test_queued_frame_is_marked_pending(
         use_measured_palettes=False,
         preview_jpeg=JPEG,
         device_id=None,
+        fingerprint=MagicMock(),
     )
     await hass.async_block_till_done()
 
