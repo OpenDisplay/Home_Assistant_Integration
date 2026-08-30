@@ -1,0 +1,66 @@
+ODL/OEPL Drawcustom Designer (odl-drawcustom-designer)
+Copyright 2026 Schlomo Schapiro
+
+This product includes software developed by Schlomo Schapiro and contributors,
+licensed under the Apache License, Version 2.0 (see LICENSE).
+
+================================================================================
+Vendored documentation
+================================================================================
+
+docs/spec/supported_types.md
+  Source: OpenEPaperLink Home Assistant Integration
+  URL: https://github.com/OpenEPaperLink/Home_Assistant_Integration/blob/main/docs/drawcustom/supported_types.md
+  License: Apache License 2.0
+  Copyright: OpenEPaperLink contributors
+
+================================================================================
+Bundled fonts
+================================================================================
+
+public/fonts/ppb.ttf
+public/fonts/rbm.ttf
+  Also emitted at build time as dist-lib/assets/demo-host-font.ttf — a copy of
+  rbm.ttf the demo host page serves as a host-resolved asset (see
+  tools/demoHostAssets.ts, docs/embedding.md#resolveasset-issue-138)
+  Source: OpenEPaperLink Home Assistant Integration (imagegen assets)
+  URL: https://github.com/OpenEPaperLink/Home_Assistant_Integration/tree/main/custom_components/open_epaper_link/imagegen/assets
+  License: Apache License 2.0 (same repository as above)
+  Note: Font files are distributed with the integration; no separate font
+  license file was found upstream. See docs/THIRD_PARTY.md for details.
+
+================================================================================
+Bundled icons (runtime)
+================================================================================
+
+@mdi/js — Material Design Icons path data (Pictogrammers)
+  URL: https://github.com/Templarian/MaterialDesign-SVG
+  License: Apache License 2.0
+  Copyright: Pictogrammers
+
+================================================================================
+Referenced upstream projects (not shipped as source)
+================================================================================
+
+OpenEPaperLink firmware — CC BY-NC-SA 4.0
+  URL: https://github.com/OpenEPaperLink/OpenEPaperLink
+
+OpenDisplay firmware — GPL-3.0
+  URL: https://github.com/OpenDisplay/Firmware
+
+OpenDisplay Language / Basic Standard specifications
+  URL: https://opendisplay.org/protocol/
+  Note: Published specification pages; no explicit license stated on site.
+
+Home Assistant integrations (drawcustom):
+  OpenEPaperLink/Home_Assistant_Integration — Apache-2.0
+  OpenDisplay/Home_Assistant_Integration — Apache-2.0
+  home-assistant/core (opendisplay component) — Apache-2.0
+
+================================================================================
+Open-source dependencies
+================================================================================
+
+This application is built with npm packages. Each dependency is licensed
+under its own terms. Run `npx license-checker --summary` in the project
+root for a full report, or see docs/THIRD_PARTY.md for key runtime libraries.
