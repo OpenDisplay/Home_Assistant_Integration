@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "minor_version": 2,
+  "key": "core.device_registry",
+  "data": {
+    "devices": [
+      {
+        "id": "od_fake_device_1",
+        "config_entries": ["od_fake_entry_1"],
+        "connections": [["bluetooth", "AA:BB:CC:DD:EE:FF"]],
+        "manufacturer": "OpenDisplay",
+        "model": "2.9\" bw",
+        "name": null,
+        "name_by_user": null
+      },
+      {
+        "id": "met_fake_device_1",
+        "config_entries": ["met_fake_entry_1"],
+        "connections": [],
+        "manufacturer": "Met.no",
+        "model": null,
+        "name": null,
+        "name_by_user": null
+      }
+    ],
+    "deleted_devices": []
+  }
+}

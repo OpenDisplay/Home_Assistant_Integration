@@ -41,6 +41,26 @@ Assistant checkout and start it from there:
 ln -s "$PWD/custom_components/opendisplay" /path/to/core/config/custom_components/
 ```
 
+**No live HA? No OpenDisplay hardware?** `dev/run.sh` brings up a disposable
+Home Assistant in Docker with this branch's integration mounted, and
+`dev/inject-displays.py` fabricates config entries for a few realistic panels
+(small mono / medium BWR / large BWRY) that set up entirely from cache — no
+BLE connection, no pairing:
+
+```bash
+dev/run.sh                                        # bring up HA, onboard
+docker compose -f dev/docker-compose.yml down     # stop (storage can't be
+                                                   # rewritten under a live
+                                                   # process)
+uv run --group dev python dev/inject-displays.py  # fabricate 3 devices
+dev/run.sh                                        # bring HA back up
+```
+
+See [`dev/README.md`](dev/README.md) for the full workflow, why no BLE
+connection ever happens in this container, and the real-hardware
+snapshot/restore path (`dev/snapshot.sh`/`dev/restore.sh`) if you do have a
+device.
+
 ## Translations
 
 English is written by hand; every other language is filled in by

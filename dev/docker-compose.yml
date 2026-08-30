@@ -1,0 +1,14 @@
+services:
+  homeassistant:
+    image: homeassistant/home-assistant:stable
+    container_name: opendisplay-dev-ha
+    restart: unless-stopped
+    ports:
+      - "${HA_PORT:-8123}:8123"
+    volumes:
+      # HA's own state (onboarding, storage, logs). Read-write, gitignored.
+      - ./ha-config:/config
+      # This branch's integration code, mounted read-only so the container can
+      # never write into the checkout. Restart the container to pick up edits
+      # (see dev/README.md for what does/doesn't need a restart).
+      - ../custom_components/opendisplay:/config/custom_components/opendisplay:ro

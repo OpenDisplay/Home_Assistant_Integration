@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "minor_version": 4,
+  "key": "core.config_entries",
+  "data": {
+    "entries": [
+      {
+        "entry_id": "od_fake_entry_1",
+        "domain": "opendisplay",
+        "title": "OpenDisplay AA:BB:CC:DD:EE:FF",
+        "unique_id": "AA:BB:CC:DD:EE:FF",
+        "data": {
+          "encryption_key": "00112233445566778899aabbccddeeff00112233445566778899aabbccddee"
+        },
+        "options": {},
+        "source": "bluetooth",
+        "disabled_by": null
+      },
+      {
+        "entry_id": "met_fake_entry_1",
+        "domain": "met",
+        "title": "Met.no",
+        "unique_id": "home",
+        "data": {},
+        "options": {},
+        "source": "onboarding",
+        "disabled_by": null
+      }
+    ]
+  }
+}

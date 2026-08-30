@@ -134,6 +134,9 @@ split-on-trailing-comma = false
 [tool.ruff.lint.per-file-ignores]
 # Vendored verbatim from Home Assistant core's test helpers.
 "tests/bluetooth.py" = ["D"]
+# CLI script for the dev/ harness (dev/README.md) -- console output to the
+# maintainer running it is the point, not a logging call.
+"dev/inject-displays.py" = ["T201"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 25

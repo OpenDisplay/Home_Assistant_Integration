@@ -1,0 +1,19 @@
+# Minimal dev config for the OpenDisplay local harness (dev/README.md).
+# default_config pulls in frontend/http/recorder/config/bluetooth/etc. --
+# everything custom_components/opendisplay/manifest.json depends on.
+default_config:
+
+# opendisplay's manifest is config-entry-only (CONFIG_SCHEMA =
+# cv.config_entry_only_config_schema) -- this bare key doesn't configure
+# anything itself, but it's what makes HA call the domain's async_setup()
+# (-> async_setup_services(), custom_components/opendisplay/__init__.py) at
+# boot even with zero config entries, so opendisplay.drawcustom and friends
+# show up in Developer Tools -> Actions before dev/inject-displays.py has
+# ever run. Once a config entry exists (real device or fabricated), HA sets
+# the domain up regardless of this key -- see dev/README.md.
+opendisplay:
+
+logger:
+  default: warning
+  logs:
+    custom_components.opendisplay: debug
