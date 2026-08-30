@@ -1039,3 +1039,73 @@ async def test_drawcustom_transposes_the_canvas_for_a_rotated_panel(
 
     assert mock_render.await_args.kwargs["width"] == 128
     assert mock_render.await_args.kwargs["height"] == 296
+
+
+async def test_drawcustom_expands_templates_in_payload_before_rendering(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_render: MagicMock,
+) -> None:
+    """Tier-1 adversarial review, finding 1 (root cause).
+
+    docs/drawcustom/supported_types.md documents that field values get HA
+    templates expanded before odl-renderer sees them; nothing did that --
+    reproduced live with the Load Demo payload's templated icon field (a
+    literal ``{{ iif(...) }}`` string reached odl-renderer's icon lookup
+    unevaluated). This exercises the REAL service call
+    (``_drawcustom_for_device``), not the shared helper directly, so a fix
+    scoped to only the render endpoint would not make this pass.
+    """
+    hass.states.async_set("sensor.next_event", "on")
+    await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [_device_id(hass, mock_config_entry)],
+            "payload": [
+                {
+                    "type": "icon",
+                    "value": (
+                        "{{ 'mdi:thermometer' if"
+                        " is_state('sensor.next_event', 'on')"
+                        " else 'mdi:calendar-alert' }}"
+                    ),
+                }
+            ],
+        },
+        blocking=True,
+        return_response=True,
+    )
+
+    elements = mock_render.await_args.kwargs["elements"]
+    assert elements[0]["value"] == "mdi:thermometer"
+
+
+async def test_drawcustom_broken_template_is_a_validation_error(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_render: MagicMock,
+) -> None:
+    """A template that actually raises is a clear, per-element service error.
+
+    Never a literal '{{' reaching odl-renderer's icon/text lookup silently
+    (the original bug), and never an opaque traceback from inside
+    odl-renderer either.
+    """
+    with pytest.raises(ServiceValidationError, match="element 0"):
+        await hass.services.async_call(
+            DOMAIN,
+            "drawcustom",
+            {
+                "device_id": [_device_id(hass, mock_config_entry)],
+                "payload": [
+                    {"type": "icon", "value": "{{ this_is_not_a_real_function() }}"}
+                ],
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    mock_upload_device.upload_prepared_image.assert_not_awaited()

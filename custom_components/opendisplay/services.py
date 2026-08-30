@@ -35,6 +35,7 @@ from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.network import get_url
 from homeassistant.helpers.selector import MediaSelector, MediaSelectorConfig
+from homeassistant.helpers.template import Template, TemplateError, is_template_string
 from odl_renderer import generate_image
 from PIL import Image as PILImage, ImageOps
 import voluptuous as vol
@@ -84,6 +85,102 @@ ATTR_REFRESH_MODE = "refresh_mode"
 ATTR_FIT_MODE = "fit_mode"
 ATTR_TONE_COMPRESSION = "tone_compression"
 ATTR_USE_MEASURED_PALETTES = "measured_palette"
+
+
+def tone_and_measured_palettes_from_call_data(
+    call_data: dict[str, Any],
+) -> tuple[float | str, bool]:
+    """Derive prepare_image's tone/use_measured_palettes from a validated call.
+
+    Shared by both service handlers that call prepare_image
+    (_async_upload_image, _drawcustom_for_device) so the one formula lives
+    in one place -- and by the designer render endpoint's own test
+    (tests/test_designer_render.py), which validates a call carrying
+    neither tone_compression nor measured_palette against the real
+    SCHEMA_DRAWCUSTOM and asserts the render endpoint's prepare_image call
+    matches THIS function's output, not a hardcoded literal duplicated
+    independently of it. A future change to either the schema's defaults or
+    this formula moves that test's expectation with it, instead of the test
+    silently drifting from what the send path actually does.
+    """
+    tone_pct: float | None = call_data.get(ATTR_TONE_COMPRESSION)
+    tone: float | str = tone_pct / 100.0 if tone_pct is not None else "auto"
+    use_measured_palettes: bool = call_data[ATTR_USE_MEASURED_PALETTES]
+    return tone, use_measured_palettes
+
+
+def _render_template_node(hass: HomeAssistant, value: Any) -> Any:
+    """Recursively render HA templates in a payload element's field values."""
+    if isinstance(value, str):
+        if is_template_string(value):
+            return Template(value, hass).async_render(parse_result=True)
+        return value
+    if isinstance(value, list):
+        return [_render_template_node(hass, item) for item in value]
+    if isinstance(value, dict):
+        return {key: _render_template_node(hass, item) for key, item in value.items()}
+    return value
+
+
+def render_payload_templates(hass: HomeAssistant, payload: list[Any]) -> list[Any]:
+    """Render Home Assistant templates in every drawcustom payload element.
+
+    docs/drawcustom/supported_types.md documents that "the integration ...
+    additionally expands Home Assistant templates in field values" before
+    odl-renderer sees them -- odl-renderer's own code agrees with that
+    premise (its comments say "Home Assistant templates render to strings"
+    before it's ever called), but no code anywhere in this integration
+    actually did that rendering. (That citation is about what odl-renderer
+    itself assumes its *caller* already resolved a template to, not a claim
+    about this function's own output: ``async_render``'s default
+    ``parse_result=True`` below natively types a simple literal result --
+    e.g. a rendered ``False``/``12`` comes back as a Python ``bool``/``int``,
+    not the string "False"/"12" -- verified safe against every field that
+    matters here, including ``visible``, whose own ``_coerce_visible``
+    (odl-renderer's ``core.py``) explicitly branches on ``bool`` as well as
+    ``str``.) A literal ``{{ ... }}`` string reached
+    odl-renderer's own icon/text lookup unevaluated (tier-1 adversarial
+    review, reproduced live with the designer's Load Demo payload's
+    templated icon field: ``Icon '{{ iif(...) }}' not found``, both via
+    "Send to display" and the designer render endpoint -- neither call site
+    ever rendered templates, so both failed identically).
+
+    Fixed in exactly ONE shared place, called by both
+    ``_drawcustom_for_device`` (the send path) and the designer's render
+    endpoint (``designer/render.py``), so a caller can never observe one
+    behaving differently from the other. Each string field value that
+    contains template syntax (``is_template_string``) is rendered through
+    hass's own ``Template`` helper; everything else passes through
+    unchanged, exactly as if the caller had already resolved it -- odl-
+    renderer explicitly tolerates receiving already-resolved plain strings
+    for numeric fields too (see its own ``coordinates.py`` comment), so no
+    additional type coercion is done here beyond what ``Template.
+    async_render`` already does by default.
+
+    A template that raises (a broken reference -- HA's own template
+    functions like ``is_state_attr``/``is_state`` degrade to a sensible
+    default for a merely-missing entity rather than raising, so this is not
+    the common "state doesn't exist yet" case) becomes a
+    ``ServiceValidationError`` naming the offending element's list index
+    and ``type``, instead of either a silent unevaluated literal reaching
+    odl-renderer (the original bug) or an opaque traceback from inside
+    odl-renderer's own icon/text lookup.
+    """
+    rendered: list[Any] = []
+    for index, element in enumerate(payload):
+        try:
+            rendered.append(_render_template_node(hass, element))
+        except TemplateError as err:
+            element_type = (
+                element.get("type", "?") if isinstance(element, dict) else "?"
+            )
+            raise ServiceValidationError(
+                f"drawcustom payload element {index} (type '{element_type}') has an"
+                f" invalid template: {err}"
+            ) from err
+    return rendered
+
+
 ATTR_RECORD_TYPE = "record_type"
 ATTR_CONTENT = "content"
 ATTR_MIME_TYPE = "mime_type"
@@ -733,11 +830,9 @@ async def _async_upload_image(call: ServiceCall) -> ServiceResponse:
     dither_mode: DitherMode = call.data[ATTR_DITHER_MODE]
     refresh_mode: RefreshMode = call.data[ATTR_REFRESH_MODE]
     fit_mode: FitMode = call.data[ATTR_FIT_MODE]
-    tone_compression_pct: float | None = call.data.get(ATTR_TONE_COMPRESSION)
-    tone_compression: float | str = (
-        tone_compression_pct / 100.0 if tone_compression_pct is not None else "auto"
+    tone_compression, use_measured_palettes = tone_and_measured_palettes_from_call_data(
+        call.data
     )
-    use_measured_palettes: bool = call.data[ATTR_USE_MEASURED_PALETTES]
 
     # A plain URL (e.g. an automation pushing a rendered snapshot) must be
     # explicitly allowlisted; media-source items are already trusted.
@@ -990,7 +1085,7 @@ async def _drawcustom_for_device(
     img = await generate_image(
         width=gen_width,
         height=gen_height,
-        elements=call.data["payload"],
+        elements=render_payload_templates(hass, call.data["payload"]),
         background=call.data["background"],
         accent_color=color_scheme.accent_color,
         session=async_get_clientsession(hass),
@@ -1006,11 +1101,9 @@ async def _drawcustom_for_device(
 
     dither_mode: DitherMode = call.data["dither"]
     refresh_mode: RefreshMode = call.data["refresh_type"]
-    tone_compression_pct: float | None = call.data.get(ATTR_TONE_COMPRESSION)
-    tone_compression: float | str = (
-        tone_compression_pct / 100.0 if tone_compression_pct is not None else "auto"
+    tone_compression, use_measured_palettes = tone_and_measured_palettes_from_call_data(
+        call.data
     )
-    use_measured_palettes: bool = call.data[ATTR_USE_MEASURED_PALETTES]
 
     return await _async_send_image(
         hass,
