@@ -22,11 +22,12 @@ dependencies = [
 #   0.13.356 -> homeassistant 2026.8.2  (latest)
 #   0.13.344 -> homeassistant 2026.7.0  (the hacs.json floor)
 #
-# The three extras below are Home Assistant *component* requirements. HA
-# installs those at runtime from each component's own manifest.json, so they
-# are invisible to uv -- but the tests set up the real bluetooth, http and
-# recorder components, so they have to be installed. These three are the ones
-# that are not already pulled in transitively by py-opendisplay/PHCC:
+# The extras below are Home Assistant *component* requirements. HA installs
+# those at runtime from each component's own manifest.json, so they are
+# invisible to uv -- but the tests set up the real bluetooth, http, recorder,
+# frontend and panel_custom components, so they have to be installed. These
+# are the ones that are not already pulled in transitively by
+# py-opendisplay/PHCC:
 #
 #   aiousbwatcher, serialx  components/bluetooth imports components/usb, which
 #                           imports both at module scope
@@ -34,6 +35,17 @@ dependencies = [
 #                           adapter path even on macOS, so BlueZDBusObjects is
 #                           constructed for real; without it bluetooth setup
 #                           dies on `NoneType is not callable`
+#   home-assistant-frontend components/frontend's own runtime requirement
+#                           (the built frontend JS/CSS bundle) -- added when
+#                           the designer panel's manifest.json dependencies
+#                           grew to include `frontend`/`panel_custom`
+#                           (docs/designer.md); a `uv sync`/fresh-venv rebuild
+#                           without this pin fails every test that sets up
+#                           the opendisplay component at all with
+#                           `DependencyError: Could not setup dependencies:
+#                           frontend, panel_custom` -- caught by rebuilding
+#                           the venv clean rather than trusting whatever an
+#                           existing .venv happened to already have installed.
 #
 # They are deliberately unpinned: uv.lock is what pins them for CI, and letting
 # the resolver track the PHCC-pinned HA is what keeps the two legs honest.
@@ -46,6 +58,7 @@ dev = [
     "aiousbwatcher",
     "serialx",
     "dbus-fast",
+    "home-assistant-frontend",
 ]
 min-ha = [
     "pytest-homeassistant-custom-component==0.13.344",
@@ -54,6 +67,7 @@ min-ha = [
     "aiousbwatcher",
     "serialx",
     "dbus-fast",
+    "home-assistant-frontend",
     # 2026.7.0 only: components/usb imports serialx's esphome transport
     # eagerly (2026.8.x defers it), which drags in aioesphomeapi.
     "aioesphomeapi",

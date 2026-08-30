@@ -47,6 +47,31 @@ async def test_entity_is_created(
     assert state.attributes["auth_paused"] is False
 
 
+async def test_entity_publishes_designer_capabilities(
+    hass: HomeAssistant,
+    setup_entry: Callable[[], Awaitable[None]],
+) -> None:
+    """The image entity's attributes carry the designer's HostCapabilities shape.
+
+    This is what the panel wrapper's buildTargets() reads to build a
+    designer `HostTarget` -- pixel_width is the gate it uses to decide the
+    capability attrs have actually been published (see the panel JS's own
+    comment on that check).
+    """
+    await setup_entry()
+
+    state = hass.states.get(ENTITY)
+    assert state is not None
+    assert state.attributes["pixel_width"] > 0
+    assert state.attributes["pixel_height"] > 0
+    assert state.attributes["render_width"] > 0
+    assert state.attributes["render_height"] > 0
+    assert isinstance(state.attributes["color_map"], dict)
+    assert state.attributes["color_map"]
+    assert isinstance(state.attributes["available_colors"], list)
+    assert state.attributes["available_colors"]
+
+
 async def test_uploaded_image_is_served(
     hass: HomeAssistant,
     hass_client: ClientSessionGenerator,

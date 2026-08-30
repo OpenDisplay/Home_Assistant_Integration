@@ -23,6 +23,10 @@ HA_URL="http://127.0.0.1:${HA_PORT}"
 # component setup) must not turn a bounded poll into an unbounded one
 # (adversarial review round 3, finding 5).
 CURL_TIMEOUT=(--connect-timeout 5 --max-time 10)
+# The render-endpoint check's own POST does real image compositing work
+# (not a poll) -- same connect timeout, longer overall budget so a slow
+# but genuinely-working render isn't mistaken for a hang.
+RENDER_CURL_TIMEOUT=(--connect-timeout 5 --max-time 30)
 
 command -v uv >/dev/null 2>&1 || {
   echo "ERROR: uv not found on PATH (https://docs.astral.sh/uv/)." >&2
@@ -202,7 +206,41 @@ EOF
   exit 1
 }
 
-
+# Best-effort: log in as the known dev user via the same login_flow ->
+# token exchange onboarding.sh itself uses (not a stored long-lived
+# token -- nothing in this harness creates one). Prints the access token
+# on stdout on success; prints nothing and returns non-zero on any
+# failure, which every caller below treats as "skip the checks that need
+# auth" rather than fatal -- a harness whose dev user has different
+# credentials than the ones this script knows (hand-onboarded, or
+# HA_DEV_USERNAME/PASSWORD changed after the fact) shouldn't block on a
+# login this script was never guaranteed to be able to do.
+fetch_dev_access_token() {
+  local client_id="${HA_URL%/}/"
+  local flow flow_id step code token_resp token
+  flow="$(curl -sf "${CURL_TIMEOUT[@]}" -X POST "$HA_URL/auth/login_flow" \
+    -H 'Content-Type: application/json' \
+    -d "$(jq -n --arg cid "$client_id" \
+      '{client_id: $cid, handler: ["homeassistant", null], redirect_uri: $cid}')" \
+    2>/dev/null)" || return 1
+  flow_id="$(jq -r '.flow_id // empty' <<<"$flow" 2>/dev/null)"
+  [[ -n "$flow_id" ]] || return 1
+  step="$(curl -sf "${CURL_TIMEOUT[@]}" -X POST "$HA_URL/auth/login_flow/$flow_id" \
+    -H 'Content-Type: application/json' \
+    -d "$(jq -n --arg u "${HA_DEV_USERNAME:-dev}" \
+      --arg p "${HA_DEV_PASSWORD:-opendisplay-dev-harness}" --arg cid "$client_id" \
+      '{username: $u, password: $p, client_id: $cid}')" \
+    2>/dev/null)" || return 1
+  code="$(jq -r '.result // empty' <<<"$step" 2>/dev/null)"
+  [[ -n "$code" ]] || return 1
+  token_resp="$(curl -sf "${CURL_TIMEOUT[@]}" -X POST "$HA_URL/auth/token" \
+    --data-urlencode "grant_type=authorization_code" \
+    --data-urlencode "code=$code" \
+    --data-urlencode "client_id=$client_id" 2>/dev/null)" || return 1
+  token="$(jq -r '.access_token // empty' <<<"$token_resp" 2>/dev/null)"
+  [[ -n "$token" ]] || return 1
+  printf '%s' "$token"
+}
 
 echo "run: waiting for HA to answer at $HA_URL ..."
 deadline=$((SECONDS + 120))
@@ -242,6 +280,214 @@ if ! ha_is_actually_up; then
     "HA is not actually up (the process died, or stopped answering, sometime after the checks above passed)."
 fi
 
+# Redefine success (adversarial review round 2's B3 new blocker; revised
+# by tier-1 finding 2): reachable at /manifest.json is necessary but not
+# sufficient -- HA itself can be up and fine while the *integration* failed
+# to set up entirely, and the checks above would never notice. Assert the
+# actual reason this harness exists, not just that a web server answers:
+#   (a) any opendisplay config entries that exist reach state `loaded`;
+#   (b) the designer panel's static asset view answers 200 -- but ONLY
+#       required once (a) has found at least one entry. Tier-1 finding 2
+#       removed configuration.yaml's bare `opendisplay:` key (it raised a
+#       visible Repair in the UI), so async_setup_designer() -- which
+#       registers this view -- now never runs at all until the first
+#       config entry exists. A totally pristine, zero-entry boot
+#       legitimately has no panel; treating that as a failure would
+#       false-fire on every fresh dev/run.sh before dev/inject-displays.py
+#       has ever run. (a) is therefore determined FIRST, below, and (b) is
+#       only required once (a) has something to require it against;
+#   (c) if (a) found loaded entries, the render endpoint answers 200 for
+#       one of their devices (skipped if a dev-user token can't be
+#       obtained -- see fetch_dev_access_token's own doc comment for why
+#       that's OK).
+# Any failure that IS required below is exactly as fatal as the liveness
+# check above: loud error, the log tails, exit 1 -- the banner may only
+# print once everything required has passed.
+
+panel_check_url="$HA_URL/api/opendisplay/designer/static/panel/opendisplay-designer-panel.js"
+# Bounded poll for (b), shared by both call sites below (entries known
+# positive: required; entries unknown: best-effort) so the "check liveness
+# on every failed attempt, not just once outside the loop" logic
+# (adversarial review round 3, finding 3 -- a dead process mid-poll must
+# report as a death, never as a misdiagnosed setup failure) lives in
+# exactly one place. Not a single-shot check: async_setup() for
+# opendisplay (which is what registers this view) can still be genuinely
+# in flight a moment after HA itself answers -- a one-shot check here
+# raced that window and failed spuriously on an otherwise-healthy boot,
+# caught live in an earlier round's own testing. Sets the global
+# `panel_ok`; callers decide what a false result means for them.
+wait_for_panel_registration() {
+  panel_ok=false
+  local panel_deadline=$((SECONDS + 15))
+  while true; do
+    if curl -sf "${CURL_TIMEOUT[@]}" -o /dev/null "$panel_check_url"; then
+      panel_ok=true
+      return
+    fi
+    if ! ha_is_actually_up; then
+      report_process_death_and_exit \
+        "the hass process died (or stopped answering) while polling for the designer panel to register."
+    fi
+    ((SECONDS > panel_deadline)) && return
+    sleep 1
+  done
+}
+
+# Every "|| true"-guarded step below (adversarial review round 3, finding
+# 4) resolves one of two ways, never silently: either it's a legitimate,
+# explicitly-printed skip (no dev-user credentials match, a request that
+# failed for its own reason while hass stayed alive), or hass actually died
+# in the window and that's checked and reported FIRST, before any skip
+# message is allowed to print -- a death must never be swallowed on the
+# way to the success banner.
+dev_token="$(fetch_dev_access_token)" || dev_token=""
+# "" = couldn't determine; "0" = confirmed zero; anything else = a known
+# positive count. Three different states, not just true/false -- the
+# panel-check policy above depends on telling "confirmed zero" apart from
+# "couldn't find out" (see the ambiguous-case message below).
+entry_count=""
+opendisplay_entries="[]"
+if [[ -n "$dev_token" ]]; then
+  entries_json="$(curl -sf "${CURL_TIMEOUT[@]}" -H "Authorization: Bearer $dev_token" \
+    "$HA_URL/api/config/config_entries/entry" 2>/dev/null)" || entries_json=""
+  if [[ -z "$entries_json" ]]; then
+    if ! ha_is_actually_up; then
+      report_process_death_and_exit \
+        "the hass process died (or stopped answering) while fetching config entries for the success checks."
+    fi
+    echo "run: could not fetch config entries (hass is alive; the request" \
+      "itself failed) -- skipping the config-entries and render-endpoint" \
+      "success checks (best-effort; not fatal on its own)."
+  else
+    opendisplay_entries="$(jq -c '[.[] | select(.domain=="opendisplay")]' <<<"$entries_json" 2>/dev/null || echo '[]')"
+    entry_count="$(jq 'length' <<<"$opendisplay_entries" 2>/dev/null || echo 0)"
+  fi
+else
+  if ! ha_is_actually_up; then
+    report_process_death_and_exit \
+      "the hass process died (or stopped answering) while logging in as the dev user for the success checks."
+  fi
+  echo "run: could not obtain a dev-user access token (hass is alive; the" \
+    "login itself failed -- a hand-onboarded harness with different" \
+    "credentials, or HA_DEV_USERNAME/PASSWORD changed after the fact) --" \
+    "skipping the config-entries and render-endpoint success checks" \
+    "(best-effort; not fatal on its own)."
+fi
+
+if [[ "$entry_count" == "0" ]]; then
+  echo "run: no opendisplay config entries exist yet (nothing from" \
+    "dev/inject-displays.py, no real device onboarded) -- the designer" \
+    "panel and the render-endpoint check are both vacuously skipped" \
+    "(legitimate, not an error: without a config entry," \
+    "async_setup_designer() never runs -- see dev/README.md's \"Why the" \
+    "designer panel and opendisplay.* services are absent before the" \
+    "first config entry\"). Run dev/stop.sh, then 'uv run --group dev" \
+    "python dev/inject-displays.py', then dev/run.sh again to exercise it."
+elif [[ -n "$entry_count" ]]; then
+  # entry_count is a known positive count -- (b) and (c) are both required.
+  wait_for_panel_registration
+  if [[ "$panel_ok" == false ]]; then
+    # Reaching here means: still alive (the poll above would have exited
+    # via report_process_death_and_exit otherwise) but never answered 200
+    # in 15s, despite $entry_count entries existing -- a genuine
+    # "integration setup failed" case, not a misdiagnosed death and not
+    # the legitimate zero-entry state (entry_count is known positive).
+    echo
+    echo "ERROR: the designer panel's static asset view did not answer 200" \
+      "at $panel_check_url within 15s (hass itself is still alive), despite" \
+      "$entry_count opendisplay config entry(ies) existing. This is what" \
+      "'HA is up but the opendisplay integration itself failed to set up'" \
+      "looks like from here (its static view only registers if" \
+      "async_setup_designer() ran)." >&2
+    tail_with_header "$LOG_FILE" "hass stdout/stderr"
+    exit 1
+  fi
+
+  # Bounded poll, not a single-shot check (caught live testing tier-1
+  # finding 2's fix): entry setup for several fabricated devices can still
+  # be genuinely in flight a moment after the panel check above already
+  # passed -- a one-shot check here raced that window and reported entries
+  # as not_loaded that reached 'loaded' barely a second later on a
+  # perfectly healthy boot.
+  not_loaded_deadline=$((SECONDS + 15))
+  while true; do
+    not_loaded="$(jq -c '[.[] | select(.state != "loaded") | {title, state}]' <<<"$opendisplay_entries")"
+    not_loaded_count="$(jq 'length' <<<"$not_loaded")"
+    [[ "$not_loaded_count" -eq 0 ]] && break
+    if ! ha_is_actually_up; then
+      report_process_death_and_exit \
+        "the hass process died (or stopped answering) while polling for opendisplay config entries to reach state 'loaded'."
+    fi
+    if ((SECONDS > not_loaded_deadline)); then
+      echo
+      echo "ERROR: $not_loaded_count opendisplay config entry(ies) did not" \
+        "reach state 'loaded' within 15s: $not_loaded" >&2
+      tail_with_header "$LOG_FILE" "hass stdout/stderr"
+      exit 1
+    fi
+    sleep 1
+    entries_json="$(curl -sf "${CURL_TIMEOUT[@]}" -H "Authorization: Bearer $dev_token" \
+      "$HA_URL/api/config/config_entries/entry" 2>/dev/null)" || entries_json=""
+    opendisplay_entries="$(jq -c '[.[] | select(.domain=="opendisplay")]' <<<"$entries_json" 2>/dev/null || echo '[]')"
+  done
+
+  # (c): only meaningful once (a) found at least one loaded entry -- ask
+  # it for a real device_id and confirm the render endpoint itself
+  # actually answers, not just that the static view exists.
+  # config_entries/entry doesn't itself carry a device_id -- resolve the
+  # first opendisplay device from the device registry via a template
+  # render instead (the same technique this harness's own manual
+  # verification used).
+  device_id="$(curl -sf "${CURL_TIMEOUT[@]}" -X POST -H "Authorization: Bearer $dev_token" \
+    -H 'Content-Type: application/json' \
+    -d '{"template":"{{ (integration_entities(\"opendisplay\") | select(\"match\", \"^image\\\\.\") | list | first | device_id) if (integration_entities(\"opendisplay\") | select(\"match\", \"^image\\\\.\") | list | length) > 0 else \"\" }}"}' \
+    "$HA_URL/api/template" 2>/dev/null)" || device_id=""
+  if [[ -z "$device_id" ]]; then
+    if ! ha_is_actually_up; then
+      report_process_death_and_exit \
+        "the hass process died (or stopped answering) while resolving a device_id for the render-endpoint check."
+    fi
+    echo "run: could not resolve an opendisplay device_id via" \
+      "/api/template (hass is alive; the template call itself failed" \
+      "or returned empty) -- skipping the render-endpoint check" \
+      "(best-effort; not fatal on its own)."
+  else
+    render_status="$(curl -s "${RENDER_CURL_TIMEOUT[@]}" -o /dev/null -w '%{http_code}' \
+      -X POST -H "Authorization: Bearer $dev_token" \
+      -H 'Content-Type: application/json' \
+      -d "$(jq -n --arg d "$device_id" \
+        '{device_id: $d, payload: [{type: "text", value: "harness-check", x: 0, y: 0, size: 10}]}')" \
+      "$HA_URL/api/opendisplay/designer/render" 2>/dev/null || echo 000)"
+    if [[ "$render_status" != "200" ]]; then
+      if ! ha_is_actually_up; then
+        report_process_death_and_exit \
+          "the hass process died (or stopped answering) while the render-endpoint check's request was in flight."
+      fi
+      echo
+      echo "ERROR: the render endpoint returned HTTP $render_status for" \
+        "device $device_id, not 200 (hass is alive)." >&2
+      tail_with_header "$LOG_FILE" "hass stdout/stderr"
+      exit 1
+    fi
+    echo "run: render endpoint check passed (device $device_id -> 200)."
+  fi
+else
+  # entry_count is unknown (the token/entries fetch above already printed
+  # why) -- attempt the panel check anyway, informationally, but its
+  # result is non-fatal either way: an absent panel here is
+  # indistinguishable from the legitimate zero-entry case above without a
+  # working token to confirm entry_count, and guessing wrong in the fatal
+  # direction would false-fire on a perfectly healthy zero-entry boot.
+  wait_for_panel_registration
+  if [[ "$panel_ok" == false ]]; then
+    echo "run: the designer panel's static asset view did not answer 200" \
+      "within 15s, but this harness could not confirm whether any" \
+      "opendisplay config entries exist (see the token/entries message" \
+      "above) -- treating this as indistinguishable from the legitimate" \
+      "zero-entry case rather than a fatal error. Not fatal on its own."
+  fi
+fi
+
 cat <<EOF
 
 ============================================================
@@ -269,6 +515,19 @@ Next steps — no OpenDisplay hardware needed:
   4. dev/run.sh                 — bring HA back up; each fabricated entry
      sets up from its own cache with no BLE connection (sleepy-device
      fallback in __init__.py) and gets its device + entities created.
+
+Try the designer panel (this branch's own feature, no hardware needed):
+  1. Open $HA_URL, sidebar -> "OpenDisplay Designer".
+  2. Pick a display (a fabricated one from step 3 above works), edit the
+     YAML/canvas, toggle "Display preview" for a real server-rendered
+     preview -- see docs/designer.md for what's actually happening.
+  3. Or curl the render endpoint directly with a token from your own
+     Profile page -> Security tab -> Long-Lived Access Tokens:
+       curl -X POST -H "Authorization: Bearer \$TOKEN" \\
+         -H 'Content-Type: application/json' \\
+         $HA_URL/api/opendisplay/designer/render \\
+         -d '{"device_id":"<id>","payload":[{"type":"text","value":"hi","x":10,"y":10}]}' \\
+         -o preview.png
 
 With real OpenDisplay hardware instead:
   1. Add the OpenDisplay integration via the UI and pair the device (needs
