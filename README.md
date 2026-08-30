@@ -64,6 +64,14 @@ announced itself over mDNS, falling back to Bluetooth otherwise.
 2. Copy it to your [`custom_components` folder](https://developers.home-assistant.io/docs/creating_integration_file_structure/#where-home-assistant-looks-for-integrations)
 3. Restart Home Assistant
 
+Recent Home Assistant releases also ship their own built-in `opendisplay`
+integration. A `custom_components/opendisplay` install like this one always
+takes precedence over that built-in one for the whole `opendisplay` domain —
+this is normal, expected custom-component behavior (not specific to this
+integration), and Home Assistant logs a one-time warning about it
+("We found a custom integration opendisplay which has not been tested by
+Home Assistant...") on every boot as a reminder, not an error.
+
 ## Configuration
 
 Devices are discovered automatically once they are in range, over Bluetooth or
@@ -138,6 +146,10 @@ data:
 
 Every element type and field is documented in
 [the drawcustom guide](docs/drawcustom/supported_types.md).
+
+**Prefer a visual editor?** The "OpenDisplay Designer" sidebar panel is a
+drag-and-drop drawcustom editor with a live, server-rendered preview — see
+[`docs/designer.md`](docs/designer.md).
 
 ### Send an existing image
 

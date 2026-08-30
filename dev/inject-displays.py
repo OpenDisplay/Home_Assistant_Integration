@@ -6,22 +6,24 @@ device configs (py-opendisplay's own model classes, real geometries) and
 writes them as config entries carrying ``CONF_CACHED_STATE`` straight into
 ``dev/ha-config/.storage/core.config_entries``. On the next ``dev/run.sh``,
 ``__init__.py``'s sleepy-device cache fallback (``_cache_setup_if_sleepy``)
-sets each one up without ever attempting a BLE connection: this Docker
-container has no Bluetooth adapter, so
-``async_ble_device_from_address(..., connectable=True)`` never has a
-discovered device to return and comes back ``None`` immediately -- there is
-no live-connect attempt to time out or hang on. The fabricated entries force
-``options[CONF_SLEEP_MODE] = SLEEP_MODE_ON`` so the sleepy branch is taken
-unconditionally, on top of a genuinely battery/deep-sleep ``PowerOption``
-that would already resolve the same way under the default "auto" mode.
+sets each one up without ever attempting a BLE connection: the dev harness's
+``configuration.yaml`` never loads the ``bluetooth`` integration (no
+default_config, no explicit ``bluetooth:`` key -- maintainer ruling
+2026-08-30), so nothing is ever discovered and
+``async_ble_device_from_address(..., connectable=True)`` comes back ``None``
+immediately -- there is no live-connect attempt to time out or hang on. The
+fabricated entries force ``options[CONF_SLEEP_MODE] = SLEEP_MODE_ON`` so the
+sleepy branch is taken unconditionally, on top of a genuinely
+battery/deep-sleep ``PowerOption`` that would already resolve the same way
+under the default "auto" mode.
 
 Usage (uv-run via the repo's own toolchain, matching scripts/*):
 
     uv run --group dev python dev/inject-displays.py
     uv run --group dev python dev/inject-displays.py --count 5
 
-Run this only while the dev HA container is stopped -- HA must not have its
-``.storage`` rewritten out from under a live process (same rule
+Run this only while the dev HA instance (dev/run.sh) is stopped -- HA must
+not have its ``.storage`` rewritten out from under a live process (same rule
 ``dev/restore.sh`` follows). Idempotent: entries whose title carries this
 script's marker (see ``TITLE_PREFIX``) are replaced wholesale on every run;
 any other integrations' or hand-bootstrapped OpenDisplay entries are left
@@ -32,16 +34,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
-import subprocess
 import sys
 from types import MappingProxyType
 
 DEV_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEV_DIR.parent
 STORAGE_FILE = DEV_DIR / "ha-config" / ".storage" / "core.config_entries"
-COMPOSE_FILE = DEV_DIR / "docker-compose.yml"
-COMPOSE_SERVICE = "homeassistant"
+PID_FILE = DEV_DIR / "ha-config" / ".harness.pid"
 
 # Every fabricated entry's title starts with this, and it is how a re-run
 # finds (and replaces) its own previous output without touching anyone
@@ -59,33 +60,27 @@ def _fail(message: str) -> None:
     sys.exit(1)
 
 
-def _compose_stack_running() -> bool:
-    """Return True if the dev HA container is up.
+def _dev_ha_running() -> bool:
+    """Return True if dev/run.sh's hass process is still up.
 
-    Best-effort: if docker itself isn't on PATH there is nothing that could
-    be holding ha-config/.storage open, so treat that as "not running"
-    rather than failing -- the loud, blocking check is for the case that
-    actually risks corrupting storage under a live HA process.
+    Reads the PID file dev/run.sh writes and checks the process is alive
+    (signal 0 -- no actual kill). A PID file whose process has exited is
+    stale, not "running" -- same as dev/run.sh's own stale-PID handling.
     """
-    try:
-        result = subprocess.run(
-            [
-                "docker",
-                "compose",
-                "-f",
-                str(COMPOSE_FILE),
-                "ps",
-                "--status",
-                "running",
-                "--services",
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    except FileNotFoundError:
+    if not PID_FILE.is_file():
         return False
-    return COMPOSE_SERVICE in result.stdout.split()
+    try:
+        pid = int(PID_FILE.read_text().strip())
+    except ValueError:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Exists but owned by another user -- treat as running (fail safe).
+        return True
+    return True
 
 
 def _build_device_configs():
@@ -321,11 +316,10 @@ def main() -> None:
     if args.count < 1:
         _fail("--count must be at least 1")
 
-    if _compose_stack_running():
+    if _dev_ha_running():
         _fail(
-            "the dev HA stack is running (docker compose -f dev/docker-compose.yml). "
-            "Storage must not be rewritten under a live process. Stop it first: "
-            "docker compose -f dev/docker-compose.yml down"
+            "the dev HA instance is running (dev/run.sh). Storage must not be "
+            "rewritten under a live process. Stop it first: dev/stop.sh"
         )
 
     if not STORAGE_FILE.exists():

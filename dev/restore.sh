@@ -5,22 +5,18 @@
 # upserts by id, so re-running is a no-op past the first restore.
 #
 # CAVEAT: HA must be stopped while its .storage is rewritten underneath it —
-# this script stops the compose stack itself before touching any file.
+# this script stops the dev instance itself (dev/stop.sh) before touching
+# any file.
 set -euo pipefail
 
 DEV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STORAGE_DIR="$DEV_DIR/ha-config/.storage"
 SEED_DIR="$DEV_DIR/seed"
-COMPOSE_FILE="$DEV_DIR/docker-compose.yml"
 # shellcheck source=internal/storage-files.sh
 source "$DEV_DIR/internal/storage-files.sh"
 
 command -v jq >/dev/null 2>&1 || {
   echo "ERROR: jq is required (brew install jq)." >&2
-  exit 1
-}
-command -v docker >/dev/null 2>&1 || {
-  echo "ERROR: docker not found on PATH." >&2
   exit 1
 }
 
@@ -43,8 +39,8 @@ if [[ "$mode" != "filtered" ]]; then
     "this dev instance will be replaced by the snapshot's." >&2
 fi
 
-echo "restore: stopping the dev HA stack (storage must not be rewritten under a live process)..."
-docker compose -f "$COMPOSE_FILE" down >/dev/null 2>&1 || true
+echo "restore: stopping the dev HA instance (storage must not be rewritten under a live process)..."
+"$DEV_DIR/stop.sh"
 
 [[ -d "$STORAGE_DIR" ]] || {
   echo "ERROR: $STORAGE_DIR not found. Run dev/run.sh at least once (through onboarding)" \
