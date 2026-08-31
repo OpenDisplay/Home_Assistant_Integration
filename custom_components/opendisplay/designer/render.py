@@ -362,7 +362,7 @@ class OpenDisplayDesignerRenderView(HomeAssistantView):
         # grid, never to the transposed `(gen_width, gen_height)` canvas
         # already built above -- for a base=0 display with a 90/270
         # orientation, no `rotate` value could make the response land at
-        # the designer's own `context.display` geometry (`HostPreviewDisplayGeometry`,
+        # the designer's own `context.display` geometry (`HostDisplayGeometry`,
         # vendored `.d.ts`: "the logical drawing surface the payload is
         # authored against ... never the raw physical panel size, never a
         # transform to apply"). The designer then letterboxed a

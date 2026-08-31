@@ -153,7 +153,7 @@ hardware needed, fabricated devices (above) work fine as targets:
 2. Open `http://127.0.0.1:8123`, log in, sidebar → **OpenDisplay Designer**.
 3. Pick a display from the **Display** picker (a fabricated device from
    above works) — the canvas resolution/color mode adopt that device's real
-   published capabilities and the picker locks.
+   published display spec and the picker locks.
 4. Edit the YAML or use the canvas toolbar to add an element. Toggle
    **Display preview** on — the canvas replaces its client-side render with
    a real server-rendered image; the browser's network panel shows
@@ -803,9 +803,10 @@ worktree/non-8123-port discipline as the third round above:
 interactive session than this harness's TCC crash window reliably survives,
 or both):
 
-- The panel JS's rotation-delta fix (M1: `_rotateDeltaFor`, deriving the
-  render endpoint's `rotate` field from the designer's live canvas
-  orientation control vs. the target's base capability rotation) — verified
+- The panel JS's rotation-delta derivation (M1: `rotateDeltaFor`, deriving
+  the render endpoint's and the send service's `rotate` field from the
+  designer's live canvas orientation control vs. the target's base
+  `rotationDegrees`) — verified
   by reading the designer's own `.d.ts` contract and `node --check`, not by
   clicking the 90°/180°/270° buttons against a live panel and comparing the
   preview, since no run this session stayed up long enough to try it.

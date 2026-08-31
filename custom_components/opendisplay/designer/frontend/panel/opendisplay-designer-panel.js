@@ -1,5 +1,5 @@
 /**
- * HA panel host for vendored odl-drawcustom-designer 2.x
+ * HA panel host for vendored odl-drawcustom-designer 3.x
  * (mount + drawcustom send via the designer's targets/actions/preview seams).
  *
  * The designer owns ALL chrome now (ADR-018 upstream): no host toolbar, no
@@ -23,24 +23,11 @@ import { mount } from '../vendor/odl-drawcustom-designer.js';
 import yaml from '../vendor/js-yaml.mjs';
 import { containKeyEvents } from './key-containment.js';
 import { installUnsavedWorkWarning } from './unsaved-work.js';
-import { rotateDeltaFor } from './rotation.js';
+import { renderRequestBody, sendCallData } from './drawcustom-request.js';
 
 const TAG = 'opendisplay-designer-panel';
 const RENDER_URL = '/api/opendisplay/designer/render';
 const ASSET_URL = '/api/opendisplay/designer/asset';
-
-// Designer's own numeric dither domain (0 flat/none, 1 reserved, 2 ordered
-// halftone — docs/embedding.md: "the designer's control produces 0 or 2
-// today") mapped onto the drawcustom service's string `dither` options
-// (services.yaml). Deliberately a string lookup, not the raw int: the
-// service's `dither` field also accepts an int matching the DitherMode
-// enum's own value order (see `_dither_value` in services.py), but that
-// ordering isn't published anywhere this panel can read — forwarding the
-// designer's int blind would gamble on an enum layout instead of the
-// documented string vocabulary. `1` is currently unreachable from the
-// designer's own dither control; mapped conservatively to 'ordered' pending
-// upstream clarification (see the PR body's open questions).
-const DITHER_TO_HA_STRING = { 0: 'none', 1: 'ordered', 2: 'ordered' };
 
 const CSS = `
 :host{display:block!important;position:absolute;inset:0;width:100%;height:100%;max-width:none;overflow:hidden;box-sizing:border-box;font-family:var(--ha-font-family-body,system-ui,sans-serif);color:var(--primary-text-color,#1c1917);background:var(--primary-background-color,#fafaf9)}
@@ -98,38 +85,48 @@ function imageEntity(hass, deviceId) {
   );
 }
 
-/** Mirrors capabilities.py's designer-facing shape (docs/embedding.md `HostCapabilities`). */
-function capsFromAttrs(attrs) {
+/**
+ * Translate one image entity's HA attributes into the designer's
+ * `HostDisplaySpec` (vendored `.d.ts`).
+ *
+ * THIS IS THE TRANSLATION LAYER, and the only one. HA entity attributes are
+ * snake_case because that is HA's own convention, and `capabilities.py`
+ * keeps emitting them that way; `HostDisplaySpec`'s keys are camelCase
+ * because that is the designer's published contract (3.0.0 made it the last
+ * published interface to stop being an exception). The two vocabularies meet
+ * here and nowhere else — do not "align" either side to the other.
+ */
+function displaySpecFromAttrs(attrs) {
   const pw = Number(attrs.pixel_width) || 296;
   const ph = Number(attrs.pixel_height) || 128;
   let colorScheme = attrs.color_scheme;
   if (typeof colorScheme !== 'number' || Number.isNaN(colorScheme)) colorScheme = 0x01;
   return {
-    pixel_width: pw,
-    pixel_height: ph,
+    pixelWidth: pw,
+    pixelHeight: ph,
     // KNOWN GAP (PR body's open questions): capabilities.py publishes the
     // BASE rotation while render_width/render_height are already swapped
-    // for the EFFECTIVE (base + user_rotate) orientation. The 2.x contract
-    // requires rotation_degrees to describe the orientation render_* is
+    // for the EFFECTIVE (base + user_rotate) orientation. The contract
+    // requires rotationDegrees to describe the orientation render* is
     // already in — pass the attribute through as-is; do not silently "fix"
     // it here.
-    rotation_degrees: Number(attrs.rotation_degrees) || 0,
-    render_width: Number(attrs.render_width) || pw,
-    render_height: Number(attrs.render_height) || ph,
-    color_scheme: colorScheme,
-    accent_color: String(attrs.accent_color || 'red'),
-    available_colors: Array.isArray(attrs.available_colors)
+    rotationDegrees: Number(attrs.rotation_degrees) || 0,
+    renderWidth: Number(attrs.render_width) || pw,
+    renderHeight: Number(attrs.render_height) || ph,
+    colorScheme,
+    accentColor: String(attrs.accent_color || 'red'),
+    availableColors: Array.isArray(attrs.available_colors)
       ? attrs.available_colors.map(String)
       : ['black', 'white', 'red'],
-    color_map:
+    colorMap:
       attrs.color_map && typeof attrs.color_map === 'object'
         ? attrs.color_map
         : { black: '#000000', white: '#ffffff', red: '#c53929' },
-    palette_measured: Boolean(attrs.palette_measured),
+    paletteMeasured: Boolean(attrs.palette_measured),
   };
 }
 
-/** Every real OpenDisplay device with published capability attributes, as designer `targets`. */
+/** Every real OpenDisplay device with published display attributes, as designer `targets`. */
 function buildTargets(hass) {
   const targets = [];
   for (const d of listOpenDisplayDevices(hass)) {
@@ -147,7 +144,7 @@ function buildTargets(hass) {
     // (capabilities.py always sets it > 0); the 250ms re-push adds the
     // device once real attributes land.
     if (!(Number(attrs.pixel_width) > 0)) continue;
-    targets.push({ id: d.id, label: d.name, capabilities: capsFromAttrs(attrs) });
+    targets.push({ id: d.id, label: d.name, display: displaySpecFromAttrs(attrs) });
   }
   return targets;
 }
@@ -230,53 +227,12 @@ class OpenDisplayDesignerPanel extends HTMLElement {
     // (the designer's "keep and mark stale" case, docs/embedding.md).
     this._lastSelectedTargetId = null;
     this._lastTargetIds = new Set();
-    // Every currently-pushed target's own capabilities, by id -- so
-    // _renderPreview can recover the selected target's BASE rotation
-    // (capabilities.rotation_degrees) to compare against the designer's
+    // Every currently-pushed target's own HostDisplaySpec, by id -- so both
+    // _renderPreview and _send can recover the selected target's BASE
+    // rotation (display.rotationDegrees) to compare against the designer's
     // live, possibly user-rotated canvas orientation (context.display).
-    this._targetCapabilities = new Map();
+    this._targetDisplaySpecs = new Map();
     this._staleSelection = false;
-    // Last dither value actually used for a preview render — Send reuses it
-    // so the sent image matches what was last previewed, instead of always
-    // shipping a hardcoded value regardless of what the designer's own
-    // dither control showed. Defaults to 'none' (the designer's own default
-    // dither control state — docs/embedding.md: flat/no dither) rather than
-    // some other hardcoded guess, for the common case where Send fires
-    // before any preview ever ran this mount.
-    //
-    // KNOWN RESIDUAL (documented in the PR body's open questions): this
-    // value is sticky and invisible. It is set only when a preview render
-    // actually runs, and nothing clears or updates it afterwards — so
-    // previewing at 'ordered', turning preview off, then flipping the
-    // designer's dither control to 'none' (or just never previewing again)
-    // still sends 'ordered', because this field has no way to know the
-    // control moved. There is no fix available against the current designer
-    // API: `onAction`'s `HostActionContext` (the only thing a `send` action
-    // receives) carries just `targetId` — no live read of the designer's
-    // current dither setting exists outside a `renderPreview` call's own
-    // `context.service`. The real fix is a designer-side seam: extend
-    // `HostActionContext` with the same `HostPreviewServiceOptions`
-    // `HostPreviewContext` already carries (designer issue #105 territory)
-    // so `onAction` can read the live dither value directly, the same way
-    // `renderPreview` does now. Not fixable host-side.
-    this._lastPreviewDitherHA = undefined;
-    // Last `rotate` delta actually used for a preview render (rotation.js's
-    // `rotateDeltaFor`) — Send reuses it for the same reason and with the
-    // same sticky-residual shape as `_lastPreviewDitherHA` above: turns the
-    // maintainer's manual "helper script + rotate:270 on every call"
-    // workflow into pick display -> set Orientation -> design -> Send, but
-    // stays stale if the Orientation control moves without a further
-    // preview (same `HostActionContext`-carries-only-`targetId` limitation
-    // as dither; designer issue #105 territory once `onAction` can read
-    // live service/geometry options itself). Starts `undefined` (no preview
-    // ran yet this session), and `?? 0` at the Send call site below falls
-    // back to `rotate: 0` in that case -- PLAINLY: if the user sets
-    // Orientation and Sends WITHOUT a preview having run first (or after
-    // moving Orientation again since the last one), Send ships an
-    // un-rotated payload. On a rotated display that is sideways on real
-    // hardware, not a cosmetic mismatch -- not "matching a default", a real
-    // gap that only a preview run (or the #105 seam) closes.
-    this._lastPreviewRotate = undefined;
   }
 
   set hass(value) {
@@ -409,7 +365,7 @@ class OpenDisplayDesignerPanel extends HTMLElement {
 
   _updateTargetsTracking(targets) {
     this._lastTargetIds = new Set(targets.map((t) => t.id));
-    this._targetCapabilities = new Map(targets.map((t) => [t.id, t.capabilities]));
+    this._targetDisplaySpecs = new Map(targets.map((t) => [t.id, t.display]));
   }
 
   _pushActions() {
@@ -450,7 +406,7 @@ class OpenDisplayDesignerPanel extends HTMLElement {
         },
         actions: this._actionsList(),
         onAction: (id, payload, context) => {
-          if (id === 'send') void this._send(payload, context.targetId);
+          if (id === 'send') void this._send(payload, context);
         },
         renderPreview: (payload, context) => this._renderPreview(payload, context),
         resolveAsset: (kind, name) => this._resolveAsset(kind, name),
@@ -492,24 +448,18 @@ class OpenDisplayDesignerPanel extends HTMLElement {
   /**
    * `send` host action (docs/embedding.md `actions`/`onAction`) — the only
    * save/send channel; the designer has no Save button of its own.
-   * Defaults hardcoded (background: white, refresh_type: full) — designer
-   * issue #105 (service options) will expose these to the user later.
-   * `dither` and `rotate` are the two partial exceptions (see
-   * `_lastPreviewDitherHA`'s and `_lastPreviewRotate`'s own init comments
-   * for the known residual each shares): both reuse whatever a preview
-   * render last actually used, so the common "preview, then send" flow
-   * ships what the user actually saw, rather than always a hardcoded value
-   * regardless of what was previewed. Both are **sticky, stale values**,
-   * not a live read of the designer's current controls -- PLAINLY: Send
-   * without a preview run first, or after moving Orientation/dither since
-   * the last preview, ships `dither: 'none'`/`rotate: 0` regardless of
-   * what those controls currently show. For `rotate` on a rotated display
-   * that means sideways content on real hardware, not a cosmetic gap --
-   * fixed only by running a preview first, or by the #105 seam
-   * (`HostActionContext` carrying live service/geometry options).
+   * `background`/`refresh_type` are still hardcoded (designer issue #105
+   * will expose the rest of the option set later); `dither` and `rotate`
+   * are read LIVE off `HostActionContext` at the instant of the click
+   * (`context.render.dither`, `context.display.rotation` — both frozen,
+   * both present on every action since designer 3.0.0), so Send ships what
+   * the designer's own controls show right now. No preview has to have run,
+   * and nothing is remembered from one: the panel no longer keeps a
+   * last-preview dither or rotate at all.
    */
-  async _send(payloadYaml, targetId) {
+  async _send(payloadYaml, context) {
     const hass = this._hass;
+    const targetId = context.targetId;
     if (!hass?.callService) {
       this._notify('Home Assistant connection unavailable');
       return;
@@ -536,19 +486,10 @@ class OpenDisplayDesignerPanel extends HTMLElement {
       await hass.callService(
         'opendisplay',
         'drawcustom',
-        {
-          // device_id here is the service's own required field
-          // (services.yaml's `device_id` selector) -- not a duplicate of
-          // the 4th argument below, which is HA's separate service-call
-          // "target" (attributes the call to a device in the logbook/trace
-          // UI, independent of what the service schema itself requires).
-          device_id: [targetId],
-          payload: elements,
-          background: 'white',
-          dither: this._lastPreviewDitherHA ?? 'none',
-          rotate: this._lastPreviewRotate ?? 0,
-          refresh_type: 'full',
-        },
+        sendCallData(elements, this._targetDisplaySpecs.get(targetId), context),
+        // HA's separate service-call "target" (attributes the call to a
+        // device in the logbook/trace UI), independent of the `device_id`
+        // the service schema itself requires inside the data above.
         { device_id: targetId }
       );
       this._notify(`Sent ${elements.length} element(s) at ${new Date().toLocaleTimeString()}`);
@@ -558,18 +499,6 @@ class OpenDisplayDesignerPanel extends HTMLElement {
       this._sending = false;
       this._pushActions();
     }
-  }
-
-  /**
-   * The render endpoint's (and drawcustom's) `rotate` field is a delta on
-   * top of the target's own stored base rotation -- see rotation.js's own
-   * doc comment for the full derivation and why this is not just a
-   * dimension check. Looks the target's capabilities up in
-   * `this._targetCapabilities` (populated alongside every `targets` push)
-   * rather than accepting client-supplied dimensions for what to render at.
-   */
-  _rotateDeltaFor(targetId, context) {
-    return rotateDeltaFor(this._targetCapabilities.get(targetId), context.display?.rotation);
   }
 
   /**
@@ -585,7 +514,6 @@ class OpenDisplayDesignerPanel extends HTMLElement {
    */
   async _renderPreview(payloadYaml, context) {
     const hass = this._hass;
-    const targetId = context.targetId;
     if (!hass?.fetchWithAuth) throw new Error('Home Assistant connection unavailable');
 
     let elements;
@@ -595,33 +523,14 @@ class OpenDisplayDesignerPanel extends HTMLElement {
       throw new Error(`Cannot preview invalid YAML: ${errMsg(err)}`);
     }
 
-    const ditherHA = DITHER_TO_HA_STRING[context.service.dither] ?? 'ordered';
-    // Virtual display (tier-1 round 2, finding 2): context.targetId is null
-    // for the designer's built-in "Virtual display" pick -- there is no HA
-    // device to send a device_id for at all. context.display (width/height,
-    // already the oriented logical drawing surface -- see
-    // HostPreviewDisplayGeometry's own doc comment in the vendored .d.ts) is
-    // ALWAYS present regardless of targetId, so that geometry alone is
-    // enough for the endpoint's spec mode; rotate is always 0 here because
-    // context.display is already the final oriented surface, with no
-    // separate "base rotation" to recover a delta against the way a real
-    // device's own stored rotation_degrees would need (_rotateDeltaFor,
-    // above -- that function stays device-only, unchanged).
-    const requestBody = targetId
-      ? {
-          device_id: targetId,
-          payload: elements,
-          background: 'white',
-          dither: ditherHA,
-          rotate: this._rotateDeltaFor(targetId, context),
-        }
-      : {
-          display: { width: context.display.width, height: context.display.height },
-          payload: elements,
-          background: 'white',
-          dither: ditherHA,
-          rotate: 0,
-        };
+    // Same builder module the `send` action uses, so preview and send derive
+    // `dither`/`rotate` from the designer's live context identically instead
+    // of two lookalike expressions that can drift.
+    const requestBody = renderRequestBody(
+      elements,
+      this._targetDisplaySpecs.get(context.targetId),
+      context
+    );
     const res = await hass.fetchWithAuth(RENDER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -637,13 +546,6 @@ class OpenDisplayDesignerPanel extends HTMLElement {
       }
       throw new Error(`Render failed: ${message}`);
     }
-    // Remember it for Send — set only after the render above succeeds, so a
-    // failed render never poisons what Send would use. Same sticky-residual
-    // shape as dither (see _lastPreviewRotate's own init comment): sent for
-    // whichever targetId last previewed successfully, not a live read of
-    // the designer's current Orientation control.
-    this._lastPreviewDitherHA = ditherHA;
-    this._lastPreviewRotate = requestBody.rotate;
     return await res.blob();
   }
 

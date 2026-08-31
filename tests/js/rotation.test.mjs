@@ -25,8 +25,8 @@ function expectedDelta(base, target) {
 test('rotateDeltaFor matches (target - base) mod 360 for every combination', () => {
   for (const base of ORIENTATIONS) {
     for (const target of ORIENTATIONS) {
-      const capabilities = { rotation_degrees: base };
-      const actual = rotateDeltaFor(capabilities, target);
+      const displaySpec = { rotationDegrees: base };
+      const actual = rotateDeltaFor(displaySpec, target);
       assert.equal(
         actual,
         expectedDelta(base, target),
@@ -37,12 +37,12 @@ test('rotateDeltaFor matches (target - base) mod 360 for every combination', () 
 });
 
 test('an untouched Orientation control (target === base) needs no extra rotate', () => {
-  // The designer's canvas orientation is seeded from capabilities.
-  // rotation_degrees (base); an un-clicked control reports exactly base, and
+  // The designer's canvas orientation is seeded from the pushed display
+  // rotationDegrees (base); an un-clicked control reports exactly base, and
   // the device's own fixed mounting already achieves that view -- no
   // additional `rotate` should ever be sent for the seeded default.
   for (const base of ORIENTATIONS) {
-    assert.equal(rotateDeltaFor({ rotation_degrees: base }, base), 0);
+    assert.equal(rotateDeltaFor({ rotationDegrees: base }, base), 0);
   }
 });
 
@@ -51,34 +51,34 @@ test('a base-rotated display (base=90) needs a non-zero rotate for every other o
   // Orientation control set to 90, matching a physically landscape-mounted
   // panel) must NOT collapse to rotate=0 -- that specific collapse is what
   // made the server render as if the rotation weren't applied.
-  assert.equal(rotateDeltaFor({ rotation_degrees: 90 }, 90), 0);
-  assert.equal(rotateDeltaFor({ rotation_degrees: 90 }, 0), 270);
-  assert.equal(rotateDeltaFor({ rotation_degrees: 90 }, 180), 90);
-  assert.equal(rotateDeltaFor({ rotation_degrees: 90 }, 270), 180);
+  assert.equal(rotateDeltaFor({ rotationDegrees: 90 }, 90), 0);
+  assert.equal(rotateDeltaFor({ rotationDegrees: 90 }, 0), 270);
+  assert.equal(rotateDeltaFor({ rotationDegrees: 90 }, 180), 90);
+  assert.equal(rotateDeltaFor({ rotationDegrees: 90 }, 270), 180);
 });
 
-test('missing/undefined capabilities falls back to base=0', () => {
+test('missing/undefined display spec falls back to base=0', () => {
   assert.equal(rotateDeltaFor(undefined, 90), 90);
   assert.equal(rotateDeltaFor(null, 270), 270);
   assert.equal(rotateDeltaFor({}, 180), 180);
 });
 
 test('the maintainer\'s real ESL 5 3.5" device (tier-2 acceptance vector)', () => {
-  // rotation_degrees (base) = 0 -- native portrait 184x384, no base
+  // rotationDegrees (base) = 0 -- native portrait 184x384, no base
   // persisted; physically mounted landscape, his own working automation
   // passes rotate: 270 on every drawcustom call. Setting the designer's
   // Orientation control to 270 must derive exactly that.
-  const capabilities = {
-    pixel_width: 184,
-    pixel_height: 384,
-    rotation_degrees: 0,
-    render_width: 184,
-    render_height: 384,
+  const displaySpec = {
+    pixelWidth: 184,
+    pixelHeight: 384,
+    rotationDegrees: 0,
+    renderWidth: 184,
+    renderHeight: 384,
   };
-  assert.equal(rotateDeltaFor(capabilities, 270), 270);
+  assert.equal(rotateDeltaFor(displaySpec, 270), 270);
 });
 
 test('a non-numeric target falls back to 0', () => {
-  assert.equal(rotateDeltaFor({ rotation_degrees: 90 }, undefined), 270);
-  assert.equal(rotateDeltaFor({ rotation_degrees: 0 }, NaN), 0);
+  assert.equal(rotateDeltaFor({ rotationDegrees: 90 }, undefined), 270);
+  assert.equal(rotateDeltaFor({ rotationDegrees: 0 }, NaN), 0);
 });

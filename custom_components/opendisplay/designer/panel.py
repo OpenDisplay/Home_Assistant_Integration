@@ -16,12 +16,12 @@ DESIGNER_STATIC_URL = f"/api/{DOMAIN}/designer/static"
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 PANEL_JS_REL = "panel/opendisplay-designer-panel.js"
-# designer 2.x migration (targets/actions/status seams; render endpoint
-# preview, replacing the dry-run/poll approach entirely). Bump this whenever
+# designer 3.x host contract (targets/actions/status seams; render endpoint
+# preview; WYSIWYG send reading the live action context). Bump this whenever
 # the panel JS changes in a way that isn't already covered by its own mtime
 # (get_frontend_cache_token appends that too) -- e.g. a vendor library bump
 # that doesn't touch the panel JS's own file.
-DESIGNER_FRONTEND_BUILD = "20260830a"
+DESIGNER_FRONTEND_BUILD = "20260831a"
 
 
 def get_frontend_cache_token() -> str:

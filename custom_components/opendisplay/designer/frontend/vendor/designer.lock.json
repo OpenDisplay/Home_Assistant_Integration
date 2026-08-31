@@ -1,7 +1,7 @@
 {
   "designer": {
-    "version": "2.6.3",
-    "integrity": "sha512-c5KbWpKFGCtAOI/axM8Bs5Er4a276ZbzAaHppRfKEwK0ObDTmWwkFlXlZep+Oe1pH8hol/Z6TlVsOS5F3dVZVA=="
+    "version": "3.0.0",
+    "integrity": "sha512-jLDrhu7ZyQhIYVttT7jGqAcbK9NxQif1wJWTgA5FrslmAoowqM7en8vAHoJp2Ag4Vw/+jMAsvNXc9hs8mtAy5A=="
   },
   "js_yaml": {
     "version": "4.1.0",

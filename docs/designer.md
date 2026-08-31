@@ -28,16 +28,26 @@ YAML, and a `send` host action this integration registers.
 | `targets` | Every HA device on the `opendisplay` platform with published capability attributes (`designer/capabilities.py`, gated on `pixel_width > 0` so a device whose capabilities haven't landed yet, or failed to build, never becomes a fabricated target) |
 | `states` | Every HA entity state (`hass.states`), with `attributes.friendly_name` promoted to the designer's `name` field |
 | `actions` | One button, `send`, disabled with a human reason while sending, the YAML is invalid, or no display is selected |
-| `onAction('send', …)` | Calls the `opendisplay.drawcustom` service against the selected target's device |
+| `onAction('send', …)` | Calls the `opendisplay.drawcustom` service against the selected target's device, with `dither` and `rotate` read live off the action context at click time |
 | `renderPreview` | POSTs to this integration's own render endpoint (below) and hands back the PNG bytes |
 | `resolveAsset` | GETs this integration's own asset endpoint (below) for a font the designer couldn't resolve locally, and hands back the bytes |
 
 Each real OpenDisplay device's `image.*` entity carries its designer
-capability attributes (`pixel_width`, `pixel_height`, `render_width`,
+display attributes (`pixel_width`, `pixel_height`, `render_width`,
 `render_height`, `rotation_degrees`, `color_scheme`, `accent_color`,
-`available_colors`, `color_map`, `palette_measured` — the designer's own
-`HostCapabilities` shape) via `designer/image_entity.py`, published on
-`async_added_to_hass` and refreshed on read.
+`available_colors`, `color_map`, `palette_measured`) via
+`designer/image_entity.py`, published on `async_added_to_hass` and
+refreshed on read.
+
+**Those attribute names are snake_case and stay that way** — they are Home
+Assistant entity attributes, and HA's own convention governs them. The
+designer's matching type, `HostDisplaySpec` (renamed from
+`HostCapabilities` in designer 3.0.0, and camelCase throughout since the
+same release), is a different vocabulary: `pixelWidth`, `rotationDegrees`,
+`paletteMeasured`, and so on. The two meet in exactly one function — the
+panel wrapper's `displaySpecFromAttrs()` — whose result is pushed as a
+target's `display` field (`HostTarget.display`, renamed from
+`.capabilities` in 3.0.0). Neither side is "aligned" to the other.
 
 ## Preview isolation
 
@@ -127,7 +137,7 @@ as an error — see the `400` row below.
 
 Response: `200` with `Content-Type: image/png` and the rendered bytes, at
 the **logical drawing surface's** resolution — the same shape the designer's
-own canvas is at when it made the request (`HostPreviewDisplayGeometry`,
+own canvas is at when it made the request (`HostDisplayGeometry`,
 vendored `.d.ts`: "the logical drawing surface the payload is authored
 against ... never the raw physical panel size"), already transposed for a
 quarter-turn rotation. This is deliberately **not** the target device's raw
@@ -179,19 +189,40 @@ a kwarg-inspection nicety). The payload element count is capped
 why `generate_image` itself still runs on the event loop rather than in an
 executor.
 
-The panel wrapper derives the request's `rotate` field from the designer's
-**live** canvas orientation, not from the device's stored base rotation:
-the 0°/90°/180°/270° orientation control next to Display Config lets the
-user pick an effective orientation independent of what `capabilities.
-rotation_degrees` published, and `renderPreview`'s `context.display.
-rotation` reports whichever one is currently showing. `rotateDeltaFor()`
-(`frontend/panel/rotation.js`, extracted from the panel wrapper for its own
-unit tests — `tests/js/rotation.test.mjs`) compares that against the
-target's own pushed `rotation_degrees` (its base) to recover the delta the
-endpoint's `rotate` field expects — sending `rotate: 0` unconditionally (as
-an earlier version of this endpoint's caller did) meant a preview of a
-rotated canvas letterboxed against an image rendered for the wrong
-orientation.
+### The rotation mapping
+
+**In one sentence:** the designer reports an ABSOLUTE on-screen orientation
+(`context.display.rotation`, the orientation `context.display.width`/
+`height` are already expressed in), while `rotate` — on this endpoint and
+on `opendisplay.drawcustom` alike — is a DELTA the device composes onto its
+own stored base rotation, so the panel converts with `rotate =
+(context.display.rotation − target.display.rotationDegrees) mod 360`.
+
+The panel wrapper therefore derives `rotate` from the designer's **live**
+canvas orientation, not from the device's stored base rotation: the
+0°/90°/180°/270° orientation control next to Display Config lets the user
+pick an effective orientation independent of what `rotation_degrees`
+published, and `context.display.rotation` reports whichever one is
+currently showing. `rotateDeltaFor()` (`frontend/panel/rotation.js`,
+extracted from the panel wrapper for its own unit tests —
+`tests/js/rotation.test.mjs`) compares that against the target's own pushed
+`display.rotationDegrees` (its base) to recover the delta — sending
+`rotate: 0` unconditionally (as an earlier version of this endpoint's
+caller did) meant a preview of a rotated canvas letterboxed against an
+image rendered for the wrong orientation.
+
+**Both channels read the same live context.** Since designer 3.0.0,
+`onAction`'s `HostActionContext` carries the same frozen `display`
+geometry and `render` options (`HostDisplayGeometry`, `HostRenderOptions`)
+that `renderPreview`'s context always carried, read at the instant the
+button is clicked. Preview and Send build their requests from one module
+(`frontend/panel/drawcustom-request.js`), so what a Send ships is what the
+designer's own Orientation and dither controls show at that moment — with
+or without a preview ever having run. The Python side is pinned by
+`tests/test_rotation_parity.py`'s
+`test_send_without_preview_lands_right_side_up` (asserting on the buffer
+handed to `upload_prepared_image`); the JS side by
+`tests/js/drawcustom-request.test.mjs`.
 
 Tier-2 (real hardware) root-cause note — **two bugs, not one, and the first
 investigation round's "not a formula bug" conclusion was itself wrong** (a
@@ -204,15 +235,16 @@ canvas. His actual device (an ESL 5 3.5", verbatim reported attributes:
 persisted, physically mounted landscape, his own working automation
 compensating with `rotate: 270` on every call.
 
-**Bug 1 (real, fixed first round): Send never carried a `rotate` value at
-all.** The maintainer's real workaround (a manual helper script passing
-`rotate: 270` on every `drawcustom` call) had no designer-side equivalent,
-so a payload rotated in the designer's own Orientation control shipped
-un-rotated through Send. Fixed by wiring Send to reuse the last-previewed
-`rotate`, the same sticky-memory shape `dither` already used (see the
-"PLAINLY" callout on that mechanism, further down and in the panel
-wrapper's own code comments — it is a real, sticky-stale residual, not
-"matching a default").
+**Bug 1 (real): Send never carried a `rotate` value at all.** The
+maintainer's real workaround (a manual helper script passing `rotate: 270`
+on every `drawcustom` call) had no designer-side equivalent, so a payload
+rotated in the designer's own Orientation control shipped un-rotated
+through Send. The first fix round wired Send to reuse the last-previewed
+`rotate` — the only thing the 2.x host contract allowed, and a sticky,
+stale residual that was wrong whenever no preview had run or the control
+had moved since. Designer 3.0.0 removed the constraint: `HostActionContext`
+now carries the live geometry and render options, Send reads them at click
+time, and the remembered values are gone from this panel entirely.
 
 **Bug 2 (the actual "sideways preview" symptom, missed the first round,
 found by re-verification): the render endpoint returned the DEVICE-FACING
@@ -272,17 +304,16 @@ explicit `rotate` on every render — HA does not yet have a way to
 *persist* that as the display's own default (see below). In the designer:
 pick the target display, set its Orientation control (0°/90°/180°/270°,
 next to Display Config) to match how the panel is actually mounted, then
-design and Send as normal — both Preview and Send now honor that choice
-(`rotateDeltaFor`, above). **PLAINLY**: Send's `rotate` is a sticky memory
-of the last preview render, not a live read of the Orientation control
-(same mechanism, same residual, as `dither` — see "Known gaps" below) — set
-Orientation, then let at least one preview render before Send, or the
-payload ships un-rotated (sideways on a rotated display) regardless of what
-Orientation currently shows. A persistent, per-display default orientation
-(so this wouldn't need re-picking every session) is a deliberate
-deferral pending the upstream capabilities discussion on
-`rotation_degrees` base-vs-effective (see the PR body's open questions) —
-not a limitation of this endpoint or the panel wrapper.
+design and Send as normal — both Preview and Send honor that choice, read
+live from the designer at the moment of the request or the click
+(`rotateDeltaFor`, above). No preview has to run first: the earlier
+"preview at least once before Send, or the payload ships un-rotated"
+caveat described a 2.x host-contract limitation that designer 3.0.0
+removed, and it no longer applies. A persistent, per-display default
+orientation (so this wouldn't need re-picking every session) is a
+deliberate deferral pending the upstream discussion on `rotation_degrees`
+base-vs-effective (see the PR body's open questions) — not a limitation of
+this endpoint or the panel wrapper.
 
 ## The asset endpoint
 
@@ -327,8 +358,8 @@ Assistant custom components can't `npm install` at runtime). See
 for the full procedure; in short:
 
 ```bash
-scripts/update-designer-vendor.py             # re-verify the current pin
-scripts/update-designer-vendor.py --pin 2.7.0  # bump to a new release
+scripts/update-designer-vendor.py              # re-verify the current pin
+scripts/update-designer-vendor.py --pin 3.0.1  # bump to a new release
 git diff custom_components/opendisplay/designer/frontend/vendor/
 ```
 
@@ -337,33 +368,30 @@ actual downloaded bytes before writing anything to `vendor/` — a mismatch
 exits non-zero and changes nothing. After bumping the pin, review the diff
 of `odl-drawcustom-designer.d.ts` against the panel wrapper's own usage
 (`../panel/opendisplay-designer-panel.js`) — the wrapper is hand-written
-against the 2.x host contract and is not regenerated by the script.
+against the 3.x host contract and is not regenerated by the script.
+
+The current pins are the designer at **3.0.0** and `js-yaml` at **4.1.0**
+(`vendor/designer.lock.json`). The js-yaml hold is deliberate: npm's latest
+is 5.x, a major with API changes, which belongs in its own change with its
+own acceptance run rather than riding along with a designer bump.
 
 ## Known gaps
 
-- **`rotation_degrees` still publishes only the base panel rotation** in
-  `HostCapabilities` (`capabilities.py`'s `user_rotate_deg` is always `0` —
-  no host seam exists yet to carry a live rotate choice into
-  `build_capabilities`). **Preview** works around this at the point of use
-  (`rotateDeltaFor`, above) by comparing the designer's own live canvas
-  orientation against that base value, so a rotated preview renders
-  correctly despite the gap. **Send now does too** (previously did not —
-  see the tier-2 root-cause note above): it reuses whatever `rotate` a
-  preview render last actually derived, the same sticky-memory shape
-  `dither` already used (below), rather than never carrying a `rotate`
-  value at all.
-- **Send's `dither` and `rotate` values are a sticky memory of the last
-  preview**, not a live read of the designer's current dither/orientation
-  controls (`onAction`'s `HostActionContext` carries only `targetId`, not
-  the `HostPreviewServiceOptions`/geometry a `renderPreview` call receives).
-  PLAINLY: if no preview ran this session, or the user moved
-  Orientation/dither since the last one, Send ships `dither: 'none'`,
-  `rotate: 0` regardless of what those controls currently show — for
-  `rotate` on a rotated display that is sideways content on real hardware,
-  not a cosmetic default. See the PR body's open questions for the upstream
-  seam both need (`odl-drawcustom-designer` issue #105 territory: extending
-  `HostActionContext` the same way `HostPreviewContext` already carries
-  geometry and service options).
+- **`rotation_degrees` still publishes only the base panel rotation**
+  (`capabilities.py`'s `user_rotate_deg` is always `0` — no host seam
+  exists yet to carry a live rotate choice into `build_capabilities`).
+  Both Preview and Send work around this at the point of use
+  (`rotateDeltaFor`, above), comparing the designer's own live canvas
+  orientation against that base value, so a rotated display renders and
+  sends correctly despite the gap. What is still missing is *persistence*:
+  the orientation has to be re-picked per session rather than being the
+  display's own stored default.
+- **The rest of the drawcustom option set is still hardcoded on Send**
+  (`background: white`, `refresh_type: full`). `dither` and `rotate` are
+  read live off `HostActionContext` (designer 3.0.0); the remaining options
+  need `HostRenderOptions` to grow, which is the rest of
+  `odl-drawcustom-designer` issue #105. Until then a user who wants a
+  different background or a partial refresh uses the service directly.
 - **The `dry-run` field on `opendisplay.drawcustom` still ignores `dither`**
   (it always renders the flat, un-dithered image) — an independent,
   pre-existing gap the render endpoint above does not share (it always

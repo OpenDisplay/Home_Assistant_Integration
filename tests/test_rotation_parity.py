@@ -9,7 +9,7 @@ render endpoint both funneled through `prepare_image`'s DEVICE-FACING
 `rotate` + fit-to-native-pixel-grid step, so they always agreed with EACH
 OTHER while both landing on the same wrong shape for preview: the raw,
 untransposed device grid, never the designer's own `context.display`
-geometry (`HostPreviewDisplayGeometry`, vendored `.d.ts`: "the logical
+geometry (`HostDisplayGeometry`, vendored `.d.ts`: "the logical
 drawing surface the payload is authored against ... never the raw physical
 panel size, never a transform to apply"). For a base=0 display with a
 90/270 orientation (the maintainer's real ESL 5 3.5", see the acceptance
@@ -41,6 +41,25 @@ Three independent properties per (base, orientation) cell, none of them
    `rotate=ROTATE_0` -- proves preview shares the send path's real
    quantization pipeline without re-asserting the wrong device-grid-shaped
    property the old suite checked.
+
+SEND WITHOUT PREVIEW (designer 3.0.0, issue #105 WYSIWYG-send slice): the
+panel used to reuse the last preview render's `rotate` at Send time, so a
+Send with no preview ever run shipped `rotate: 0` -- sideways content on a
+rotated display, on real hardware. `HostActionContext` now carries the live
+`display.rotation`, the panel derives `rotate` from it at click time
+(`tests/js/drawcustom-request.test.mjs` pins the JS half), and
+`test_send_without_preview_lands_right_side_up` below pins the Python half:
+a `drawcustom` call carrying that derived rotate, and NOTHING else -- no
+preview request before it -- hands the device a native-grid buffer with the
+content actually turned. It asserts on the image handed to
+`upload_prepared_image`, which is what physically reaches the panel.
+
+THE MAPPING both halves implement, in one sentence: the designer reports an
+ABSOLUTE on-screen orientation (`context.display.rotation`) while `rotate`
+-- on this endpoint and on `opendisplay.drawcustom` alike -- is a DELTA the
+device composes onto its own stored base rotation, so the panel converts
+with `rotate = (context.display.rotation - target.display.rotationDegrees)
+mod 360`.
 """
 
 from dataclasses import replace
@@ -203,6 +222,12 @@ async def _send_paths_pregenerated_image(
     return spy.call_args.args[0]
 
 
+def _column_is_mostly_black(image: PILImage.Image, x: int) -> bool:
+    col = [image.getpixel((x, y)) for y in range(image.height)]
+    dark = sum(1 for px in col if sum(px[:3]) < 200)
+    return dark > image.height * 0.8
+
+
 def _row_is_mostly_black(image: PILImage.Image, y: int) -> bool:
     row = [image.getpixel((x, y)) for x in range(image.width)]
     dark = sum(1 for px in row if sum(px[:3]) < 200)
@@ -343,3 +368,65 @@ async def test_esl5_3_5_real_hardware_acceptance_vector(
     assert image.size == (384, 184), image.size
     assert _row_is_mostly_black(image, 0)
     assert _row_is_mostly_white(image, image.height - 1)
+
+
+@pytest.mark.parametrize("device_config", [_ESL5_ATTRS], indirect=True)
+async def test_send_without_preview_lands_right_side_up(
+    hass,
+    device_id: str,
+    device_config,
+    mock_upload_device: MagicMock,
+) -> None:
+    """A `drawcustom` send carrying the panel's derived rotate, and no preview.
+
+    The WYSIWYG-send path (designer 3.0.0, issue #105): the panel derives
+    `rotate` from `context.display.rotation` at click time, so this call is
+    the FIRST and ONLY render of the session -- no preview request runs
+    before it, and nothing is remembered from one. This test deliberately
+    never touches the render endpoint, which is exactly the case the old
+    sticky `_lastPreviewRotate` got wrong (it shipped `rotate: 0`).
+
+    Asserts on what physically reaches the panel: the processed image inside
+    the `prepared` tuple handed to `upload_prepared_image`. That is the
+    device-facing buffer -- the raw native 184x384 grid, NOT the logical
+    surface preview returns -- with the payload's top-edge bar turned onto
+    the LEFT edge, because `prepare_image` rotates the source by
+    (base + rotate) = 270 with CLOCKWISE semantics
+    (`Rotation.ROTATE_270` -> `Image.Transpose.ROTATE_90`, i.e. a quarter
+    turn counter-clockwise in PIL's own frame), which carries a top row onto
+    the left column.
+
+    Red-first: with `rotate: 0` (what a Send without a preview used to ship)
+    the bar stays on the TOP edge of a 184x384 buffer, failing both the
+    left-edge and the not-on-top assertions below.
+    """
+    # Authored against the LOGICAL surface for orientation 270, exactly what
+    # the designer's canvas is at when the user clicks Send.
+    payload = _top_bar_payload(384, 184)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [device_id],
+            "payload": payload,
+            "rotate": 270,
+            "dither": "none",
+        },
+        blocking=True,
+        return_response=True,
+    )
+
+    prepared = mock_upload_device.upload_prepared_image.call_args.args[0]
+    uploaded = prepared[2].convert("RGB")
+
+    assert uploaded.size == (184, 384), (
+        f"send must upload the native device grid, got {uploaded.size}"
+    )
+    assert _column_is_mostly_black(uploaded, 0), (
+        "the bar did not land on the left edge -- the rotate never reached "
+        "the device buffer"
+    )
+    assert _row_is_mostly_white(uploaded, 0), (
+        "the bar is still on the top edge -- the payload shipped un-rotated"
+    )

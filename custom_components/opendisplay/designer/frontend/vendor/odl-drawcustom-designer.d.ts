@@ -127,7 +127,8 @@ export declare interface HostAction {
 }
 
 /**
- * Third argument of `onAction` — the opaque ids that accompany the payload.
+ * Third argument of `onAction` — the opaque ids and live display/render
+ * state that accompany the payload.
  */
 export declare interface HostActionContext {
     /**
@@ -136,7 +137,30 @@ export declare interface HostActionContext {
      * the user switched to the virtual display. Always the same value the last
      * {@link MountOptions.onTargetSelected} call reported.
      */
-    targetId?: string;
+    readonly targetId?: string;
+    /**
+     * The logical drawing surface the payload is authored against, at the
+     * instant the action fired — the exact same {@link HostDisplayGeometry}
+     * shape {@link HostPreviewContext} carries, and equal to it in the same
+     * instant (issue #105, WYSIWYG-send slice). Always present: a canvas
+     * re-orientation or resolution pick changes what an action sends exactly as
+     * it changes what a preview request asks for — there is no separate,
+     * possibly-stale copy for actions to fall back on.
+     */
+    readonly display: HostDisplayGeometry;
+    /**
+     * The rasterization options in effect at the instant the action fired — the
+     * same {@link HostRenderOptions} shape {@link HostPreviewContext} carries,
+     * so a host reads one shape for both channels rather than two that happen to
+     * agree. Always present, for the same reason `display` is (issue #105):
+     * before this, an `onAction` handler had nowhere to read the designer's own
+     * dither control from, so a host reaching for WYSIWYG send had no choice but
+     * to remember the last preview request's `render` — sticky and invisible,
+     * and wrong the moment the control changes with the preview off or unused.
+     * `dither` is the only field this slice carries; the rest of the option set
+     * (background, ttl, …) is the rest of issue #105.
+     */
+    readonly render: HostRenderOptions;
 }
 
 /**
@@ -189,40 +213,63 @@ export declare type HostActionSeverity = 'normal' | 'caution' | 'danger';
 export declare type HostAssetResolver = (kind: AssetKind, name: string) => Promise<Blob | string | null>;
 
 /**
- * What a display *is* — the description driving canvas setup, carried by every
- * {@link HostTarget}. Mirrors the payload shape of the OpenDisplay HA
- * integration's `capabilities.py` so a host-side adapter can pass it through
- * unchanged. All fields optional; anything a display does not declare comes
- * from the designer's canonical defaults, never from the display previously in
- * effect.
+ * The **logical drawing surface** the payload is authored against — the
+ * coordinate space its `x`/`y` values live in, and therefore what a host has to
+ * render at for the image to mean anything beside the design.
+ *
+ * Already oriented: {@link HostDisplayGeometry.width}/`height` are
+ * swapped for a quarter turn (issue #139), exactly as upstream `imagegen`
+ * creates its canvas before drawing, and `rotation` says which way round the
+ * panel holds that surface. Never the raw physical panel size, and never a
+ * transform to apply to the returned image.
  */
-export declare interface HostCapabilities {
+export declare interface HostDisplayGeometry {
+    readonly width: number;
+    readonly height: number;
+    /** The orientation `width`/`height` are already expressed in. */
+    readonly rotation: 0 | 90 | 180 | 270;
+}
+
+/**
+ * What a display *is* — the host's declaration of the panel, driving canvas
+ * setup, carried by every {@link HostTarget}. All fields optional; anything a
+ * display does not declare comes from the designer's canonical defaults, never
+ * from the display previously in effect.
+ *
+ * The designer owns this contract; a host adapts its own data to it, not the
+ * other way round — camelCase throughout, like every other published type
+ * (maintainer ruling 2026-08-31: the PR100 exploration this shape once
+ * mirrored was never live and is inspiration, not authority; with a major
+ * bump there is no reason for one published interface to read differently
+ * from the rest).
+ */
+export declare interface HostDisplaySpec {
     /** Physical panel width in pixels (before rotation). */
-    pixel_width?: number;
+    pixelWidth?: number;
     /** Physical panel height in pixels (before rotation). */
-    pixel_height?: number;
+    pixelHeight?: number;
     /** Mounting rotation in degrees; only quarter turns are representable. */
-    rotation_degrees?: number;
-    /** Drawing-surface width after rotation; preferred over pixel_width. */
-    render_width?: number;
-    /** Drawing-surface height after rotation; preferred over pixel_height. */
-    render_height?: number;
+    rotationDegrees?: number;
+    /** Drawing-surface width after rotation; preferred over pixelWidth. */
+    renderWidth?: number;
+    /** Drawing-surface height after rotation; preferred over pixelHeight. */
+    renderHeight?: number;
     /** OpenDisplay Basic Standard colour scheme (0x00 BW … 0x04 six-color). */
-    color_scheme?: number;
+    colorScheme?: number;
     /** Accent color name, e.g. 'red' or 'yellow'. */
-    accent_color?: string;
+    accentColor?: string;
     /** Palette color names, e.g. ['black', 'white', 'red']. */
-    available_colors?: string[];
+    availableColors?: string[];
     /** Palette name -> hex map, e.g. { black: '#000000', … }. */
-    color_map?: Record<string, string>;
+    colorMap?: Record<string, string>;
     /** Whether the palette hexes were measured on real hardware. */
-    palette_measured?: boolean;
+    paletteMeasured?: boolean;
 }
 
 /**
  * Second argument of {@link HostPreviewRenderer} — the same
  * "payload plus opaque ids" shape {@link HostActionContext} carries, extended
- * with the geometry and the service options the render depends on.
+ * with the geometry and the render options the render depends on.
  */
 export declare interface HostPreviewContext {
     /**
@@ -239,30 +286,13 @@ export declare interface HostPreviewContext {
      * own idea of the size answers a changed request with an image of the wrong
      * shape, which the designer letterboxes visibly rather than stretching.
      */
-    display: HostPreviewDisplayGeometry;
+    display: HostDisplayGeometry;
     /**
-     * The service options this render must honour. Always present — the designer
-     * always knows its own dither mode, so a host never has to guard for it.
+     * The rasterization options this render must honour. Always present — the
+     * designer always knows its own dither mode, so a host never has to guard
+     * for it.
      */
-    service: HostPreviewServiceOptions;
-}
-
-/**
- * The **logical drawing surface** the payload is authored against — the
- * coordinate space its `x`/`y` values live in, and therefore what a host has to
- * render at for the image to mean anything beside the design.
- *
- * Already oriented: {@link HostPreviewDisplayGeometry.width}/`height` are
- * swapped for a quarter turn (issue #139), exactly as upstream `imagegen`
- * creates its canvas before drawing, and `rotation` says which way round the
- * panel holds that surface. Never the raw physical panel size, and never a
- * transform to apply to the returned image.
- */
-export declare interface HostPreviewDisplayGeometry {
-    width: number;
-    height: number;
-    /** The orientation `width`/`height` are already expressed in. */
-    rotation: 0 | 90 | 180 | 270;
+    render: HostRenderOptions;
 }
 
 /**
@@ -297,16 +327,17 @@ export declare interface HostPreviewDisplayGeometry {
 export declare type HostPreviewRenderer = (payload: string, context: HostPreviewContext) => Promise<Blob | string>;
 
 /**
- * The service options a host-side render must honour, carried by every
- * {@link HostPreviewContext} (issue #109, ADR-018 preview seam).
+ * The rasterization options a host-side render must honour, carried by every
+ * {@link HostPreviewContext} and every {@link HostActionContext} (issue #109 /
+ * issue #105, ADR-018 preview and actions seams).
  *
  * Deliberately minimal: the designer sends the options it actually owns a
- * control for. The full drawcustom service-options seam is formalized in
+ * control for. The full option set is formalized in
  * [issue #105](https://github.com/schlomo/odl-drawcustom-designer/issues/105)
  * — this object is where it lands, and it grows additively (a host reads the
  * fields it knows).
  */
-export declare interface HostPreviewServiceOptions {
+export declare interface HostRenderOptions {
     /**
      * The dither mode the designer's own dither control currently holds, in the
      * drawcustom `dither` service option's own domain (`src/core/schema/service.ts`):
@@ -318,7 +349,7 @@ export declare interface HostPreviewServiceOptions {
      * with an unchanged image and the designer shows a preview that contradicts
      * its own dither setting.
      */
-    dither: 0 | 1 | 2;
+    readonly dither: 0 | 1 | 2;
 }
 
 /** A pushed state value with optional attributes and an optional display name. */
@@ -392,7 +423,7 @@ export declare type HostStatusChangeHandler = (status: DesignerStatus) => void;
  *
  * The host pushes the list, the designer renders a picker inside its own
  * display-config area, and selecting an entry adopts that display's
- * capabilities behind the existing lock (issue #70). A **one-element list is
+ * declared spec behind the existing lock (issue #70). A **one-element list is
  * adopted and locked without a pick** (issue #121): that is how a
  * single-display host says "this is the display". The id is **opaque**: it
  * round-trips through `onTargetSelected` and `onAction`'s context untouched,
@@ -409,14 +440,21 @@ export declare interface HostTarget {
     /** Picker entry text, shown as-is (surrounding whitespace trimmed). */
     label: string;
     /**
-     * The display this target *is* ({@link HostCapabilities}) — what the canvas,
-     * palette and orientation are set from when this target is adopted. Only the
-     * documented fields are retained; the copy the designer keeps is frozen, so
-     * mutating the pushed object afterwards cannot change what the picker
-     * applies, and a re-push carrying different values is recognised as the host
-     * re-defining this display.
+     * What this target *is* — the host's own declaration of the panel
+     * ({@link HostDisplaySpec}): pixel dimensions, mounting rotation, palette.
+     * The canvas, palette and orientation are set from it when this target is
+     * adopted. Only the documented fields are retained; the copy the designer
+     * keeps is frozen, so mutating the pushed object afterwards cannot change
+     * what the picker applies, and a re-push carrying different values is
+     * recognised as the host re-defining this display.
+     *
+     * Not to be confused with `display` on {@link HostActionContext} /
+     * {@link HostPreviewContext}, which is the *resolved* drawing surface
+     * ({@link HostDisplayGeometry}: `width`/`height`/`rotation`) the designer
+     * ended up with. Same panel, two ends of one pipeline — this is what the
+     * host declared, that is what the designer resolved it to.
      */
-    capabilities: HostCapabilities;
+    display: HostDisplaySpec;
 }
 
 /**
@@ -509,12 +547,12 @@ export declare interface MountHandle {
      *
      * Otherwise a push never moves the canvas on its own, and never overrides
      * the user: if it **removes the currently selected target**, the designer keeps that
-     * display's last-known capabilities and lock state and marks the selection
+     * display's last-known spec and lock state and marks the selection
      * stale ("display no longer available") instead of silently switching or
      * unlocking. Pushing the target back clears the stale marker.
      *
      * Throws on a malformed list (missing or duplicate `id`, missing `label`,
-     * missing `capabilities`) without changing what is on screen.
+     * missing `display`) without changing what is on screen.
      */
     setTargets(targets: readonly HostTarget[]): void;
     /** Switch the container-scoped theme. */

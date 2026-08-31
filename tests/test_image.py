@@ -51,12 +51,14 @@ async def test_entity_publishes_designer_capabilities(
     hass: HomeAssistant,
     setup_entry: Callable[[], Awaitable[None]],
 ) -> None:
-    """The image entity's attributes carry the designer's HostCapabilities shape.
+    """The image entity's attributes carry the designer's HostDisplaySpec shape.
 
-    This is what the panel wrapper's buildTargets() reads to build a
-    designer `HostTarget` -- pixel_width is the gate it uses to decide the
-    capability attrs have actually been published (see the panel JS's own
-    comment on that check).
+    Snake_case on purpose: these are HA entity attributes, and HA's own
+    convention governs them. The panel wrapper's displaySpecFromAttrs() is
+    the single place that translates them into `HostDisplaySpec`'s camelCase
+    keys for a pushed `HostTarget.display` (designer 3.0.0). pixel_width is
+    also the gate buildTargets() uses to decide the attrs have actually been
+    published (see the panel JS's own comment on that check).
     """
     await setup_entry()
 
