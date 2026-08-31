@@ -221,7 +221,8 @@ button is clicked. Preview and Send build their requests from one module
 designer's own Orientation and dither controls show at that moment — with
 or without a preview ever having run. The Python side is pinned by
 `tests/test_rotation_parity.py`'s
-`test_send_without_preview_lands_right_side_up` (asserting on the buffer
+`test_send_without_preview_carries_the_rotate_into_the_buffer`
+(asserting on the buffer
 handed to `upload_prepared_image`); the JS side by
 `tests/js/drawcustom-request.test.mjs`.
 
@@ -316,34 +317,98 @@ deliberate deferral pending the upstream discussion on `rotation_degrees`
 base-vs-effective (see the PR body's open questions) — not a limitation of
 this endpoint or the panel wrapper.
 
+**What Orientation actually means.** Orientation describes **how the panel
+is mounted on your wall** — nothing else. The designer canvas always shows
+your content upright, because that is what you are designing; it does not
+tilt to preview the mounting. That has one consequence worth knowing before
+you go looking for a bug:
+
+> **0° and 180° look identical on the canvas, and so do 90° and 270°.**
+> Each pair produces the same drawing surface and differs only in which way
+> that surface is turned onto the panel. For any one physical mounting,
+> exactly one member of each pair comes out upright on the wall and the
+> other comes out upside down. That is correct behaviour, not a sign error:
+> a panel can only be hung one way up.
+
+So if the wall image is upside down, **pick the other member of the pair**
+(90 ↔ 270, or 0 ↔ 180) and send again. Nothing else needs changing, and
+nothing about the canvas will look different when you do.
+
+Since the Home Assistant `image` entity now shows the buffer that was
+actually uploaded (next paragraph), you can also tell the two apart without
+walking to the display: the entity's picture turns when the Orientation
+changes, even though the canvas does not.
+
+**The entity preview shows what the panel was given.** After a send, the
+`image.<device>_content` entity holds the post-rotation, post-dither buffer
+handed to the panel — not the pre-rotation canvas it was drawn on. It is
+therefore in the panel's own native pixel grid (a 184×384 portrait panel
+mounted landscape shows a portrait picture with the content lying on its
+side), which is the point: that picture changes when the orientation
+choice changes, and the canvas does not. Before this, a wrong orientation
+was invisible everywhere in Home Assistant and only discoverable at the
+display. This applies to every `opendisplay.drawcustom` and
+`opendisplay.upload_image` call, not only to designer sends. One exception:
+`dry-run: true` never builds a device buffer, so it still previews the
+pre-rotation canvas.
+
 ## The asset endpoint
 
-`GET /api/opendisplay/designer/asset?kind=font&name=<name>`
+`GET /api/opendisplay/designer/asset?kind=font|image&name=<name>`
 (`custom_components/opendisplay/designer/asset.py`) implements the LAST
 tier of the designer's own asset resolution (`resolveAsset`/
-`HostAssetResolver`, issue #138, ADR-002 amendment): asked only for a font
-the designer could not resolve itself (its local content map, then its own
-bundled assets). Maintainer ruling (tier-2, real hardware): "if the server
-renderer can use it, the client must get it mapped" — before this endpoint,
-a payload referencing a font by bare name (the same way a hand-written
-`drawcustom` payload does) rendered correctly on send but showed the
-designer's own explicit render-error state in preview, since the designer
-had no way to reach this integration's font directories at all.
+`HostAssetResolver`, issue #138, ADR-002 amendment): asked only for a
+reference the designer could not resolve itself (its local content map,
+then its own bundled assets). Maintainer ruling (tier-2, real hardware):
+"if the server renderer can use it, the client must get it mapped" —
+before this endpoint, a payload referencing a font by bare name (the way a
+hand-written `drawcustom` payload does) rendered correctly on send but
+showed the designer's own explicit render-error state in the canvas, since
+the designer had no way to reach this integration's font directories at
+all. `kind=image` closes the same gap for images (real hardware again: a
+display's payload referenced `/media/pohl89-480h.png`, the server render
+resolved it, the designer showed it missing).
 
-`kind=font` only, resolved against `_font_search_dirs` (`services.py`:
-`www/fonts`, `media/fonts`, `/media/fonts`) with the exact same bare-name
-`.ttf` auto-append `odl_renderer.fonts.FontManager` applies, so a name the
-designer resolves through this endpoint is always the identical file a real
-render/send would load for that same reference — never a font the server
-renders with but the designer substitutes or errors on, and never a
-different file behind the same name. Path-traversal-guarded the same way
-as `OpenDisplayDesignerStaticView` (`panel.py`): resolve the candidate,
-then require it stay under the search directory it came from. Authenticated
-(`requires_auth = True`) — this is the integration's second authenticated
-HTTP view, after the render endpoint. `kind=image` (or anything else) is a
-400: this integration has no font-independent image search path today, so
-font-only is the honest v1 rather than a resolver that silently answers
-`null` for images forever.
+**Fonts** (`kind=font`) resolve against `_font_search_dirs`
+(`services.py`: `www/fonts`, `media/fonts`, `/media/fonts`) with the exact
+same bare-name `.ttf` auto-append `odl_renderer.fonts.FontManager` applies,
+so a name the designer resolves through this endpoint is always the
+identical file a real render/send would load for that same reference —
+never a font the server renders with but the designer substitutes or errors
+on, and never a different file behind the same name. Path-traversal-guarded
+the same way as `OpenDisplayDesignerStaticView` (`panel.py`): resolve the
+candidate, then require it stay under the search directory it came from.
+
+**Images** (`kind=image`) work differently, because the renderer treats
+them differently: `odl_renderer.media_loader.load_image` takes an
+**absolute path** and opens it directly — there is no bare-name image
+search path the way there is for fonts. So the reference reaching this
+endpoint is whatever path the payload carries, and the endpoint is
+deliberately **stricter than the renderer**:
+
+| | Rule |
+|---|---|
+| Permitted roots | `hass.config.allowlist_external_dirs` — Home Assistant's own set, which core composes as `{<config>/www} ∪ media_dirs.values() ∪ your own allowlist`. On Home Assistant OS that is `/config/www` and `/media`. |
+| Containment | Re-checked **after** `resolve()`, so `..` is collapsed and symlinks followed first — a symlink inside a permitted root that points outside it is refused. |
+| Remote sources | `http(s)://` is refused outright. The render path does fetch remote sources server-side; that is a property of the service and is not widened into a browser-facing fetch. |
+| File types | Only what PIL can identify as an image, served with PIL's own content type for that format — so the endpoint cannot be used to read the non-image files that also live in a media directory. |
+| Size | Capped at 32 MiB per request. |
+
+Every refusal that is about a path — outside the roots, escaping symlink,
+not an image, too large, or simply absent — answers the same `404`, so the
+endpoint is not an existence oracle for the rest of the filesystem.
+
+The consequence, stated plainly: the renderer accepts absolute paths this
+endpoint refuses, so an image kept outside the permitted directories
+renders on Send but shows the designer's explicit missing-asset state in
+the canvas. That is the safe direction of the mismatch, and the fix is to
+move the image under `/media` or `/config/www` (or allowlist its
+directory), not to widen the endpoint.
+
+Authenticated (`requires_auth = True`) — this is the integration's second
+authenticated HTTP view, after the render endpoint. Any other `kind` is a
+400 rather than a silent `null` forever (which is indistinguishable from
+"not found" to the designer).
 
 Not cache-busted like the static view's own `?v=` token (font files in the
 search directories can change without this integration knowing) — served
@@ -442,7 +507,14 @@ own acceptance run rather than riding along with a designer bump.
   this work.
 - **`generate_image` still runs on the event loop**, inside the render
   endpoint exactly like it already does in `_drawcustom_for_device`'s own
-  send path — moving it into an executor would mean handing a loop-bound
+  send path. Its *blocking file I/O* no longer does: a `dlimg` element
+  pointing at a local file used to be opened by PIL inside the loop (Home
+  Assistant's own detector reported it on real hardware), and both call
+  sites now decode those sources in an executor first
+  (`preload_local_image_sources`, `services.py`). What remains on the loop
+  is the CPU-bound rasterising, which the detector does not flag and the
+  element cap below bounds. Moving the whole coroutine off the loop would
+  mean handing a loop-bound
   `aiohttp.ClientSession` across threads (unsafe: a session is not safe to
   use off the loop that created it) or forking `odl_renderer`'s own
   async/CPU-bound mix, neither of which this endpoint should do
@@ -469,15 +541,14 @@ own acceptance run rather than riding along with a designer bump.
   default should win end-to-end is a real open question for the
   maintainers, not something this PR resolves unilaterally — see the PR
   body's open asks.
-- **`resolveAsset` is font-only** (fixed this round — see "The asset
-  endpoint" above; previously not wired up at all, and a payload
-  referencing a host-only font showed the designer's own client-side
-  render-error state in the non-preview canvas view despite rendering
-  correctly through Send/Display preview). Images remain unresolved: this
-  integration has no font-independent image search path
-  (`_image_search_dirs` equivalent) today, so `kind=image` requests are
-  rejected with a 400 rather than silently answering `null` forever. A
-  payload referencing a host-only IMAGE by name still shows the designer's
-  own client-side render-error state in the non-preview canvas view, the
-  same contradictory-looking-but-not-actually-buggy split described above
-  for fonts before this fix — filed as follow-up, not fixed here.
+- **`resolveAsset` resolves images only inside Home Assistant's permitted
+  directories.** Both `AssetKind` values are wired up now (see "The asset
+  endpoint" above), but the renderer will load an image from *any* absolute
+  path while the endpoint serves only what is under
+  `hass.config.allowlist_external_dirs`. So an image kept outside those
+  directories still renders on Send and still shows the designer's own
+  render-error state in the canvas. That asymmetry is deliberate — the
+  endpoint hands file bytes to a browser, the renderer does not — and the
+  fix for an affected payload is to move the image under `/media` or
+  `/config/www` (or to allowlist its directory), not to widen the
+  endpoint.

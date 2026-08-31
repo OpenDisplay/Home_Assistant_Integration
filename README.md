@@ -29,7 +29,7 @@ Each device is set up over Bluetooth and appears with:
 
 | | |
 |---|---|
-| **Display content** | an image entity showing the last frame sent, or the one queued for a sleeping tag |
+| **Display content** | an image entity showing the last frame sent, or the one queued for a sleeping tag — exactly as the panel received it, in the panel's own pixel grid and rotation |
 | **Sensors** | temperature, humidity (on tags with an SHT40), battery level and voltage, signal strength, last seen |
 | **Buttons and touch** | event entities for physical buttons and touch controllers |
 | **Firmware** | an update entity that flashes new firmware over Bluetooth |
