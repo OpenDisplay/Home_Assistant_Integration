@@ -735,7 +735,24 @@ async def _async_send_image(
 
     # The preview JPEG is built up-front so a queued frame can be shown on the
     # image entity immediately (D6), not only after a successful delivery.
-    jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)
+    #
+    # Built from `prepared[2]` -- the POST-rotation, post-fit, post-dither
+    # buffer that is actually uploaded -- and NOT from `img`, the
+    # pre-rotation logical surface it was rendered from (tier-2 round 3,
+    # real hardware). The surface is identical for two opposite
+    # orientations (90 and 270 differ only in which way the panel is turned
+    # onto it), so a preview built from it looked perfect for BOTH while
+    # exactly one of them was upside down on the wall -- the maintainer's
+    # own report, and a feedback gap only a walk to the display could
+    # close. `tests/test_rotation_parity.py` pins both halves: what each
+    # orientation puts in the uploaded buffer, and that this preview is
+    # that buffer.
+    #
+    # Deliberately NOT the designer's own preview endpoint
+    # (`designer/render.py`), which returns the logical surface because the
+    # designer's canvas IS that surface. Different artifact, different
+    # audience, unchanged.
+    jpeg = await hass.async_add_executor_job(_pil_to_jpeg, prepared[2])
 
     profile = runtime.sleep_profile
     manager = runtime.delivery

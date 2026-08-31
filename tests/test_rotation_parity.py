@@ -48,7 +48,8 @@ Send with no preview ever run shipped `rotate: 0` -- sideways content on a
 rotated display, on real hardware. `HostActionContext` now carries the live
 `display.rotation`, the panel derives `rotate` from it at click time
 (`tests/js/drawcustom-request.test.mjs` pins the JS half), and
-`test_send_without_preview_lands_right_side_up` below pins the Python half:
+`test_send_without_preview_carries_the_rotate_into_the_buffer` below
+pins the Python half:
 a `drawcustom` call carrying that derived rotate, and NOTHING else -- no
 preview request before it -- hands the device a native-grid buffer with the
 content actually turned. It asserts on the image handed to
@@ -371,13 +372,23 @@ async def test_esl5_3_5_real_hardware_acceptance_vector(
 
 
 @pytest.mark.parametrize("device_config", [_ESL5_ATTRS], indirect=True)
-async def test_send_without_preview_lands_right_side_up(
+async def test_send_without_preview_carries_the_rotate_into_the_buffer(
     hass,
     device_id: str,
     device_config,
     mock_upload_device: MagicMock,
 ) -> None:
     """A `drawcustom` send carrying the panel's derived rotate, and no preview.
+
+    RENAMED (tier-2 round 3). This test was called
+    `test_send_without_preview_lands_right_side_up`, and its assertions
+    were right for a reason it could not substantiate: "right side up" is a
+    fact about the PHYSICAL MOUNTING, which no code here knows. What it
+    actually proves -- and all it can prove -- is that the `rotate` reaches
+    the device buffer and turns the content a quarter turn. Whether that
+    quarter turn matches a given wall is the user's Orientation choice, and
+    only one of an opposite pair ever can (see the characterisation block
+    below).
 
     The WYSIWYG-send path (designer 3.0.0, issue #105): the panel derives
     `rotate` from `context.display.rotation` at click time, so this call is
@@ -429,4 +440,224 @@ async def test_send_without_preview_lands_right_side_up(
     )
     assert _row_is_mostly_white(uploaded, 0), (
         "the bar is still on the top edge -- the payload shipped un-rotated"
+    )
+
+
+# --- Orientation characterisation (tier-2 round 3) --------------------------
+#
+# WHAT THE MAINTAINER SAW, on his own wall: designing a landscape canvas for
+# an ESL 5 3.5" (native 184x384 portrait, `rotation_degrees` 0, physically
+# mounted landscape), Orientation 270 came out upright and Orientation 90
+# came out upside down -- while the designer canvas AND the entity's stored
+# preview looked correct in BOTH cases.
+#
+# THAT IS NOT A SIGN BUG, and the tests below exist to pin exactly why, so
+# that a future change to the mapping is visible rather than silent:
+#
+#   * the LOGICAL SURFACE (`generate_image`'s canvas) is IDENTICAL for 90
+#     and 270 -- same transposed dimensions, same payload, same pixels;
+#   * the DEVICE BUFFER (what `upload_prepared_image` receives, and what the
+#     panel physically paints) differs by exactly 180 degrees between them.
+#
+# A panel has ONE physical mounting, so for that mounting exactly one of
+# {90, 270} yields an upright wall image and the other is necessarily 180
+# degrees out. Flipping the sign of the mapping would only move the
+# upside-down case from 90 to 270. These are CHARACTERISATION tests: they
+# assert what the code does today, in the artifact that physically reaches
+# the panel, and they deliberately make no claim about which way up any
+# particular wall is -- that depends on the mounting, which no code here
+# can know.
+#
+# The direction convention, from the library itself
+# (`opendisplay/device.py`): `prepare_image` composes
+# `effective = (base + rotate) % 360` and rotates the source CLOCKWISE by
+# it -- `Rotation.ROTATE_90 -> Image.Transpose.ROTATE_270` (PIL's ROTATE_270
+# is a 90-degree clockwise turn) and `Rotation.ROTATE_270 ->
+# Image.Transpose.ROTATE_90` (90 counter-clockwise). So for base 0 a
+# top-edge bar lands on: 0 -> top, 90 -> right, 180 -> bottom, 270 -> left.
+
+_TOP_BAR_EDGE_BY_ROTATE = {0: "top", 90: "right", 180: "bottom", 270: "left"}
+
+_IMAGE_ENTITY = "image.opendisplay_1234_display_content"
+
+
+def _column_is_mostly_white(image: PILImage.Image, x: int) -> bool:
+    col = [image.getpixel((x, y)) for y in range(image.height)]
+    light = sum(1 for px in col if sum(px[:3]) > 600)
+    return light > image.height * 0.8
+
+
+def _bar_edge(image: PILImage.Image) -> str:
+    """Return which single edge of `image` the black bar occupies."""
+    edges = {
+        "top": _row_is_mostly_black(image, 0),
+        "bottom": _row_is_mostly_black(image, image.height - 1),
+        "left": _column_is_mostly_black(image, 0),
+        "right": _column_is_mostly_black(image, image.width - 1),
+    }
+    found = [name for name, hit in edges.items() if hit]
+    assert len(found) == 1, f"expected the bar on exactly one edge, got {found}"
+    return found[0]
+
+
+async def _sent_device_buffer(
+    hass, device_id: str, payload: list[dict], rotate: int, upload_device: MagicMock
+) -> PILImage.Image:
+    """Run a real send and return the buffer handed to upload_prepared_image."""
+    await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [device_id],
+            "payload": payload,
+            "rotate": rotate,
+            "dither": "none",
+        },
+        blocking=True,
+        return_response=True,
+    )
+    prepared = upload_device.upload_prepared_image.call_args.args[0]
+    return prepared[2].convert("RGB")
+
+
+@pytest.mark.parametrize("device_config", [_ESL5_ATTRS], indirect=True)
+@pytest.mark.parametrize("rotate", [0, 90, 180, 270])
+async def test_device_buffer_orientation_characterisation(
+    hass,
+    device_id: str,
+    device_config,
+    mock_upload_device: MagicMock,
+    rotate: int,
+) -> None:
+    """CHARACTERISATION: where a top-edge bar lands in the uploaded buffer.
+
+    One cell per orientation, on the maintainer's own device (base 0,
+    native 184x384). Documents current behavior in the artifact that
+    physically reaches the panel; changing the mapping must change these.
+    """
+    gen_width, gen_height = _expected_gen_dims(0, rotate, 184, 384)
+    payload = _top_bar_payload(gen_width, gen_height)
+
+    uploaded = await _sent_device_buffer(
+        hass, device_id, payload, rotate, mock_upload_device
+    )
+
+    assert uploaded.size == (184, 384), (
+        f"rotate={rotate}: the upload must always be the native device grid"
+    )
+    assert _bar_edge(uploaded) == _TOP_BAR_EDGE_BY_ROTATE[rotate], (
+        f"rotate={rotate}: bar on the {_bar_edge(uploaded)} edge, "
+        f"expected {_TOP_BAR_EDGE_BY_ROTATE[rotate]}"
+    )
+
+
+@pytest.mark.parametrize("device_config", [_ESL5_ATTRS], indirect=True)
+async def test_ninety_and_two_seventy_share_a_canvas_and_differ_only_on_the_panel(
+    hass,
+    device_id: str,
+    device_config,
+    mock_upload_device: MagicMock,
+) -> None:
+    """CHARACTERISATION: the maintainer's exact observation, in two artifacts.
+
+    Same payload at Orientation 90 and at Orientation 270:
+
+      * the logical surface `generate_image` builds is pixel-identical --
+        which is why the designer's canvas and the entity's preview looked
+        correct in BOTH cases;
+      * the buffer the panel is given is the 180-degree rotation of the
+        other -- which is why exactly one of them was upright on the wall.
+
+    Not a sign bug: a physical panel has one mounting, so one of any
+    opposite pair is necessarily upside down. Flipping the mapping's sign
+    would swap WHICH one, not remove the case.
+    """
+    payload = _top_bar_payload(384, 184)
+
+    surface_90 = await _send_paths_pregenerated_image(hass, device_id, payload, 90)
+    buffer_90 = mock_upload_device.upload_prepared_image.call_args.args[0][2].convert(
+        "RGB"
+    )
+    surface_270 = await _send_paths_pregenerated_image(hass, device_id, payload, 270)
+    buffer_270 = mock_upload_device.upload_prepared_image.call_args.args[0][2].convert(
+        "RGB"
+    )
+
+    assert surface_90.size == surface_270.size == (384, 184)
+    assert list(surface_90.convert("RGB").getdata()) == list(
+        surface_270.convert("RGB").getdata()
+    ), "the logical surface must not depend on which way the panel is turned"
+
+    assert buffer_90.size == buffer_270.size == (184, 384)
+    assert _bar_edge(buffer_90) == "right"
+    assert _bar_edge(buffer_270) == "left"
+    assert list(buffer_90.transpose(PILImage.Transpose.ROTATE_180).getdata()) == list(
+        buffer_270.getdata()
+    ), "the two buffers must be 180 degrees apart, and nothing else"
+
+
+@pytest.mark.parametrize("device_config", [_ESL5_ATTRS], indirect=True)
+@pytest.mark.parametrize("rotate", [90, 270])
+async def test_the_entitys_preview_is_the_buffer_that_was_sent(
+    hass,
+    hass_client,
+    device_id: str,
+    device_config,
+    mock_upload_device: MagicMock,
+    rotate: int,
+) -> None:
+    """The image entity must show the POST-rotation buffer, not the canvas.
+
+    THE BUG (tier-2 round 3, reproduced by the maintainer on real hardware
+    WITHOUT the designer -- a plain `opendisplay.drawcustom` call with
+    `rotate: 90` and then `rotate: 270`): at 90 the wall was upside down
+    while the Home Assistant preview was upright; at 270 both were upright.
+    The preview was built from the PRE-rotation logical surface, which is
+    identical for two opposite orientations, so it could not distinguish
+    them and a wrong choice was only discoverable by walking to the
+    display. It is now built from the buffer handed to
+    `upload_prepared_image`.
+
+    This test calls the SERVICE directly -- no designer, no render
+    endpoint, no panel -- because the bug is in the service, not in the
+    designer: every `drawcustom`/`upload_image` caller was affected. The
+    maintainer's own words: "the image preview in HA on the element should
+    reflect what the display has."
+
+    Both halves of the maintainer's pair are exercised, and they must now
+    DIFFER: 90 and 270 put the bar on opposite edges of the same-shaped
+    buffer, so a preview that still ignored rotation would give the same
+    answer for both and fail one of them.
+
+    Shape alone already discriminates the surface from the buffer (384x184
+    landscape vs 184x384 portrait) and is robust to JPEG's lossiness; the
+    bar edge is asserted too, so a right-shaped-but-wrong-way-round
+    artifact cannot pass.
+
+    NOT the designer's own preview endpoint (`designer/render.py`), which
+    deliberately returns the LOGICAL surface for the designer's canvas and
+    never touches this entity -- a different artifact, unchanged here.
+    """
+    payload = _top_bar_payload(384, 184)
+
+    uploaded = await _sent_device_buffer(
+        hass, device_id, payload, rotate, mock_upload_device
+    )
+    assert uploaded.size == (184, 384)
+    expected_edge = _TOP_BAR_EDGE_BY_ROTATE[rotate]
+    assert _bar_edge(uploaded) == expected_edge
+
+    state = hass.states.get(_IMAGE_ENTITY)
+    assert state is not None
+    client = await hass_client()
+    resp = await client.get(state.attributes["entity_picture"])
+    assert resp.status == 200
+    preview = PILImage.open(io.BytesIO(await resp.read())).convert("RGB")
+
+    assert preview.size == uploaded.size, (
+        "the entity preview is still the pre-rotation logical surface -- a "
+        "wrong orientation stays invisible in Home Assistant"
+    )
+    assert _bar_edge(preview) == expected_edge, (
+        "the entity preview is not turned the way the uploaded buffer is"
     )
