@@ -99,7 +99,15 @@
  * ever adds a global CTRL/META-modified shortcut the designer also needs
  * (today it doesn't: only ctrl/meta+z and ctrl+y/ctrl+shift+z), this file
  * would need a third, narrower condition -- revisit then, don't
- * pre-emptively guess at one now.
+ * pre-emptively guess at one now. Known, same-shape gap in the other
+ * direction: `?` and other non-alphanumeric printable keys (condition (b)
+ * only matches `[a-zA-Z0-9]`) still reach `window` from a non-editable
+ * (canvas) target, so HA's own `?` shortcuts-dialog CAN pop over the
+ * designer while the canvas -- not the editor -- has focus. Deliberate,
+ * not an oversight: the designer binds no `?` of its own either, so
+ * nothing of its own is at risk; add a third condition here if this ever
+ * actually annoys someone, rather than widening (b) pre-emptively for a
+ * case nobody's hit yet.
  *
  * NEVER preventDefault: that would break the browser's own native text
  * editing (and the designer's own default-prevented handling for the keys
