@@ -24,10 +24,10 @@ import yaml from '../vendor/js-yaml.mjs';
 import { containKeyEvents } from './key-containment.js';
 import { installUnsavedWorkWarning } from './unsaved-work.js';
 import { renderRequestBody, sendCallData } from './drawcustom-request.js';
+import { assetRequestUrl } from './asset-request.js';
 
 const TAG = 'opendisplay-designer-panel';
 const RENDER_URL = '/api/opendisplay/designer/render';
-const ASSET_URL = '/api/opendisplay/designer/asset';
 
 const CSS = `
 :host{display:block!important;position:absolute;inset:0;width:100%;height:100%;max-width:none;overflow:hidden;box-sizing:border-box;font-family:var(--ha-font-family-body,system-ui,sans-serif);color:var(--primary-text-color,#1c1917);background:var(--primary-background-color,#fafaf9)}
@@ -553,11 +553,15 @@ class OpenDisplayDesignerPanel extends HTMLElement {
    * `resolveAsset` host seam (`HostAssetResolver`, issue #138, ADR-002
    * amendment) -- the LAST tier of asset resolution, asked only for a
    * reference the designer could not resolve itself (local content map,
-   * then bundled assets). Fonts only (`/api/opendisplay/designer/asset`'s
-   * own doc comment: no font-independent image search path exists in this
-   * integration yet -- `kind !== 'font'` short-circuits to `null` rather
-   * than making a request the endpoint would 400 anyway). Per the
-   * contract's own wording, `null`/a rejection/a timeout all settle
+   * then bundled assets). BOTH `AssetKind` values are asked for: fonts by
+   * bare name against this integration's font directories, images by
+   * absolute path within Home Assistant's own permitted roots (see
+   * `designer/asset.py`). The earlier `kind !== 'font'` short-circuit is
+   * gone -- it made a payload's `/media/...` image render on the server
+   * while showing as missing in the designer (tier-2 round 3, real
+   * hardware).
+   *
+   * Per the contract's own wording, `null`/a rejection/a timeout all settle
    * identically as "not supplied" and reach the user as the designer's own
    * explicit render-error state -- never a silent skip, never a substituted
    * font -- so every failure path here resolves `null` rather than
@@ -565,11 +569,10 @@ class OpenDisplayDesignerPanel extends HTMLElement {
    */
   async _resolveAsset(kind, name) {
     const hass = this._hass;
-    if (kind !== 'font' || !hass?.fetchWithAuth) return null;
+    const url = assetRequestUrl(kind, name);
+    if (url === null || !hass?.fetchWithAuth) return null;
     try {
-      const res = await hass.fetchWithAuth(
-        `${ASSET_URL}?kind=${encodeURIComponent(kind)}&name=${encodeURIComponent(name)}`
-      );
+      const res = await hass.fetchWithAuth(url);
       if (!res.ok) return null;
       return await res.blob();
     } catch {
