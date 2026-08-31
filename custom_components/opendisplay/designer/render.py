@@ -42,6 +42,7 @@ from custom_components.opendisplay.services import (
     _dither_value,
     _font_search_dirs,
     _get_entry_for_device_id,
+    preload_local_image_sources,
     render_payload_templates,
     tone_and_measured_palettes_from_call_data,
 )
@@ -318,6 +319,13 @@ class OpenDisplayDesignerRenderView(HomeAssistantView):
             rendered_payload = render_payload_templates(hass, data["payload"])
         except ServiceValidationError as err:
             return web.json_response({"message": str(err)}, status=400)
+
+        # A `dlimg` element referencing a local file would otherwise be
+        # opened by PIL inside the event loop, from within the awaited
+        # `generate_image` below -- reported by Home Assistant's own
+        # blocking-call detector against THIS call site on real hardware.
+        # Decoded in an executor first; see `preload_local_image_sources`.
+        rendered_payload = await preload_local_image_sources(hass, rendered_payload)
 
         try:
             img = await generate_image(

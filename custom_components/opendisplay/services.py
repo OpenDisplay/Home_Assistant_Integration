@@ -1060,6 +1060,75 @@ def _font_search_dirs(hass: HomeAssistant) -> list[str]:
     return [p for p in candidates if os.path.isdir(p)]
 
 
+def _decode_local_image_sources(elements: list[Any]) -> list[Any]:
+    """Return `elements` with local-file image sources decoded to PIL images.
+
+    Runs in an executor -- see `preload_local_image_sources` for why.
+    """
+    decoded: list[Any] = []
+    for element in elements:
+        source = element.get("url") if isinstance(element, dict) else None
+        # `dlimg` is the only element type that loads an image
+        # (`odl_renderer.elements.media`), and `load_image`'s own ordering is
+        # HTTP(S) first, then `data:`, then a leading `/` for a local file --
+        # only the last of those opens a file.
+        if (
+            not isinstance(element, dict)
+            or element.get("type") != "dlimg"
+            or not isinstance(source, str)
+            or not source.startswith("/")
+        ):
+            decoded.append(element)
+            continue
+        try:
+            image = PILImage.open(source)
+            image.load()
+        except Exception:
+            # Transparent on failure: leave the element exactly as it was so
+            # `load_image` raises its own error, with its own message, at the
+            # point it always did. This preload changes WHERE the file is
+            # read, never WHETHER it is or what happens when it can't be.
+            decoded.append(element)
+            continue
+        decoded.append({**element, "url": image})
+    return decoded
+
+
+async def preload_local_image_sources(
+    hass: HomeAssistant, elements: list[Any]
+) -> list[Any]:
+    """Decode a payload's local image files off the event loop.
+
+    `generate_image` is a coroutine awaited on the loop, but a `dlimg`
+    element whose `url` is a local absolute path reaches
+    `odl_renderer.media_loader._load_from_file`, which calls
+    `PIL.Image.open` directly -- a blocking `open()` inside the event loop.
+    Home Assistant's own detector reports it (verbatim, from real hardware:
+    "Detected blocking call to open with args ('/media/pohl89-480h.png',
+    'rb') inside the event loop by custom integration 'opendisplay'"), and
+    https://developers.home-assistant.io/docs/asyncio_blocking_operations/
+    says to move that work to an executor.
+
+    `load_image` returns a `PIL.Image.Image` source AS-IS, so decoding here
+    -- in an executor -- removes the file I/O from the loop without
+    changing which file is read, how it is read, or what the renderer then
+    does with it. Deliberately NOT restricted to any permitted root: this
+    is the send/render pipeline's own resolution, and narrowing it would
+    change what a working payload renders. (The designer's asset endpoint,
+    which hands bytes to a browser, is the thing that needs a root policy;
+    see `designer/asset.py`.)
+
+    Remote (`http(s)://`) and `data:` sources are left alone: the first is
+    already fetched asynchronously through the shared session, the second
+    never touches the filesystem.
+
+    Called by both `generate_image` call sites -- the send path
+    (`_drawcustom_for_device`) and the designer's render endpoint -- so
+    neither can regain the violation while the other is fixed.
+    """
+    return await hass.async_add_executor_job(_decode_local_image_sources, elements)
+
+
 async def _drawcustom_for_device(
     hass: HomeAssistant, device_id: str, call: ServiceCall
 ) -> DeliveryReceipt:
@@ -1085,7 +1154,9 @@ async def _drawcustom_for_device(
     img = await generate_image(
         width=gen_width,
         height=gen_height,
-        elements=render_payload_templates(hass, call.data["payload"]),
+        elements=await preload_local_image_sources(
+            hass, render_payload_templates(hass, call.data["payload"])
+        ),
         background=call.data["background"],
         accent_color=color_scheme.accent_color,
         session=async_get_clientsession(hass),
