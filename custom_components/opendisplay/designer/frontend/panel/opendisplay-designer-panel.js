@@ -21,6 +21,8 @@
  */
 import { mount } from '../vendor/odl-drawcustom-designer.js';
 import yaml from '../vendor/js-yaml.mjs';
+import { containKeyEvents } from './key-containment.js';
+import { makeBeforeUnloadHandler } from './unsaved-work.js';
 
 const TAG = 'opendisplay-designer-panel';
 const RENDER_URL = '/api/opendisplay/designer/render';
@@ -306,6 +308,21 @@ class OpenDisplayDesignerPanel extends HTMLElement {
     }
     this._renderShell();
     this._mount();
+    // See containKeyEvents' own doc comment for the full root-cause writeup
+    // (tier-1 round 2, CRITICAL) -- registered on `this`, the shadow root's
+    // host, so it runs after the shadow root's own listeners (CodeMirror's
+    // included) and before the event would otherwise keep bubbling out to
+    // HA's window-level quick-bar shortcuts.
+    this._uncontainKeyEvents = containKeyEvents(this);
+    // See unsaved-work.js's own doc comment for the full writeup, including
+    // the honest limit (tier-1 round 2, finding 6, INTERIM until
+    // designer#167): covers tab close/reload/browser-chrome navigation, NOT
+    // HA's own in-app sidebar navigation (no cancelable hook exists for
+    // that). `() => this._handle` (not `this._handle` itself) because the
+    // handle can be reassigned across a remount after this listener is
+    // registered.
+    this._beforeUnload = makeBeforeUnloadHandler(() => this._handle);
+    window.addEventListener('beforeunload', this._beforeUnload);
   }
 
   disconnectedCallback() {
@@ -317,6 +334,12 @@ class OpenDisplayDesignerPanel extends HTMLElement {
     }
     this._parentStylePatch = null;
     this._handle?.destroy();
+    this._uncontainKeyEvents?.();
+    this._uncontainKeyEvents = null;
+    if (this._beforeUnload) {
+      window.removeEventListener('beforeunload', this._beforeUnload);
+      this._beforeUnload = null;
+    }
     this._resetMountState();
   }
 
@@ -552,7 +575,6 @@ class OpenDisplayDesignerPanel extends HTMLElement {
     const hass = this._hass;
     const targetId = context.targetId;
     if (!hass?.fetchWithAuth) throw new Error('Home Assistant connection unavailable');
-    if (!targetId) throw new Error('Select a display to preview');
 
     let elements;
     try {
@@ -562,17 +584,36 @@ class OpenDisplayDesignerPanel extends HTMLElement {
     }
 
     const ditherHA = DITHER_TO_HA_STRING[context.service.dither] ?? 'ordered';
-    const rotate = this._rotateDeltaFor(targetId, context);
+    // Virtual display (tier-1 round 2, finding 2): context.targetId is null
+    // for the designer's built-in "Virtual display" pick -- there is no HA
+    // device to send a device_id for at all. context.display (width/height,
+    // already the oriented logical drawing surface -- see
+    // HostPreviewDisplayGeometry's own doc comment in the vendored .d.ts) is
+    // ALWAYS present regardless of targetId, so that geometry alone is
+    // enough for the endpoint's spec mode; rotate is always 0 here because
+    // context.display is already the final oriented surface, with no
+    // separate "base rotation" to recover a delta against the way a real
+    // device's own stored rotation_degrees would need (_rotateDeltaFor,
+    // above -- that function stays device-only, unchanged).
+    const requestBody = targetId
+      ? {
+          device_id: targetId,
+          payload: elements,
+          background: 'white',
+          dither: ditherHA,
+          rotate: this._rotateDeltaFor(targetId, context),
+        }
+      : {
+          display: { width: context.display.width, height: context.display.height },
+          payload: elements,
+          background: 'white',
+          dither: ditherHA,
+          rotate: 0,
+        };
     const res = await hass.fetchWithAuth(RENDER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        device_id: targetId,
-        payload: elements,
-        background: 'white',
-        dither: ditherHA,
-        rotate,
-      }),
+      body: JSON.stringify(requestBody),
     });
     if (!res.ok) {
       let message = `HTTP ${res.status}`;

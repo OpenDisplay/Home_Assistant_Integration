@@ -423,3 +423,88 @@ async def test_render_broken_template_returns_400_naming_the_element(
     body = await resp.json()
     assert "element 1" in body["message"]
     assert "icon" in body["message"]
+
+
+# --- Virtual-display preview (tier-1 round 2, finding 2) --------------------
+#
+# The designer's "Virtual display" pick has no HA device behind it at all --
+# context.targetId is null, so the panel's renderPreview has no device_id to
+# send. These exercise the endpoint's other path: an explicit `display`
+# spec (width/height, optionally color_scheme) instead of device_id.
+
+
+async def _post_render_body(hass_client, body):
+    """POST an arbitrary body with no injected defaults (unlike _post_render)."""
+    client = await hass_client()
+    return await client.post(DESIGNER_RENDER_URL, json=body)
+
+
+async def test_render_spec_mode_returns_png_at_the_requested_resolution(
+    hass, hass_client, mock_render
+):
+    """A display spec with no device_id renders at exactly the given size."""
+    resp = await _post_render_body(
+        hass_client,
+        {
+            "display": {"width": 384, "height": 184},
+            "payload": [{"type": "text", "value": "hi", "x": 10, "y": 10}],
+        },
+    )
+
+    assert resp.status == 200
+    assert resp.content_type == "image/png"
+    # width/height reach generate_image unchanged (0 rotate -- no transpose).
+    kwargs = mock_render.call_args.kwargs
+    assert kwargs["width"] == 384
+    assert kwargs["height"] == 184
+
+
+async def test_render_spec_mode_unmocked_smoke(hass, hass_client):
+    """Exercise the REAL generate_image/prepare_image for spec mode.
+
+    mock_render fakes generate_image's own output size (296x128, its
+    fixture default) -- this proves the endpoint's synthetic GlobalConfig is
+    actually accepted by prepare_image for real, not just syntactically
+    constructed. The response PNG's own size reflects prepare_image's
+    dithered output at the display spec's resolution, not the input image.
+    """
+    resp = await _post_render_body(
+        hass_client,
+        {
+            "display": {"width": 200, "height": 100},
+            "payload": [{"type": "text", "value": "hi", "x": 5, "y": 5, "size": 12}],
+        },
+    )
+
+    assert resp.status == 200
+    assert resp.content_type == "image/png"
+    body = await resp.read()
+    assert body.startswith(b"\x89PNG\r\n\x1a\n")
+
+    import io
+
+    decoded = PILImage.open(io.BytesIO(body))
+    assert decoded.size == (200, 100)
+
+
+async def test_render_missing_device_id_and_display_returns_400(hass, hass_client):
+    """Neither device_id nor display -- a clear 400, not a 500 or a 404."""
+    resp = await _post_render_body(
+        hass_client,
+        {"payload": [{"type": "text", "value": "hi", "x": 0, "y": 0}]},
+    )
+
+    assert resp.status == 400
+    body = await resp.json()
+    assert "device_id" in body["message"]
+    assert "display" in body["message"]
+
+
+async def test_render_device_mode_still_works_unchanged(
+    hass, hass_client, device_id, mock_render
+):
+    """Adding spec mode must not disturb the existing device_id path."""
+    resp = await _post_render(hass_client, device_id=device_id)
+
+    assert resp.status == 200
+    assert resp.content_type == "image/png"

@@ -77,12 +77,42 @@ _SEND_PATH_DEFAULT_TONE, _SEND_PATH_DEFAULT_USE_MEASURED_PALETTES = (
 # unilaterally; the send path shares the same characteristic today).
 _MAX_ELEMENTS = 1000
 
+# Virtual-display preview (tier-1 round 2, finding 2): the designer's
+# "Virtual display" pick has no HA device behind it at all -- context.targetId
+# is null, so there is no device_id this endpoint can resolve. The renderer
+# itself never needed a device either, only geometry + a palette
+# (generate_image/prepare_image both take width/height/color-scheme values,
+# not a device object) -- so a request MAY supply an explicit `display` spec
+# instead of `device_id`. `color_scheme` matches the SAME numeric vocabulary
+# capabilities.py already publishes to the panel (`int(ColorScheme.value)`,
+# not a string) and defaults to MONO: the designer's own renderPreview
+# context (`HostPreviewContext.display`, docs/embedding.md) carries only
+# width/height/rotation -- the designer keeps its own color-mode control
+# entirely inside its chrome (ADR-018: no host UI for it), so this host has
+# no way to know which one the user picked for Virtual and does not guess;
+# MONO is a legible, deterministic default for a display with no real
+# palette to be accurate to.
+_DISPLAY_SPEC_SCHEMA = vol.Schema(
+    {
+        vol.Required("width"): vol.All(vol.Coerce(int), vol.Range(min=1, max=4096)),
+        vol.Required("height"): vol.All(vol.Coerce(int), vol.Range(min=1, max=4096)),
+        vol.Optional("color_scheme", default=ColorScheme.MONO.value): vol.All(
+            vol.Coerce(int), vol.In([cs.value for cs in ColorScheme])
+        ),
+    },
+    extra=vol.REMOVE_EXTRA,
+)
+
 # Mirrors SCHEMA_DRAWCUSTOM's own defaults for the fields it shares
 # (background/dither/rotate) -- the render endpoint is a read-only sibling of
-# that service, not a new set of conventions.
+# that service, not a new set of conventions. Exactly one of device_id/
+# display is required -- checked after schema validation (below), not
+# expressible as a plain voluptuous shape without ExactSequence/Any
+# contortions that would obscure the actual "need one of these" error.
 _SCHEMA = vol.Schema(
     {
-        vol.Required("device_id"): str,
+        vol.Optional("device_id"): str,
+        vol.Optional("display"): _DISPLAY_SPEC_SCHEMA,
         vol.Required("payload"): vol.All(list, vol.Length(max=_MAX_ELEMENTS)),
         vol.Optional("background", default="white"): str,
         vol.Optional("dither", default="burkes"): _dither_value,
@@ -92,6 +122,91 @@ _SCHEMA = vol.Schema(
     },
     extra=vol.REMOVE_EXTRA,
 )
+
+
+def _synthetic_global_config(width: int, height: int, color_scheme: int):
+    """Build a syntactically real GlobalConfig for a device-less preview.
+
+    Only `displays[0]`'s geometry/color_scheme actually matter to
+    generate_image/prepare_image; the rest (system/manufacturer/power, pin
+    assignments) are wiring details a pure render never reads, filled with
+    the same harmless placeholder values dev/inject-displays.py already uses
+    to fabricate a syntactically valid device with no real hardware behind
+    it -- see that script's own `_build_device_configs` for why these
+    specific placeholders (0xFF unassigned-pin sentinels, zeroed reserved
+    bytes) are safe.
+    """
+    from opendisplay import (
+        BoardManufacturer,
+        DisplayConfig,
+        GlobalConfig,
+        ManufacturerData,
+        PowerOption,
+        SystemConfig,
+    )
+    from opendisplay.models.enums import PowerMode
+
+    system = SystemConfig(
+        ic_type=0,
+        communication_modes=0,
+        device_flags=0,
+        pwr_pin=0xFF,
+        reserved=b"\x00" * 15,
+    )
+    power = PowerOption(
+        power_mode=PowerMode.BATTERY,
+        battery_capacity_mah=(2000).to_bytes(3, "little"),
+        sleep_timeout_ms=10_000,
+        tx_power=0,
+        sleep_flags=0,
+        battery_sense_pin=0xFF,
+        battery_sense_enable_pin=0xFF,
+        battery_sense_flags=0,
+        capacity_estimator=0,
+        voltage_scaling_factor=0,
+        deep_sleep_current_ua=0,
+        deep_sleep_time_seconds=0,
+        charge_enable_pin=0xFF,
+        charge_state_pin=0xFF,
+        charger_flags=0,
+        min_wake_time_seconds=0,
+        screen_timeout_seconds=0,
+        reserved=b"\x00" * 4,
+    )
+    display = DisplayConfig(
+        instance_number=0,
+        display_technology=0,
+        panel_ic_type=0,
+        pixel_width=width,
+        pixel_height=height,
+        active_width_mm=0,
+        active_height_mm=0,
+        tag_type=0,
+        rotation=0,
+        reset_pin=0xFF,
+        busy_pin=0xFF,
+        dc_pin=0xFF,
+        cs_pin=0xFF,
+        data_pin=0,
+        partial_update_support=0,
+        color_scheme=color_scheme,
+        transmission_modes=0x01,
+        clk_pin=0,
+        reserved_pins=b"\x00" * 7,
+        full_update_mC=0,
+        reserved=b"\x00" * 13,
+    )
+    return GlobalConfig(
+        system=system,
+        manufacturer=ManufacturerData(
+            manufacturer_id=BoardManufacturer.SEEED,
+            board_type=0,
+            board_revision=0,
+            reserved=b"\x00" * 6,
+        ),
+        power=power,
+        displays=[display],
+    )
 
 
 def _encode_png(img: PILImage.Image) -> bytes:
@@ -132,21 +247,45 @@ class OpenDisplayDesignerRenderView(HomeAssistantView):
                 {"message": f"invalid render request: {err}"}, status=400
             )
 
-        device_id: str = data["device_id"]
-        try:
-            entry = _get_entry_for_device_id(hass, device_id)
-        except ServiceValidationError:
+        device_id: str | None = data.get("device_id")
+        display_spec: dict[str, int] | None = data.get("display")
+        if not device_id and not display_spec:
             return web.json_response(
-                {"message": f"unknown device_id: {device_id}"}, status=404
-            )
-
-        displays = entry.runtime_data.device_config.displays
-        if not displays:
-            return web.json_response(
-                {"message": f"device {device_id} has no display configured"},
+                {"message": "either device_id or display (width/height) is required"},
                 status=400,
             )
-        display = displays[0]
+
+        log_target: str
+        if device_id:
+            try:
+                entry = _get_entry_for_device_id(hass, device_id)
+            except ServiceValidationError:
+                return web.json_response(
+                    {"message": f"unknown device_id: {device_id}"}, status=404
+                )
+
+            displays = entry.runtime_data.device_config.displays
+            if not displays:
+                return web.json_response(
+                    {"message": f"device {device_id} has no display configured"},
+                    status=400,
+                )
+            display = displays[0]
+            config = entry.runtime_data.device_config
+            log_target = f"device={device_id}"
+        else:
+            # Virtual-display preview (tier-1 round 2, finding 2): no HA
+            # device exists to resolve at all -- see _synthetic_global_config
+            # and _DISPLAY_SPEC_SCHEMA's own doc comments for why a
+            # syntactically real, but device-less, GlobalConfig is enough.
+            assert display_spec is not None  # narrowed by the check above
+            config = _synthetic_global_config(
+                display_spec["width"],
+                display_spec["height"],
+                display_spec["color_scheme"],
+            )
+            display = config.displays[0]
+            log_target = f"display={display_spec['width']}x{display_spec['height']}"
         cs = display.color_scheme_enum
         color_scheme = cs if isinstance(cs, ColorScheme) else ColorScheme.from_value(cs)
 
@@ -189,7 +328,7 @@ class OpenDisplayDesignerRenderView(HomeAssistantView):
             # search path in a "file not found" message) -- worth having in
             # the debug log, not worth handing back to whatever called this
             # endpoint.
-            _LOGGER.debug("designer render failed for device %s: %s", device_id, err)
+            _LOGGER.debug("designer render failed for %s: %s", log_target, err)
             return web.json_response(
                 {"message": "render failed: invalid payload"}, status=400
             )
@@ -207,7 +346,7 @@ class OpenDisplayDesignerRenderView(HomeAssistantView):
             functools.partial(
                 prepare_image,
                 img,
-                config=entry.runtime_data.device_config,
+                config=config,
                 dither_mode=data["dither"],
                 compress=False,
                 tone=_SEND_PATH_DEFAULT_TONE,
@@ -217,8 +356,8 @@ class OpenDisplayDesignerRenderView(HomeAssistantView):
         )
         png_bytes = await hass.async_add_executor_job(_encode_png, dithered)
         _LOGGER.debug(
-            "designer render endpoint: device=%s dither=%s bytes=%d",
-            device_id,
+            "designer render endpoint: %s dither=%s bytes=%d",
+            log_target,
             data["dither"],
             len(png_bytes),
         )
