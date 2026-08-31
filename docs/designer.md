@@ -10,6 +10,7 @@ itself never talks to Home Assistant directly.
 - [Architecture](#architecture)
 - [Preview isolation](#preview-isolation)
 - [The render endpoint](#the-render-endpoint)
+- [The asset endpoint](#the-asset-endpoint)
 - [Updating the vendored library](#updating-the-vendored-library)
 - [Known gaps](#known-gaps)
 
@@ -29,6 +30,7 @@ YAML, and a `send` host action this integration registers.
 | `actions` | One button, `send`, disabled with a human reason while sending, the YAML is invalid, or no display is selected |
 | `onAction('send', …)` | Calls the `opendisplay.drawcustom` service against the selected target's device |
 | `renderPreview` | POSTs to this integration's own render endpoint (below) and hands back the PNG bytes |
+| `resolveAsset` | GETs this integration's own asset endpoint (below) for a font the designer couldn't resolve locally, and hands back the bytes |
 
 Each real OpenDisplay device's `image.*` entity carries its designer
 capability attributes (`pixel_width`, `pixel_height`, `render_width`,
@@ -161,12 +163,107 @@ The panel wrapper derives the request's `rotate` field from the designer's
 the 0°/90°/180°/270° orientation control next to Display Config lets the
 user pick an effective orientation independent of what `capabilities.
 rotation_degrees` published, and `renderPreview`'s `context.display.
-rotation` reports whichever one is currently showing. `_rotateDeltaFor()`
-compares that against the target's own pushed `rotation_degrees` (its
-base) to recover the delta the endpoint's `rotate` field expects — sending
-`rotate: 0` unconditionally (as an earlier version of this endpoint's
-caller did) meant a preview of a rotated canvas letterboxed against an
-image rendered for the wrong orientation.
+rotation` reports whichever one is currently showing. `rotateDeltaFor()`
+(`frontend/panel/rotation.js`, extracted from the panel wrapper for its own
+unit tests — `tests/js/rotation.test.mjs`) compares that against the
+target's own pushed `rotation_degrees` (its base) to recover the delta the
+endpoint's `rotate` field expects — sending `rotate: 0` unconditionally (as
+an earlier version of this endpoint's caller did) meant a preview of a
+rotated canvas letterboxed against an image rendered for the wrong
+orientation.
+
+Tier-2 (real hardware) root-cause note: a maintainer report that a rotated
+display's SERVER preview rendered sideways, despite a correct CLIENT
+canvas. His actual device (an ESL 5 3.5", verbatim reported attributes:
+`pixel_width` 184, `pixel_height` 384, `rotation_degrees` **0**,
+`render_width` 184, `render_height` 384, `color_scheme` 3/BWRY,
+`palette_measured` false) turned out to have **base 0** — native portrait,
+no base persisted, physically mounted landscape, his own working automation
+compensating with `rotate: 270` on every call. `rotate = target - base (mod
+360)` is exactly what `_drawcustom_for_device`'s own contract requires
+(services.py: "the payload is authored against the FINAL on-screen
+orientation; the device applies (base + rotate)"), and
+`tests/test_rotation_parity.py::test_esl5_3_5_real_hardware_acceptance_vector`
+proves the render endpoint and the drawcustom send path produce
+byte-identical, correctly-dimensioned (184×384 portrait) output for this
+EXACT vector, plus every synthetic `(base, rotate)` combination in `{0, 90}
+× {0, 90, 180, 270}` — so there was no formula bug and no drift between the
+two Python code paths to find. What the investigation did surface and fix:
+**Send never carried a `rotate` value at all** (see "Known gaps" below, now
+resolved) — the maintainer's real workaround (a manual helper script
+passing `rotate: 270` on every `drawcustom` call) had no designer-side
+equivalent, so a payload rotated in the designer's own control shipped
+un-rotated. `rotateDeltaFor` itself is now covered by a dedicated matrix
+test (`tests/js/rotation.test.mjs`, including this same real vector) that
+pins exact delta values, not just quarter/half-turn parity — a bug that
+swapped the subtraction order would still pass a dimension-only check while
+shipping mirrored/sideways content, which the earlier round's testing did
+not rule out.
+
+A separate, unrelated finding from the same tier-2 screenshots: the
+designer's own **Resolution field** showed "384×184" while the pushed
+capabilities report 184×384. Not a bug — `ResolutionSelect`'s `canvasWidth`/
+`canvasHeight` props (vendored `odl-drawcustom-designer.js`,
+`src/ui/components/DisplayConfig` region) read the CURRENT, already-rotated
+canvas (`canvas.width`/`canvas.height`), not the raw `pixel_width`/
+`pixel_height` capabilities carry — with Orientation already set to 270 (a
+quarter turn), the canvas is legitimately 384×184 at that moment. The field
+is accurately describing the active drawing surface, just not labeled to
+make clear it's post-rotation, which reads as a mismatch against a
+capabilities panel showing native dims. Not something this integration's
+own code can relabel (vendored, third-party UI) — worth a small upstream
+ask (`odl-drawcustom-designer`) to clarify the label or add a tooltip;
+tracked as PR-body follow-up, not fixed here.
+
+### Displays mounted rotated
+
+A display whose native pixel grid doesn't match its physical mounting
+(the common case: a narrow portrait panel mounted landscape) needs an
+explicit `rotate` on every render — HA does not yet have a way to
+*persist* that as the display's own default (see below). In the designer:
+pick the target display, set its Orientation control (0°/90°/180°/270°,
+next to Display Config) to match how the panel is actually mounted, then
+design and Send as normal — both Preview and Send now honor that choice
+(`rotateDeltaFor`, above). A persistent, per-display default orientation
+(so this wouldn't need re-picking every session) is a deliberate
+deferral pending the upstream capabilities discussion on
+`rotation_degrees` base-vs-effective (see the PR body's open questions) —
+not a limitation of this endpoint or the panel wrapper.
+
+## The asset endpoint
+
+`GET /api/opendisplay/designer/asset?kind=font&name=<name>`
+(`custom_components/opendisplay/designer/asset.py`) implements the LAST
+tier of the designer's own asset resolution (`resolveAsset`/
+`HostAssetResolver`, issue #138, ADR-002 amendment): asked only for a font
+the designer could not resolve itself (its local content map, then its own
+bundled assets). Maintainer ruling (tier-2, real hardware): "if the server
+renderer can use it, the client must get it mapped" — before this endpoint,
+a payload referencing a font by bare name (the same way a hand-written
+`drawcustom` payload does) rendered correctly on send but showed the
+designer's own explicit render-error state in preview, since the designer
+had no way to reach this integration's font directories at all.
+
+`kind=font` only, resolved against `_font_search_dirs` (`services.py`:
+`www/fonts`, `media/fonts`, `/media/fonts`) with the exact same bare-name
+`.ttf` auto-append `odl_renderer.fonts.FontManager` applies, so a name the
+designer resolves through this endpoint is always the identical file a real
+render/send would load for that same reference — never a font the server
+renders with but the designer substitutes or errors on, and never a
+different file behind the same name. Path-traversal-guarded the same way
+as `OpenDisplayDesignerStaticView` (`panel.py`): resolve the candidate,
+then require it stay under the search directory it came from. Authenticated
+(`requires_auth = True`) — this is the integration's second authenticated
+HTTP view, after the render endpoint. `kind=image` (or anything else) is a
+400: this integration has no font-independent image search path today, so
+font-only is the honest v1 rather than a resolver that silently answers
+`null` for images forever.
+
+Not cache-busted like the static view's own `?v=` token (font files in the
+search directories can change without this integration knowing) — served
+with `Cache-Control: no-cache, must-revalidate` instead, acceptable since
+the designer resolves and caches an asset once per session rather than
+re-requesting it on every render.
 
 ## Updating the vendored library
 
@@ -194,24 +291,22 @@ against the 2.x host contract and is not regenerated by the script.
   `HostCapabilities` (`capabilities.py`'s `user_rotate_deg` is always `0` —
   no host seam exists yet to carry a live rotate choice into
   `build_capabilities`). **Preview** works around this at the point of use
-  (`_rotateDeltaFor`, above) by comparing the designer's own live canvas
+  (`rotateDeltaFor`, above) by comparing the designer's own live canvas
   orientation against that base value, so a rotated preview renders
-  correctly today despite the gap. **Send does not**: `onAction`'s
-  `HostActionContext` carries only `targetId`, with no equivalent geometry
-  to derive a delta from, so the `drawcustom` service call `send` makes
-  never carries a `rotate` value at all (stays at the service's own
-  default). Sending a payload the user rotated in the designer's own
-  control can therefore ship un-rotated. Flagged rather than silently
-  "fixed" against a seam that doesn't exist yet on the `onAction` side.
-- **Send's `dither` value is a sticky memory of the last preview**, not a
-  live read of the designer's current dither control (same
-  `HostActionContext` limitation as above — it carries only `targetId`, not
-  the `HostPreviewServiceOptions` a `renderPreview` call receives). Defaults
-  to `'none'` (the designer's own default dither control state) if no
-  preview ran this session — see the PR body's open questions for the
-  upstream seam both of these need (`odl-drawcustom-designer` issue #105
-  territory: extending `HostActionContext` the same way `HostPreviewContext`
-  already carries geometry and service options).
+  correctly despite the gap. **Send now does too** (previously did not —
+  see the tier-2 root-cause note above): it reuses whatever `rotate` a
+  preview render last actually derived, the same sticky-memory shape
+  `dither` already used (below), rather than never carrying a `rotate`
+  value at all.
+- **Send's `dither` and `rotate` values are a sticky memory of the last
+  preview**, not a live read of the designer's current dither/orientation
+  controls (`onAction`'s `HostActionContext` carries only `targetId`, not
+  the `HostPreviewServiceOptions`/geometry a `renderPreview` call receives).
+  `dither` defaults to `'none'`, `rotate` to `0` (both the designer's own
+  control defaults) if no preview ran this session — see the PR body's open
+  questions for the upstream seam both need (`odl-drawcustom-designer`
+  issue #105 territory: extending `HostActionContext` the same way
+  `HostPreviewContext` already carries geometry and service options).
 - **The `dry-run` field on `opendisplay.drawcustom` still ignores `dither`**
   (it always renders the flat, un-dithered image) — an independent,
   pre-existing gap the render endpoint above does not share (it always
@@ -247,19 +342,15 @@ against the 2.x host contract and is not regenerated by the script.
   default should win end-to-end is a real open question for the
   maintainers, not something this PR resolves unilaterally — see the PR
   body's open asks.
-- **No `resolveAsset` provider is wired up.** Fonts referenced by name in a
-  payload (e.g. a `.ttf` in `www/fonts`/`media/fonts`) render correctly
-  server-side (`generate_image`'s own font-directory search, unchanged from
-  the `drawcustom` service) but the designer's own client-side canvas has no
-  way to resolve the same name locally — the designer's `resolveAsset` host
-  option (docs: "the host asks for any asset reference left over after its
-  own tiers") is simply never supplied, so a payload referencing a
-  host-only font renders correctly through **Send** and through **Display
-  preview** (both go through the real backend), but shows the designer's
-  own client-side render-error state in the **non-preview canvas view**
-  (its default rendering, without Display preview toggled on) for that same
-  element. Two contradictory-looking views of the same payload, from a real
-  gap rather than a bug in either view. A follow-up asset endpoint (`GET
-  /api/opendisplay/designer/asset/<kind>/<name>` or similar, feeding
-  `resolveAsset`) would close this — intentionally not built in this round;
-  filed as planned follow-up work, not fixed here.
+- **`resolveAsset` is font-only** (fixed this round — see "The asset
+  endpoint" above; previously not wired up at all, and a payload
+  referencing a host-only font showed the designer's own client-side
+  render-error state in the non-preview canvas view despite rendering
+  correctly through Send/Display preview). Images remain unresolved: this
+  integration has no font-independent image search path
+  (`_image_search_dirs` equivalent) today, so `kind=image` requests are
+  rejected with a 400 rather than silently answering `null` forever. A
+  payload referencing a host-only IMAGE by name still shows the designer's
+  own client-side render-error state in the non-preview canvas view, the
+  same contradictory-looking-but-not-actually-buggy split described above
+  for fonts before this fix — filed as follow-up, not fixed here.

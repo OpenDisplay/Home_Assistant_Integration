@@ -23,9 +23,11 @@ import { mount } from '../vendor/odl-drawcustom-designer.js';
 import yaml from '../vendor/js-yaml.mjs';
 import { containKeyEvents } from './key-containment.js';
 import { installUnsavedWorkWarning } from './unsaved-work.js';
+import { rotateDeltaFor } from './rotation.js';
 
 const TAG = 'opendisplay-designer-panel';
 const RENDER_URL = '/api/opendisplay/designer/render';
+const ASSET_URL = '/api/opendisplay/designer/asset';
 
 // Designer's own numeric dither domain (0 flat/none, 1 reserved, 2 ordered
 // halftone — docs/embedding.md: "the designer's control produces 0 or 2
@@ -258,6 +260,18 @@ class OpenDisplayDesignerPanel extends HTMLElement {
     // so `onAction` can read the live dither value directly, the same way
     // `renderPreview` does now. Not fixable host-side.
     this._lastPreviewDitherHA = undefined;
+    // Last `rotate` delta actually used for a preview render (rotation.js's
+    // `rotateDeltaFor`) — Send reuses it for the same reason and with the
+    // same sticky-residual shape as `_lastPreviewDitherHA` above: turns the
+    // maintainer's manual "helper script + rotate:270 on every call"
+    // workflow into pick display -> set Orientation -> design -> Send, but
+    // stays stale if the Orientation control moves without a further
+    // preview (same `HostActionContext`-carries-only-`targetId` limitation
+    // as dither; designer issue #105 territory once `onAction` can read
+    // live service/geometry options itself). Defaults to 0 (no rotation) if
+    // no preview ran this session — the designer's own canvas orientation
+    // control defaults to 0 too.
+    this._lastPreviewRotate = undefined;
   }
 
   set hass(value) {
@@ -434,6 +448,7 @@ class OpenDisplayDesignerPanel extends HTMLElement {
           if (id === 'send') void this._send(payload, context.targetId);
         },
         renderPreview: (payload, context) => this._renderPreview(payload, context),
+        resolveAsset: (kind, name) => this._resolveAsset(kind, name),
         onStatusChange: (status) => {
           this._yamlValid = status.yamlValid;
           this._yamlErrorSummary = status.yamlErrorSummary;
@@ -474,15 +489,16 @@ class OpenDisplayDesignerPanel extends HTMLElement {
    * save/send channel; the designer has no Save button of its own.
    * Defaults hardcoded (background: white, refresh_type: full) — designer
    * issue #105 (service options) will expose these to the user later.
-   * `dither` is the one partial exception (see `_lastPreviewDitherHA`'s own
-   * comment for the known residual): it reuses whatever dither a preview
-   * render last actually used, so the common "preview, then send" flow ships
-   * the dither the user actually saw, rather than always a hardcoded value
-   * regardless of what was previewed. It is a **sticky, stale value**, not a
-   * live read of the designer's current dither control. Defaults to 'none'
-   * if no preview ran this session -- the designer's own dither control
-   * itself defaults to flat/no dither (docs/embedding.md), so 'none' is
-   * what Send should ship absent any other signal, not an arbitrary guess.
+   * `dither` and `rotate` are the two partial exceptions (see
+   * `_lastPreviewDitherHA`'s and `_lastPreviewRotate`'s own init comments
+   * for the known residual each shares): both reuse whatever a preview
+   * render last actually used, so the common "preview, then send" flow
+   * ships what the user actually saw, rather than always a hardcoded value
+   * regardless of what was previewed. Both are **sticky, stale values**,
+   * not a live read of the designer's current controls. `dither` defaults
+   * to 'none', `rotate` to 0, if no preview ran this session -- matching
+   * the designer's own controls' defaults (docs/embedding.md), not an
+   * arbitrary guess.
    */
   async _send(payloadYaml, targetId) {
     const hass = this._hass;
@@ -522,6 +538,7 @@ class OpenDisplayDesignerPanel extends HTMLElement {
           payload: elements,
           background: 'white',
           dither: this._lastPreviewDitherHA ?? 'none',
+          rotate: this._lastPreviewRotate ?? 0,
           refresh_type: 'full',
         },
         { device_id: targetId }
@@ -536,25 +553,15 @@ class OpenDisplayDesignerPanel extends HTMLElement {
   }
 
   /**
-   * The render endpoint's `rotate` field is a DELTA on top of the device's
-   * own stored base rotation (exactly like drawcustom's own `rotate`
-   * field) -- but the designer's canvas orientation control (the 0/90/180/
-   * 270 buttons next to Display Config) lets the user pick an ABSOLUTE
-   * effective orientation independent of that base, and `context.display.
-   * rotation` reports whichever one is currently showing. Recover the
-   * delta by comparing it against the BASE rotation this same target's own
-   * pushed capabilities carried (`this._targetCapabilities`, populated
-   * alongside every `targets` push) -- the server only needs the delta, not
-   * `context.display`'s width/height directly: it already knows the
-   * device's true pixel size and re-derives the transposed canvas size from
-   * base+delta itself, which is more trustworthy than accepting
-   * client-supplied dimensions for what to render at.
+   * The render endpoint's (and drawcustom's) `rotate` field is a delta on
+   * top of the target's own stored base rotation -- see rotation.js's own
+   * doc comment for the full derivation and why this is not just a
+   * dimension check. Looks the target's capabilities up in
+   * `this._targetCapabilities` (populated alongside every `targets` push)
+   * rather than accepting client-supplied dimensions for what to render at.
    */
   _rotateDeltaFor(targetId, context) {
-    const capabilities = this._targetCapabilities.get(targetId);
-    const baseRotation = Number(capabilities?.rotation_degrees) || 0;
-    const displayRotation = Number(context.display?.rotation) || 0;
-    return ((displayRotation - baseRotation) % 360 + 360) % 360;
+    return rotateDeltaFor(this._targetCapabilities.get(targetId), context.display?.rotation);
   }
 
   /**
@@ -623,9 +630,41 @@ class OpenDisplayDesignerPanel extends HTMLElement {
       throw new Error(`Render failed: ${message}`);
     }
     // Remember it for Send — set only after the render above succeeds, so a
-    // failed render never poisons what Send would use.
+    // failed render never poisons what Send would use. Same sticky-residual
+    // shape as dither (see _lastPreviewRotate's own init comment): sent for
+    // whichever targetId last previewed successfully, not a live read of
+    // the designer's current Orientation control.
     this._lastPreviewDitherHA = ditherHA;
+    this._lastPreviewRotate = requestBody.rotate;
     return await res.blob();
+  }
+
+  /**
+   * `resolveAsset` host seam (`HostAssetResolver`, issue #138, ADR-002
+   * amendment) -- the LAST tier of asset resolution, asked only for a
+   * reference the designer could not resolve itself (local content map,
+   * then bundled assets). Fonts only (`/api/opendisplay/designer/asset`'s
+   * own doc comment: no font-independent image search path exists in this
+   * integration yet -- `kind !== 'font'` short-circuits to `null` rather
+   * than making a request the endpoint would 400 anyway). Per the
+   * contract's own wording, `null`/a rejection/a timeout all settle
+   * identically as "not supplied" and reach the user as the designer's own
+   * explicit render-error state -- never a silent skip, never a substituted
+   * font -- so every failure path here resolves `null` rather than
+   * throwing: a thrown error is not a documented outcome of this seam.
+   */
+  async _resolveAsset(kind, name) {
+    const hass = this._hass;
+    if (kind !== 'font' || !hass?.fetchWithAuth) return null;
+    try {
+      const res = await hass.fetchWithAuth(
+        `${ASSET_URL}?kind=${encodeURIComponent(kind)}&name=${encodeURIComponent(name)}`
+      );
+      if (!res.ok) return null;
+      return await res.blob();
+    } catch {
+      return null;
+    }
   }
 }
 

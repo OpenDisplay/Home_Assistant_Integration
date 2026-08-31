@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.opendisplay.const import DOMAIN
 
+from .asset import OpenDisplayDesignerAssetView
 from .panel import (
     DESIGNER_PANEL_PATH,
     OpenDisplayDesignerStaticView,
@@ -26,6 +27,7 @@ async def async_setup_designer(hass: HomeAssistant) -> None:
 
     if not designer_data.get("views_registered"):
         hass.http.register_view(OpenDisplayDesignerRenderView(hass))
+        hass.http.register_view(OpenDisplayDesignerAssetView(hass))
         hass.http.register_view(OpenDisplayDesignerStaticView(hass))
         designer_data["views_registered"] = True
 
