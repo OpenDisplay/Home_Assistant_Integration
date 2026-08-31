@@ -4,7 +4,10 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.opendisplay.const import DOMAIN
-from custom_components.opendisplay.designer.panel import DESIGNER_STATIC_URL
+from custom_components.opendisplay.designer.panel import (
+    DESIGNER_PANEL_PATH,
+    DESIGNER_STATIC_URL,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -78,3 +81,35 @@ async def test_panel_registered_in_frontend(hass) -> None:
     assert DOMAIN in hass.data
     designer_data = hass.data[DOMAIN].get("designer", {})
     assert designer_data.get("panel_registered") is True
+
+
+async def test_panel_is_offered_to_every_authenticated_user(hass) -> None:
+    """The panel is not admin-only -- deliberately.
+
+    Auth and display are kept consistent (@schlomo's ruling): the panel's
+    visibility matches the authorization of the endpoints behind it, which
+    in turn matches the exposure of the `opendisplay.drawcustom` service the
+    designer fronts. A deployment that wants the designer restricted
+    restricts it at the Home Assistant user level; the integration does not
+    invent its own permission model. See docs/designer.md's "Access and
+    exposure".
+    """
+    panel = hass.data["frontend_panels"][DESIGNER_PANEL_PATH]
+    assert panel.require_admin is False
+
+
+async def test_static_view_stays_unauthenticated(hass) -> None:
+    """The static view cannot be gated -- a module import sends no auth header.
+
+    `<script type="module">`/`import` requests carry no Authorization header
+    and no HA auth cookie, so requiring auth here would make the panel
+    unloadable for everyone. It serves only this integration's own bundled
+    frontend files -- the panel's own JS bundle -- and exposes no Home
+    Assistant data, no configuration and no entity state. The endpoints that
+    do (`render`, `asset`) require auth.
+    """
+    from custom_components.opendisplay.designer.panel import (
+        OpenDisplayDesignerStaticView,
+    )
+
+    assert OpenDisplayDesignerStaticView.requires_auth is False

@@ -508,3 +508,35 @@ async def test_render_device_mode_still_works_unchanged(
 
     assert resp.status == 200
     assert resp.content_type == "image/png"
+
+
+async def test_render_serves_an_authenticated_non_admin_user(
+    hass, hass_client, hass_read_only_access_token, device_id, mock_render
+):
+    """Any authenticated user can render -- deliberately, not by oversight.
+
+    Auth and display are kept consistent (@schlomo's ruling): the sidebar
+    panel is offered to every authenticated user, so the endpoints behind it
+    answer every authenticated user too. The endpoint grants no capability a
+    non-admin does not already have -- `opendisplay.drawcustom` renders the
+    same templates through the same shared helper, and Home Assistant
+    templates are read-only. Restricting the designer is a Home Assistant
+    user-level decision, not one this integration invents a permission model
+    for.
+
+    `test_render_requires_auth` above pins the other half of the contract:
+    an unauthenticated request is still rejected.
+    """
+    client = await hass_client(hass_read_only_access_token)
+    resp = await client.post(
+        DESIGNER_RENDER_URL,
+        json={
+            "device_id": device_id,
+            "payload": [{"type": "text", "value": "hi", "x": 10, "y": 10}],
+            "background": "white",
+            "dither": "burkes",
+        },
+    )
+
+    assert resp.status == 200
+    assert resp.content_type == "image/png"

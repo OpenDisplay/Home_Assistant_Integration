@@ -148,3 +148,23 @@ async def test_asset_serves_a_font_named_with_its_extension(
     assert resp.status == 200
     assert resp.content_type == "font/otf"
     assert await resp.read() == _FONT_BYTES
+
+
+async def test_asset_serves_an_authenticated_non_admin_user(
+    hass, hass_client, hass_read_only_access_token, font_dir: Path
+) -> None:
+    """The asset endpoint answers every authenticated user, like the panel.
+
+    Same contract as the render endpoint (`test_render_serves_an_
+    authenticated_non_admin_user`): authorization here matches the panel's
+    own visibility, and `test_asset_requires_auth` above pins that an
+    unauthenticated request is still rejected.
+    """
+    (font_dir / "Tinos-Bold.ttf").write_bytes(_FONT_BYTES)
+
+    client = await hass_client(hass_read_only_access_token)
+    resp = await client.get(
+        DESIGNER_ASSET_URL, params={"kind": "font", "name": "Tinos-Bold"}
+    )
+    assert resp.status == 200
+    assert await resp.read() == _FONT_BYTES

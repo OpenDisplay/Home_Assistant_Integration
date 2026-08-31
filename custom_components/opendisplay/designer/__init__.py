@@ -44,6 +44,17 @@ async def async_setup_designer(hass: HomeAssistant) -> None:
             sidebar_title="OpenDisplay Designer",
             sidebar_icon="mdi:monitor-edit",
             module_url=await async_get_panel_module_url(hass),
+            # Deliberate, and deliberately consistent with the views behind
+            # it: the designer's render endpoint fronts
+            # `opendisplay.drawcustom`, which any authenticated user can
+            # already call, and it renders the same templates through the
+            # same shared helper. Home Assistant templates are read-only, so
+            # this grants no capability a non-admin does not already have.
+            # Panel visibility, endpoint authorization and the exposure of
+            # the service being fronted all match. A deployment that wants
+            # the designer restricted restricts it at the Home Assistant
+            # user level -- this integration does not invent its own
+            # permission model. See docs/designer.md, "Access and exposure".
             require_admin=False,
         )
         designer_data["panel_registered"] = True

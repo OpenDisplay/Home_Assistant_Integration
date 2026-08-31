@@ -11,6 +11,7 @@ itself never talks to Home Assistant directly.
 - [Preview isolation](#preview-isolation)
 - [The render endpoint](#the-render-endpoint)
 - [The asset endpoint](#the-asset-endpoint)
+- [Access and exposure](#access-and-exposure)
 - [Updating the vendored library](#updating-the-vendored-library)
 - [Known gaps](#known-gaps)
 
@@ -349,6 +350,47 @@ search directories can change without this integration knowing) — served
 with `Cache-Control: no-cache, must-revalidate` instead, acceptable since
 the designer resolves and caches an asset once per session rather than
 re-requesting it on every render.
+
+## Access and exposure
+
+**The designer is available to every authenticated Home Assistant user.**
+That is deliberate. The sidebar panel registers with `require_admin=False`,
+and the two data endpoints (`/api/opendisplay/designer/render`,
+`/api/opendisplay/designer/asset`) require authentication and nothing more.
+
+**Why, and why the three match.** The render endpoint fronts
+`opendisplay.drawcustom`, which any authenticated user can already call, and
+it renders the same payload templates through the same shared helper
+(`render_payload_templates`, `services.py`). So the endpoint grants no
+capability a caller does not already have. Panel visibility, endpoint
+authorization and the exposure of the service being fronted are kept
+consistent with each other — a panel offered to everyone whose endpoints
+reject most of them, or gated endpoints behind an ungated service, would be
+the inconsistency worth avoiding.
+
+**What a user of the designer can see.** Payload field values are expanded
+with the full Home Assistant template context, so a user composing a payload
+can read any entity's state and attributes and perform registry lookups —
+`device_attr`, `area_name`, `integration_entities` and friends. The last of
+those the Home Assistant frontend normally surfaces only on admin config
+pages, so it is worth stating plainly. This is **information disclosure
+only**: Home Assistant templates are read-only. They cannot call services and
+they cannot execute code. There is no privilege escalation here. Note also
+that Home Assistant has no practical per-entity ACL to begin with — any
+authenticated user already reads every entity's state through the frontend
+and the WebSocket API.
+
+**If you want this restricted, restrict it at the Home Assistant user
+level.** The integration deliberately does not invent its own permission
+model on top of Home Assistant's.
+
+**The static view is unauthenticated by necessity.** It serves the panel JS
+and the vendored designer bundle, which the browser pulls in as ES modules —
+a `<script type="module">` or a bare `import` sends no `Authorization` header
+and no Home Assistant auth cookie, so requiring auth there would make the
+panel unloadable for everyone. It serves only this integration's own bundled
+frontend files from a traversal-guarded path under `designer/frontend/`, and
+exposes no Home Assistant data, no configuration and no entity state.
 
 ## Updating the vendored library
 
