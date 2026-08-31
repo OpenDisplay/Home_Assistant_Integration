@@ -72,6 +72,44 @@ async def test_entity_publishes_designer_capabilities(
     assert state.attributes["available_colors"]
 
 
+async def test_fresh_entity_serves_a_placeholder_not_an_empty_image(
+    hass: HomeAssistant,
+    hass_client: ClientSessionGenerator,
+    setup_entry: Callable[[], Awaitable[None]],
+) -> None:
+    """A never-rendered entity's image fetch must return real bytes, not empty.
+
+    Tier-1 round 2, finding 5: the maintainer's more-info card threw a
+    frontend TypeError (reading 'startTime') opening a fresh entity's image
+    before anything had ever been sent -- `ImageEntity`'s own image-fetch
+    view has nothing to serve when `async_image()` returns `None`, which is
+    what happens before `image_last_updated`/the underlying bytes are ever
+    set. The v1 integration served a white placeholder JPEG from the start
+    (verified in an earlier investigation of PR#100); this exercises the
+    HTTP-visible half of that same restore -- the frontend more-info card
+    itself is out of pytest's reach, but "does entity_picture actually
+    resolve to a real image, immediately, with no send" is exactly the
+    condition that TypeError needs to not happen.
+    """
+    await setup_entry()
+
+    state = hass.states.get(ENTITY)
+    assert state is not None
+    assert state.attributes.get("entity_picture"), (
+        "a fresh entity must publish entity_picture immediately -- no "
+        "entity_picture at all is the empty-card half of the bug"
+    )
+
+    client = await hass_client()
+    resp = await client.get(state.attributes["entity_picture"])
+
+    assert resp.status == 200
+    assert resp.headers["Content-Type"] == "image/jpeg"
+    body = await resp.read()
+    assert body, "placeholder response body must not be empty"
+    assert body.startswith(b"\xff\xd8\xff"), "must be a real JPEG (SOI marker)"
+
+
 async def test_uploaded_image_is_served(
     hass: HomeAssistant,
     hass_client: ClientSessionGenerator,

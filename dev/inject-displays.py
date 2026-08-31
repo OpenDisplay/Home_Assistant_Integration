@@ -152,10 +152,23 @@ def _build_device_configs():
                 instance_number=0,
                 display_technology=0,
                 panel_ic_type=0,
-                pixel_width=250,
-                pixel_height=122,
-                active_width_mm=49,  # 2.13" panel (Waveshare-class geometry)
-                active_height_mm=24,
+                # 200x200, not the 2.13"-panel-class 250x122 an earlier
+                # version of this fixture used (tier-1 round 2, finding 4):
+                # py-opendisplay's own direct-write path warns on every
+                # render/send when a MONO panel's width isn't a multiple of
+                # 8 (device.py -- current firmware sizes the upload from the
+                # raw pixel count and truncates the last rows otherwise;
+                # 250 % 8 == 2). 200x200 is a real, common small-mono
+                # geometry (Waveshare-class 1.54") that's genuinely
+                # byte-aligned (200 % 8 == 0), so this fixture no longer
+                # spams that warning on every harness render -- unlike the
+                # 296x128 BWR / 800x480 BWRY fixtures below, MONO is the
+                # only color scheme this direct-write check applies to
+                # (BWR/BWY/BWRY aren't in _DIRECT_WRITE_PIXELS_PER_BYTE).
+                pixel_width=200,
+                pixel_height=200,
+                active_width_mm=39,  # 1.54" panel (Waveshare-class geometry)
+                active_height_mm=39,
                 tag_type=0,
                 rotation=0,
                 reset_pin=0xFF,
@@ -173,7 +186,7 @@ def _build_device_configs():
             ),
             SeeedBoardType.EE04,
             900,  # 15 min deep-sleep interval
-            '2.13" mono kit',
+            '1.54" mono kit',
         ),
         (
             "Fabricated Medium BWR Tag",
