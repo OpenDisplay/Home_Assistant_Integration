@@ -331,13 +331,13 @@ def main() -> None:
 
     if _dev_ha_running():
         _fail(
-            "the dev HA instance is running (dev/run.sh). Storage must not be "
-            "rewritten under a live process. Stop it first: dev/stop.sh"
+            "the dev HA instance is running (dev/ha run). Storage must not be "
+            "rewritten under a live process. Stop it first: dev/ha stop"
         )
 
     if not STORAGE_FILE.exists():
         _fail(
-            f"{STORAGE_FILE} not found. Run dev/run.sh at least once (through "
+            f"{STORAGE_FILE} not found. Run dev/ha run at least once (through "
             "onboarding) first, so HA has created its baseline config_entries store."
         )
 
@@ -369,7 +369,7 @@ def main() -> None:
         print(
             f"  - {entry['title']}  (unique_id={entry['unique_id']}, entry_id={entry['entry_id']})"
         )
-    print("\nStart the harness with dev/run.sh -- each entry sets up from its own")
+    print("\nStart the harness with dev/ha run -- each entry sets up from its own")
     print("cache (no BLE connection) per __init__.py's sleepy-device fallback.")
 
 

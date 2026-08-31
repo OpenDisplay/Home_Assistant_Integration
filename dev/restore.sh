@@ -21,7 +21,7 @@ command -v jq >/dev/null 2>&1 || {
 }
 
 [[ -f "$SEED_DIR/config_entries.json" ]] || {
-  echo "ERROR: $SEED_DIR/config_entries.json not found. Run dev/snapshot.sh first" \
+  echo "ERROR: $SEED_DIR/config_entries.json not found. Run dev/ha snapshot first" \
     "(after the one-time hardware device bootstrap), or copy a colleague's" \
     "dev/seed/ export there. For fabricated (no-hardware) devices, use" \
     "dev/inject-displays.py instead." >&2
@@ -43,7 +43,7 @@ echo "restore: stopping the dev HA instance (storage must not be rewritten under
 "$DEV_DIR/stop.sh"
 
 [[ -d "$STORAGE_DIR" ]] || {
-  echo "ERROR: $STORAGE_DIR not found. Run dev/run.sh at least once (through onboarding)" \
+  echo "ERROR: $STORAGE_DIR not found. Run dev/ha run at least once (through onboarding)" \
     "before restoring, so HA has created its baseline registries." >&2
   exit 1
 }
@@ -66,7 +66,7 @@ upsert_seed() {
     return 0
   fi
   if [[ ! -f "$target_file" ]]; then
-    echo "ERROR: $target_file not found. Run dev/run.sh through onboarding first so HA" \
+    echo "ERROR: $target_file not found. Run dev/ha run through onboarding first so HA" \
       "has created its baseline $seed_name store." >&2
     exit 1
   fi
@@ -89,5 +89,5 @@ for name in "${storage_seed_names[@]}"; do
   upsert_seed "$name"
 done
 
-echo "restore: done. Start the harness with dev/run.sh — the opendisplay config entry" \
+echo "restore: done. Start the harness with dev/ha run — the opendisplay config entry" \
   "should set up from cache (no BLE needed) per __init__.py's sleepy-cache fallback."

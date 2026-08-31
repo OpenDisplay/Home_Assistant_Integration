@@ -17,7 +17,7 @@ command -v jq >/dev/null 2>&1 || {
 }
 
 [[ -d "$STORAGE_DIR" ]] || {
-  echo "ERROR: $STORAGE_DIR not found. Run dev/run.sh and onboard at least once first." >&2
+  echo "ERROR: $STORAGE_DIR not found. Run dev/ha run and onboard at least once first." >&2
   exit 1
 }
 

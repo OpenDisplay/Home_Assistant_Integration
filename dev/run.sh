@@ -2,38 +2,22 @@
 # One command: bring up a local Home Assistant with this branch's OpenDisplay
 # integration, reachable at http://127.0.0.1:8123. Native Python via uv --
 # no Docker (maintainer ruling 2026-08-30: maximum KISS, no container
-# runtime dependency). See dev/README.md for the full workflow.
+# runtime dependency). See dev/README.md for the full workflow. Normally
+# invoked as `dev/ha run` (dev-UX consolidation round) -- this file is the
+# implementation dev/ha's `run` subcommand execs; running it directly still
+# works identically, nothing about that changed.
 set -euo pipefail
 
-DEV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$DEV_DIR/.." && pwd)"
-HA_CONFIG="$DEV_DIR/ha-config"
-PID_FILE="$HA_CONFIG/.harness.pid"
-LOG_FILE="$HA_CONFIG/ha.log"
-# Port is always 8123, full stop -- no HA_PORT override (tier-1 round 2,
-# finding 3: ripped out entirely). It never actually worked past onboarding:
-# once onboarding stores its own network config, HA's own "HTTP YAML
-# configuration is ignored after migration" Repair fires and the
-# http_port.yaml !include this harness used to generate is silently
-# ignored -- the feature was broken by platform behavior, not a bug in this
-# harness's own wiring of it, and there is no supported way to make a
-# YAML-configured http.server_port stick post-onboarding.
-#
-# 127.0.0.1, not localhost (tier-1 review, finding 3 from the PRIOR round):
-# macOS resolves "localhost" to ::1 (IPv6) first, and HA's own auth/http
-# stack can mismatch across that split (reproduced live -- a white designer
-# page, /auth/token failures logged against ::1, while 127.0.0.1 worked
-# immediately). Every probe, printed URL, and doc example derives from this
-# one value, so fixing it here fixes all of them at once.
-HA_URL="http://127.0.0.1:8123"
-# Every wait/poll curl below uses this -- an HA that accepts the TCP
-# connection but hangs mid-response (wedged onboarding storage, a stuck
-# component setup) must not turn a bounded poll into an unbounded one
-# (adversarial review round 3, finding 5).
-CURL_TIMEOUT=(--connect-timeout 5 --max-time 10)
+# DEV_DIR/REPO_ROOT/HA_CONFIG/PID_FILE/LOG_FILE/HA_URL/CURL_TIMEOUT and
+# fetch_dev_access_token live in internal/lib.sh -- shared with dev/ha's own
+# `token` subcommand, which needs the exact same login logic. One source of
+# truth, not two copies to keep in sync.
+# shellcheck source=dev/internal/lib.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/internal/lib.sh"
 # The render-endpoint check's own POST does real image compositing work
-# (not a poll) -- same connect timeout, longer overall budget so a slow
-# but genuinely-working render isn't mistaken for a hang.
+# (not a poll) -- same connect timeout as CURL_TIMEOUT (lib.sh), longer
+# overall budget so a slow but genuinely-working render isn't mistaken for
+# a hang. Only used here, not worth sharing.
 RENDER_CURL_TIMEOUT=(--connect-timeout 5 --max-time 30)
 
 command -v uv >/dev/null 2>&1 || {
@@ -180,7 +164,7 @@ particular attempt.
 
 Remediation to try: System Settings -> Privacy & Security -> Bluetooth ->
 grant access to the terminal application running `uv` (Terminal.app,
-iTerm2, etc.), then retry dev/run.sh. UNVERIFIED whether this actually
+iTerm2, etc.), then retry dev/ha run. UNVERIFIED whether this actually
 prevents the abort: TCC's permission model expects a signed .app bundle
 declaring NSBluetoothAlwaysUsageDescription, which a uv-managed venv does
 not have, so macOS may have nothing grantable to offer for a bare python3
@@ -199,41 +183,7 @@ EOF
   exit 1
 }
 
-# Best-effort: log in as the known dev user via the same login_flow ->
-# token exchange onboarding.sh itself uses (not a stored long-lived
-# token -- nothing in this harness creates one). Prints the access token
-# on stdout on success; prints nothing and returns non-zero on any
-# failure, which every caller below treats as "skip the checks that need
-# auth" rather than fatal -- a harness whose dev user has different
-# credentials than the ones this script knows (hand-onboarded, or
-# HA_DEV_USERNAME/PASSWORD changed after the fact) shouldn't block on a
-# login this script was never guaranteed to be able to do.
-fetch_dev_access_token() {
-  local client_id="${HA_URL%/}/"
-  local flow flow_id step code token_resp token
-  flow="$(curl -sf "${CURL_TIMEOUT[@]}" -X POST "$HA_URL/auth/login_flow" \
-    -H 'Content-Type: application/json' \
-    -d "$(jq -n --arg cid "$client_id" \
-      '{client_id: $cid, handler: ["homeassistant", null], redirect_uri: $cid}')" \
-    2>/dev/null)" || return 1
-  flow_id="$(jq -r '.flow_id // empty' <<<"$flow" 2>/dev/null)"
-  [[ -n "$flow_id" ]] || return 1
-  step="$(curl -sf "${CURL_TIMEOUT[@]}" -X POST "$HA_URL/auth/login_flow/$flow_id" \
-    -H 'Content-Type: application/json' \
-    -d "$(jq -n --arg u "${HA_DEV_USERNAME:-dev}" \
-      --arg p "${HA_DEV_PASSWORD:-opendisplay-dev-harness}" --arg cid "$client_id" \
-      '{username: $u, password: $p, client_id: $cid}')" \
-    2>/dev/null)" || return 1
-  code="$(jq -r '.result // empty' <<<"$step" 2>/dev/null)"
-  [[ -n "$code" ]] || return 1
-  token_resp="$(curl -sf "${CURL_TIMEOUT[@]}" -X POST "$HA_URL/auth/token" \
-    --data-urlencode "grant_type=authorization_code" \
-    --data-urlencode "code=$code" \
-    --data-urlencode "client_id=$client_id" 2>/dev/null)" || return 1
-  token="$(jq -r '.access_token // empty' <<<"$token_resp" 2>/dev/null)"
-  [[ -n "$token" ]] || return 1
-  printf '%s' "$token"
-}
+# fetch_dev_access_token is defined in internal/lib.sh (sourced above).
 
 echo "run: waiting for HA to answer at $HA_URL ..."
 deadline=$((SECONDS + 120))
@@ -374,8 +324,8 @@ if [[ "$entry_count" == "0" ]]; then
     "(legitimate, not an error: without a config entry," \
     "async_setup_designer() never runs -- see dev/README.md's \"Why the" \
     "designer panel and opendisplay.* services are absent before the" \
-    "first config entry\"). Run dev/stop.sh, then 'uv run --group dev" \
-    "python dev/inject-displays.py', then dev/run.sh again to exercise it."
+    "first config entry\"). Run dev/ha stop, then dev/ha inject, then" \
+    "dev/ha run again to exercise it."
 elif [[ -n "$entry_count" ]]; then
   # entry_count is a known positive count -- (b) and (c) are both required.
   wait_for_panel_registration
@@ -501,11 +451,11 @@ Next steps — no OpenDisplay hardware needed:
   1. Open $HA_URL and log in.
   2. Stop it (fabricated entries are written straight into HA's storage,
      which must not be rewritten under a live process):
-       dev/stop.sh
-  3. uv run --group dev python dev/inject-displays.py — writes N fabricated
-     OpenDisplay config entries (small mono / medium BWR / large BWRY, by
-     default) into dev/ha-config/.storage/core.config_entries.
-  4. dev/run.sh                 — bring HA back up; each fabricated entry
+       dev/ha stop
+  3. dev/ha inject             — writes N fabricated OpenDisplay config
+     entries (small mono / medium BWR / large BWRY, by default) into
+     dev/ha-config/.storage/core.config_entries.
+  4. dev/ha run                — bring HA back up; each fabricated entry
      sets up from its own cache with no BLE connection (sleepy-device
      fallback in __init__.py) and gets its device + entities created.
 
@@ -514,9 +464,10 @@ Try the designer panel (this branch's own feature, no hardware needed):
   2. Pick a display (a fabricated one from step 3 above works), edit the
      YAML/canvas, toggle "Display preview" for a real server-rendered
      preview -- see docs/designer.md for what's actually happening.
-  3. Or curl the render endpoint directly with a token from your own
-     Profile page -> Security tab -> Long-Lived Access Tokens:
-       curl -X POST -H "Authorization: Bearer \$TOKEN" \\
+  3. Or curl the render endpoint directly with a token from \`dev/ha
+     token\` (or your own Profile page -> Security tab -> Long-Lived
+     Access Tokens):
+       curl -X POST -H "Authorization: Bearer \$(dev/ha token)" \\
          -H 'Content-Type: application/json' \\
          $HA_URL/api/opendisplay/designer/render \\
          -d '{"device_id":"<id>","payload":[{"type":"text","value":"hi","x":10,"y":10}]}' \\
@@ -525,12 +476,12 @@ Try the designer panel (this branch's own feature, no hardware needed):
 With real OpenDisplay hardware instead:
   1. Add the OpenDisplay integration via the UI and pair the device (needs
      a machine with real BLE reach — see dev/README.md's macOS caveat).
-  2. dev/snapshot.sh   — capture that device's config/device/entity registry
+  2. dev/ha snapshot   — capture that device's config/device/entity registry
      entries into dev/seed/ so you don't need hardware again.
-  3. dev/restore.sh    — inject a dev/seed/ snapshot into a fresh instance.
+  3. dev/ha restore    — inject a dev/seed/ snapshot into a fresh instance.
 
-Stop it:  dev/stop.sh
-Logs:     tail -f $LOG_FILE
+Stop it:  dev/ha stop
+Logs:     dev/ha logs (or tail -f $LOG_FILE)
 
 NOTE (macOS): opendisplay's bluetooth_adapters manifest dependency touches
 real CoreBluetooth on native macOS, and this process has no app-bundle

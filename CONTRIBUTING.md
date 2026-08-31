@@ -34,35 +34,42 @@ against `pyproject.toml`.
 
 ### Running the integration
 
-To try changes against a real device, symlink the component into a Home
-Assistant checkout and start it from there:
+Two ways to try changes against a real, running Home Assistant, picked by
+what you already have available — both put
+`custom_components/opendisplay` in front of a real `hass` process, so a
+debugger attaches directly either way, same as any other native Python
+program.
+
+**You already have a Home Assistant checkout and real OpenDisplay
+hardware**: symlink the component in and start Home Assistant from there:
 
 ```bash
 ln -s "$PWD/custom_components/opendisplay" /path/to/core/config/custom_components/
 ```
 
-**No live HA? No OpenDisplay hardware?** `dev/run.sh` brings up a disposable
-Home Assistant natively (`uv run hass` — no Docker, no container runtime
-needed) with this branch's integration, and `dev/inject-displays.py`
-fabricates config entries for a few realistic panels (small mono / medium
-BWR / large BWRY) that set up entirely from cache — no BLE connection, no
-pairing. A debugger attaches straight into `custom_components/opendisplay`,
-same as any other native Python process.
+**You don't have either** (no live HA, no OpenDisplay hardware): `dev/ha`
+is this repo's own disposable-Home-Assistant harness — one entry point,
+`dev/ha <subcommand>`, native Python (`uv run hass` under the hood, no
+Docker, no container runtime; you never type the `uv run` yourself).
+`dev/ha inject` fabricates config entries for a few realistic panels
+(small mono / medium BWR / large BWRY) that set up entirely from cache —
+no BLE connection, no pairing needed.
 
 ```bash
-dev/run.sh                                        # bring up HA, onboard
-dev/stop.sh                                       # stop (storage can't be
-                                                   # rewritten under a live
-                                                   # process)
-uv run --group dev python dev/inject-displays.py  # fabricate 3 devices
-dev/run.sh                                        # bring HA back up
+dev/ha run      # bring up HA, onboard
+dev/ha stop     # stop (storage can't be rewritten under a live process)
+dev/ha inject   # fabricate 3 devices
+dev/ha run      # bring HA back up
 ```
 
-See [`dev/README.md`](dev/README.md) for the full workflow, why no BLE
-discovery ever happens (the harness's `configuration.yaml` never loads the
+See [`dev/README.md`](dev/README.md) for the full workflow (including
+`dev/ha`'s other subcommands — `logs`, `token`, `snapshot`/`restore` for
+carrying a real device's state between instances), why no BLE discovery
+ever happens (the harness's `configuration.yaml` never loads the
 `bluetooth` integration — no `default_config`, no explicit `bluetooth:`
-key), and the real-hardware snapshot/restore path
-(`dev/snapshot.sh`/`dev/restore.sh`) if you do have a device.
+key), and the real-hardware snapshot/restore path (`dev/ha snapshot`/
+`dev/ha restore`) if you do have a device but want to capture its state
+for a teammate who doesn't.
 
 ## Translations
 

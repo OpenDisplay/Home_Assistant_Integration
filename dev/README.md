@@ -9,23 +9,30 @@ BWR / large BWRY panel, each set up from cache with no BLE connection
 (`_cache_setup_if_sleepy` in `__init__.py`); `opendisplay.drawcustom` dry-run
 rendering is all CPU-side, no BLE either.
 
+**One entry point: `dev/ha <subcommand>`** (dev-UX consolidation round —
+typing `uv run --group dev ...` by hand was bad UX). `dev/ha` with no
+arguments (or `dev/ha help`) prints the full subcommand list; every example
+in this file uses it. The individual scripts it wraps (`dev/run.sh`,
+`dev/stop.sh`, ...) still exist and still work standalone if you'd rather
+call one directly — `dev/ha` is a thin dispatcher, not a replacement
+runtime, and every behavior below (liveness gates, crash detectors, wedge
+checks) lives in exactly the same script it always did.
+
 **Use `127.0.0.1`, not `localhost`, in every URL** (tier-1 review, finding
 3): macOS resolves `localhost` to `::1` (IPv6) first, and Home Assistant's
 own auth/http stack can mismatch across that split — reproduced live as a
 white designer panel with `/auth/token` failures logged against `::1`,
 while `127.0.0.1` worked immediately with the identical config. `dev/run.sh`
-itself only ever prints/probes `127.0.0.1` URLs; this is a caution for
-typing a URL in by hand.
+(what `dev/ha run` execs) itself only ever prints/probes `127.0.0.1` URLs;
+this is a caution for typing a URL in by hand.
 
 ## Quickstart
 
 ```bash
-dev/run.sh                                        # 1. bring up HA, onboard
-dev/stop.sh                                       # 2. stop (storage can't be
-                                                   #    rewritten under a live
-                                                   #    process)
-uv run --group dev python dev/inject-displays.py  # 3. fabricate 3 devices
-dev/run.sh                                        # 4. bring HA back up
+dev/ha run     # 1. bring up HA, onboard
+dev/ha stop    # 2. stop (storage can't be rewritten under a live process)
+dev/ha inject  # 3. fabricate 3 devices
+dev/ha run     # 4. bring HA back up
 ```
 
 Open `http://127.0.0.1:8123`, log in, and the three fabricated devices are
@@ -40,10 +47,10 @@ fabricated entries it created previously (matched by a title prefix — see
 "Fabricated devices" below); it never touches a real hardware-bootstrapped
 OpenDisplay entry or any other integration's entries.
 
-Stop it: `dev/stop.sh` (or `Ctrl-C` if you started it in the foreground —
+Stop it: `dev/ha stop` (or `Ctrl-C` if you started it in the foreground —
 `dev/run.sh` itself always backgrounds it and hands control back).
-Logs: `tail -f dev/ha-config/ha.log`
-Reset everything: `dev/stop.sh && rm -rf dev/ha-config && dev/run.sh` --
+Logs: `dev/ha logs` (or `tail -f dev/ha-config/ha.log` directly).
+Reset everything: `dev/ha stop && rm -rf dev/ha-config && dev/ha run` --
 everything under `dev/ha-config/` except `configuration.yaml` is generated
 and gitignored (`.storage/`, `custom_components/` symlink, `*.log`/
 `*.log.*`/`*.log.fault` -- macOS's Python crash dump, see the TCC caveat
@@ -89,8 +96,8 @@ config — see "Why no BLE connection happens" below for what that buys.
 ## Fabricated devices (`dev/inject-displays.py`)
 
 ```bash
-uv run --group dev python dev/inject-displays.py           # 3 devices (default)
-uv run --group dev python dev/inject-displays.py --count 2 # fewer
+dev/ha inject           # 3 devices (default)
+dev/ha inject --count 2 # fewer
 ```
 
 Writes fabricated OpenDisplay config entries straight into
@@ -311,7 +318,7 @@ onboarded" against a login nobody can actually use.
 **What is known, and what isn't, about a fix**: the only known remediation
 to try is System Settings → Privacy & Security → Bluetooth → grant access
 to the terminal application running `uv` (Terminal.app, iTerm2, etc.), then
-retry `dev/run.sh`. **UNVERIFIED** whether this actually prevents the
+retry `dev/ha run`. **UNVERIFIED** whether this actually prevents the
 abort — this session has no way to open System Settings or grant a
 permission from its own sandboxed shell, so this has never actually been
 tested. It may not even be *available* to grant: TCC's Bluetooth permission
@@ -443,19 +450,19 @@ If you have real OpenDisplay hardware and want to capture its state instead
 of (or alongside) fabricated devices:
 
 ```bash
-dev/run.sh                # 1. bring up HA, onboard
+dev/ha run                # 1. bring up HA, onboard
 #    2. ONE TIME, on a machine with real BLE reach (see above):
 #       add the OpenDisplay integration via the UI, pair your device.
-dev/snapshot.sh            # 3. capture that device's config/device/entity
+dev/ha snapshot            # 3. capture that device's config/device/entity
                             #    registry entries (opendisplay-domain only)
                             #    into dev/seed/*.json
 #    ... dev/seed/*.json is gitignored (contains the device's BLE address
 #    and encryption key) — keep it locally, or share it out-of-band with
 #    a teammate who wants to skip their own hardware bootstrap.
-dev/restore.sh              # 4. inject dev/seed/*.json into a fresh instance
+dev/ha restore              # 4. inject dev/seed/*.json into a fresh instance
                             #    (stops the dev HA instance itself first — HA
                             #    must not have .storage rewritten under it)
-dev/run.sh                  # 5. bring HA back up; the opendisplay config
+dev/ha run                  # 5. bring HA back up; the opendisplay config
                             #    entry should set up from cache, no BLE
                             #    needed
 ```
@@ -480,7 +487,7 @@ and doesn't prove.
 --group dev hass --config dev/ha-config` — no mount, no container, nothing
 copied) — edit files in your normal editor and a debugger attaches directly
 into the running process, same as any other native Python program. Restart to
-pick up changes: `dev/stop.sh && dev/run.sh`.
+pick up changes: `dev/ha stop && dev/ha run`.
 
 `dev/run.sh` and `scripts/test --min-ha` both resolve the same shared
 `.venv` but pin conflicting Home Assistant versions (`dev` vs `min-ha` —
@@ -684,21 +691,16 @@ and signal that instead, or track the child's own PID rather than the
 
 ### Live-tested detector paths (third adversarial-review round)
 
-**`HA_PORT` itself was removed entirely in a later round (tier-1 round 2,
-finding 3)** — it never actually worked past onboarding (HA's own "HTTP
-YAML configuration is ignored after migration" Repair silently ignores the
-`!include` this relied on once onboarding stores its own network config).
-Kept below as the historical record of what was actually run at the time
-this section was written; do not follow it as current instructions — the
-port is always 8123 now, with no override.
-
 A deeper re-test found the second round's own detectors still imprecise
-(see the crash-detector paragraph above for the false-positive this
-round removed). All testing below ran on a scratch git worktree with its
-own `dev/ha-config` and `HA_PORT` set to a non-default port, specifically
-to avoid ever touching an already-running HA on the maintainer's own port
-8123 — confirmed to be the same PID, untouched, before and after this
-round's entire testing session.
+(see the crash-detector paragraph above for the false-positive this round
+removed). All testing below ran on a scratch git worktree with its own
+`dev/ha-config` on a non-default port, specifically to avoid ever touching
+an already-running HA on the maintainer's own port 8123 — confirmed to be
+the same PID, untouched, before and after this round's entire testing
+session. (This round predates both `dev/ha` and the removal of the
+short-lived `HA_PORT` env var covered above — a non-default port for
+scratch testing now means patching a throwaway checkout's
+`configuration.yaml` directly, not an env var.)
 
 1. **Plain `kill -9` mid-boot (should print a generic message, no TCC
    text)** — VERIFIED. Killed the real `hass` child right after "run: HA
@@ -706,20 +708,7 @@ round's entire testing session.
    the TCC/CoreBluetooth abort ..." message, correctly landing inside the
    config-entries fetch step (not silently skipped — see finding 4 below);
    fault dump correctly reported empty/missing.
-2. **`HA_PORT` actually binds the port it claims (previously inert)** —
-   VERIFIED. `HA_PORT=8199 dev/run.sh` bound real port 8199 (`lsof`
-   confirmed a distinct PID from the maintainer's own 8123 process, which
-   stayed listening throughout, unaffected). A second `dev/run.sh`
-   invocation with the same `HA_PORT=8199` while the first was still up
-   correctly hit the preflight port-in-use check and refused to start
-   (`ERROR: port 8199 is already in use by something else.`).
-   **Noted while testing (browser-only, not a shell-level finding)**: the
-   first login after a `server_port` change shows HA's own "Confirm new
-   HTTP server configuration" dialog (a core safety feature — the setting
-   auto-reverts to 8123 within 5 minutes unless confirmed) — click
-   **Confirm** once per fresh `dev/ha-config`, or a non-default `HA_PORT`
-   silently reverts to 8123 five minutes into the session.
-3. **Death mid the panel-registration poll (should report a death, not an
+2. **Death mid the panel-registration poll (should report a death, not an
    "integration failed to set up" misdiagnosis)** — VERIFIED. This window
    is normally sub-second (the panel usually registers near-instantly), so
    a temporary, test-only `sleep` was added to widen it in a scratch copy
@@ -731,7 +720,7 @@ round's entire testing session.
    naturally contained an unrelated `google_translate`/`tts`
    `ModuleNotFoundError: No module named 'mutagen'` traceback at the time,
    confirming the fix doesn't accidentally key on log content either.
-4. **The post-poll soft-skip window (every skip must report a death first,
+3. **The post-poll soft-skip window (every skip must report a death first,
    or be an explicit, non-silent reason)** — VERIFIED. The `kill -9` in
    case 1 above landed during the config-entries fetch and was correctly
    reported as a death ("... while fetching config entries for the success
@@ -739,13 +728,19 @@ round's entire testing session.
    entries printed the new explicit message: "run: no opendisplay config
    entries exist yet ... vacuously skipped (legitimate, not an error)" —
    previously this case printed nothing at all.
-5. **Healthy boot with real injected displays (full banner, all three
+4. **Healthy boot with real injected displays (full banner, all three
    success checks, correct token wording)** — VERIFIED. After injecting
-   the 3 fabricated displays and rebooting on `HA_PORT=8199`: "run: render
-   endpoint check passed (device ... -> 200)" printed, followed by the full
-   success banner, whose "Or curl the render endpoint directly with a
-   token from your own Profile page -> Security tab -> Long-Lived Access
-   Tokens" line reflects the corrected navigation wording (finding 6).
+   the 3 fabricated displays and rebooting: "run: render endpoint check
+   passed (device ... -> 200)" printed, followed by the full success
+   banner, whose "Or curl the render endpoint directly with a token from
+   your own Profile page -> Security tab -> Long-Lived Access Tokens" line
+   reflects the corrected navigation wording (finding 6).
+
+The `HA_PORT`-specific findings from this same testing round (it actually
+binding the port it claimed, and HA's own "Confirm new HTTP server
+configuration" dialog appearing after a `server_port` change) are moot —
+`HA_PORT` was removed entirely in a later round (see above) since it never
+actually worked past onboarding anyway.
 
 ### Live-tested detector paths (TIER 1 findings round)
 
