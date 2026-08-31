@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Run this repo's JS unit tests (tests/js/) -- plain `node --test`, zero
+# dependencies. No JS package manager exists anywhere in this repo (no
+# package.json, no npm/pnpm/yarn lockfile) -- adding one just to run a
+# handful of pure-function tests for the designer panel's keyboard
+# containment / unsaved-work modules would be disproportionate.
+#
+# Called by scripts/test (part of the merge gate) so these tests -- the
+# ONLY coverage for the panel's keyboard-containment fix -- actually run
+# somewhere, rather than only ever being run by hand.
+#
+# `node --test tests/js/` (a bare directory argument) does not reliably
+# discover the *.test.mjs files the way `pytest`'s own directory discovery
+# does -- pass the glob explicitly.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+command -v node >/dev/null 2>&1 || {
+  echo "ERROR: node not found on PATH -- required to run tests/js/." >&2
+  exit 1
+}
+
+exec node --test tests/js/*.test.mjs
