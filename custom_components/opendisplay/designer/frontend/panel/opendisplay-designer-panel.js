@@ -22,7 +22,7 @@
 import { mount } from '../vendor/odl-drawcustom-designer.js';
 import yaml from '../vendor/js-yaml.mjs';
 import { containKeyEvents } from './key-containment.js';
-import { makeBeforeUnloadHandler } from './unsaved-work.js';
+import { installUnsavedWorkWarning } from './unsaved-work.js';
 
 const TAG = 'opendisplay-designer-panel';
 const RENDER_URL = '/api/opendisplay/designer/render';
@@ -316,13 +316,12 @@ class OpenDisplayDesignerPanel extends HTMLElement {
     this._uncontainKeyEvents = containKeyEvents(this);
     // See unsaved-work.js's own doc comment for the full writeup, including
     // the honest limit (tier-1 round 2, finding 6, INTERIM until
-    // designer#167): covers tab close/reload/browser-chrome navigation, NOT
-    // HA's own in-app sidebar navigation (no cancelable hook exists for
-    // that). `() => this._handle` (not `this._handle` itself) because the
+    // designer#167 -- REAL PAGE UNLOAD ONLY, not HA's own in-app sidebar
+    // navigation, verify with an actual reload/close, not a sidebar
+    // click). `() => this._handle` (not `this._handle` itself) because the
     // handle can be reassigned across a remount after this listener is
     // registered.
-    this._beforeUnload = makeBeforeUnloadHandler(() => this._handle);
-    window.addEventListener('beforeunload', this._beforeUnload);
+    this._uninstallUnsavedWorkWarning = installUnsavedWorkWarning(window, () => this._handle);
   }
 
   disconnectedCallback() {
@@ -336,10 +335,8 @@ class OpenDisplayDesignerPanel extends HTMLElement {
     this._handle?.destroy();
     this._uncontainKeyEvents?.();
     this._uncontainKeyEvents = null;
-    if (this._beforeUnload) {
-      window.removeEventListener('beforeunload', this._beforeUnload);
-      this._beforeUnload = null;
-    }
+    this._uninstallUnsavedWorkWarning?.();
+    this._uninstallUnsavedWorkWarning = null;
     this._resetMountState();
   }
 
