@@ -1,0 +1,83 @@
+name: Preview Release
+
+# Fork-only automation (maintainer-approved, dev-UX round): cuts a HACS-
+# installable preview build on every push to a `designer-*` branch, so a
+# gated push is immediately pickable by HACS for manual testing, without
+# waiting for the real release-please.yml flow (which only fires on `main`
+# pushes -- see that workflow's own `on:` block -- and only after this PR
+# actually merges). Trigger isolation from release-please.yml is by
+# construction, not just guarded: that workflow listens for `main`, this
+# one listens for `designer-*`; the two `on:` blocks don't overlap, so
+# there's nothing to race regardless of the repository guard below.
+#
+# The `github.repository` guard is what stops this from ever firing again
+# once this PR's branch merges upstream and `main` picks up this file: a
+# `designer-*` branch could plausibly exist in the upstream repo too
+# (nothing about the branch NAME is fork-specific), so the guard checks
+# the repository itself, not just the branch pattern.
+on:
+  push:
+    branches:
+      - 'designer-*'
+
+jobs:
+  preview-release:
+    if: github.repository == 'schlomo/OD_Home_Assistant_Integration'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # Compute the preview version and tag first (Version already known
+      # before the zip step needs it) -- then stamp manifest.json with the
+      # preview version IN THIS CHECKOUT ONLY, never committed/pushed: the
+      # runner's checkout is thrown away after the job, so this edit never
+      # reaches git. Without it, HA's integration card shows the last
+      # released "Version 3.0.2" for every preview install, indistinguishable
+      # from the real release (maintainer tier-2 finding) -- patching it
+      # makes the HA UI and logs identify the exact preview build.
+      # Fails loudly (`jq -e`, unset -u) if .version is ever missing/renamed
+      # rather than silently zipping an unpatched manifest.
+      - name: Compute preview version and stamp manifest
+        run: |
+          set -euo pipefail
+          base_version="$(jq -er .version custom_components/opendisplay/manifest.json)"
+          branch="${{ github.ref_name }}"
+          preview_version="${base_version}-${branch}.${{ github.run_number }}"
+          echo "PREVIEW_VERSION=${preview_version}" >> "$GITHUB_ENV"
+          jq --arg v "$preview_version" '.version = $v' \
+            custom_components/opendisplay/manifest.json > /tmp/manifest.json
+          mv /tmp/manifest.json custom_components/opendisplay/manifest.json
+
+      # Same zip, same command, same working directory as release-please.yml's
+      # own "Create zip" step -- this IS what HACS's zip_release install
+      # path (hacs.json) expects, not a preview-specific format. Zips the
+      # manifest stamped above, so the shipped preview build self-identifies.
+      - name: Create zip
+        run: |
+          cd custom_components/opendisplay
+          zip opendisplay.zip -r ./
+
+      # Tag reuses PREVIEW_VERSION computed above (base manifest version --
+      # not bumped, this is a preview of unreleased work, not a
+      # release-please release -- plus the pushed branch name and this
+      # workflow's own run number), so pushes to different designer-*
+      # branches -- or repeated pushes to the same one -- never collide on a
+      # tag. Matches the maintainer's own manual precedent
+      # (v3.0.2-designer.1, cut by hand from 74a8e9d) in shape, not
+      # literally: that one used a shortened branch label by hand, this uses
+      # the real branch name so a future designer-v3 branch's tags can't
+      # collide with this branch's.
+      - name: Create preview release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="${{ github.ref_name }}"
+          sha="$(git rev-parse --short HEAD)"
+          tag="v${PREVIEW_VERSION}"
+          gh release create "$tag" \
+            --target "$branch" \
+            --title "Preview build: ${branch}@${sha}" \
+            --notes "Automated preview build of ${branch}@${sha} for HACS testing — not an upstream release." \
+            custom_components/opendisplay/opendisplay.zip

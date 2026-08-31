@@ -481,6 +481,25 @@ filter+merge logic against synthetic fixtures in `dev/seed/fixtures/` (no HA,
 no hardware) — see "Verified vs UNVERIFIED" below for exactly what this does
 and doesn't prove.
 
+## Preview releases (`.github/workflows/preview-release.yml`, fork-only)
+
+Every push to a `designer-*` branch that lands on this fork
+(`schlomo/OD_Home_Assistant_Integration`) cuts a GitHub release automatically
+— zip built the same way `release-please.yml` builds a real release, tag
+`v<manifest-version>-<branch>.<run-number>` (e.g. `v3.0.2-designer-v2.17`),
+attached as the `opendisplay.zip` asset HACS's `zip_release` install path
+expects. The zipped `manifest.json`'s `"version"` is stamped to that same
+preview version first (checkout-local edit, never committed) so HA's
+integration card and logs show the exact preview build rather than the
+stale last-released version. In short: **every gated push here is
+immediately HACS-pickable** — add this fork/branch as a HACS custom
+repository once, then HACS will offer each new preview release, but it
+still needs a manual redownload/update per release; nothing auto-pushes to
+an already-installed instance. The workflow guards on `github.repository`
+so it goes inert the moment this branch/PR merges upstream — upstream's own
+`release-please.yml` only fires on `main` pushes, so the two never overlap
+regardless.
+
 ## Iterating on the integration
 
 `custom_components/opendisplay` runs straight from your checkout (`uv run
