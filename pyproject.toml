@@ -40,7 +40,7 @@ dependencies = [
 # If a future HA bump adds another such import, `scripts/ha-component-reqs`
 # prints the full component requirement set to compare against.
 dev = [
-    "pytest-homeassistant-custom-component==0.13.357",
+    "pytest-homeassistant-custom-component==0.13.361",
     "ruff==0.15.17",
     "mypy==1.18.2",
     "aiousbwatcher",
