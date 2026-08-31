@@ -45,7 +45,7 @@ from custom_components.opendisplay.services import (
     render_payload_templates,
     tone_and_measured_palettes_from_call_data,
 )
-from opendisplay import ColorScheme, Rotation, prepare_image
+from opendisplay import ColorScheme, DeviceCapabilities, Rotation, prepare_image
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -349,16 +349,54 @@ class OpenDisplayDesignerRenderView(HomeAssistantView):
         # measured_palette (see the module docstring) -- passing neither
         # kwarg here would silently fall back to `prepare_image`'s own
         # different defaults instead.
+        #
+        # CRITICAL divergence from the send path (reviewer-reproduced,
+        # tier-2 round 2): prepare_image's OWN target_size is always the
+        # raw, un-transposed device pixel grid (`capabilities.width/height`,
+        # from `config` -- correct for the send path, which uploads to that
+        # physical buffer), and its `rotate` is DEVICE-FACING: it composes
+        # with the device's own base rotation and re-fits to that native
+        # grid regardless of what rotate value is passed. Passing the
+        # request's `rotate` here (as an earlier version of this endpoint
+        # did) meant preview output was ALWAYS shaped to the native device
+        # grid, never to the transposed `(gen_width, gen_height)` canvas
+        # already built above -- for a base=0 display with a 90/270
+        # orientation, no `rotate` value could make the response land at
+        # the designer's own `context.display` geometry (`HostPreviewDisplayGeometry`,
+        # vendored `.d.ts`: "the logical drawing surface the payload is
+        # authored against ... never the raw physical panel size, never a
+        # transform to apply"). The designer then letterboxed a
+        # wrong-shaped answer into its own canvas -- sideways content,
+        # despite a correct canvas on the CLIENT side.
+        #
+        # The fix: build an explicit DeviceCapabilities describing the
+        # LOGICAL surface itself (width/height = gen_width/gen_height,
+        # rotation=0) instead of letting prepare_image derive one from
+        # `config` (the real, raw device grid) -- so its target_size
+        # already equals what generate_image just produced (no fit_image
+        # distortion) and rotate=ROTATE_0 no-ops (no extra device-facing
+        # spin). `config` is still passed for palette/panel_ic_type
+        # derivation (color_scheme/panel_ic_type come from the real
+        # display, not the synthetic capabilities). Device-facing rotation
+        # belongs ONLY on the send path (`_drawcustom_for_device` /
+        # `_async_send_image`), which this preview-only object deliberately
+        # never touches.
+        preview_capabilities = DeviceCapabilities(
+            width=gen_width,
+            height=gen_height,
+            color_scheme=color_scheme,
+        )
         _, _, dithered = await hass.async_add_executor_job(
             functools.partial(
                 prepare_image,
                 img,
                 config=config,
+                capabilities=preview_capabilities,
                 dither_mode=data["dither"],
                 compress=False,
                 tone=_SEND_PATH_DEFAULT_TONE,
                 use_measured_palettes=_SEND_PATH_DEFAULT_USE_MEASURED_PALETTES,
-                rotate=Rotation(rotate),
+                rotate=Rotation.ROTATE_0,
             )
         )
         png_bytes = await hass.async_add_executor_job(_encode_png, dithered)

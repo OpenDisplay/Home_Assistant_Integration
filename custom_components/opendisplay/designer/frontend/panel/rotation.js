@@ -29,18 +29,23 @@
  * This is intentionally NOT "compare dimensions": composing two
  * independent quarter-turns (the device's fixed base, then whatever the
  * designer's own orientation toggle adds on top) is associative, so the
- * width/height the SERVER computes for (base, rotate) and what the
- * DESIGNER'S OWN canvas shows for a chosen target orientation agree for
- * every (base, target) combination -- proven directly by
- * `tests/js/rotation.test.mjs`'s full matrix and by the Python-side
- * `tests/test_rotation_parity.py` (render endpoint bytes == drawcustom
- * send-path bytes, same rotate value, every cell). But a bug that swapped
- * the subtraction order (`base - target` instead of `target - base`) would
- * still pass a DIMENSION-only check -- quarter/half-turn parity is
- * sign-symmetric, a 90° and a 270° rotation transpose width/height
- * identically -- while shipping mirrored/sideways CONTENT. The test matrix
- * pins exact delta values, not just parity, specifically to catch that
- * class of bug.
+ * LOGICAL SURFACE the SERVER's `generate_image` canvas is built at for
+ * (base, rotate) and what the DESIGNER'S OWN canvas shows for a chosen
+ * target orientation agree for every (base, target) combination -- proven
+ * directly by `tests/js/rotation.test.mjs`'s full matrix and, Python-side,
+ * by `tests/test_rotation_parity.py`'s dimension/content-orientation
+ * assertions (NOT "render endpoint bytes == drawcustom send-path bytes" --
+ * that was this file's own claim through a tier-2 round-1 investigation
+ * that missed a real bug; see that test module's docstring for the
+ * corrected story: preview's `prepare_image` call must target the LOGICAL
+ * surface with no device-facing rotation, not the send path's own raw
+ * device grid, even though this delta FORMULA was correct the whole time).
+ * A bug that swapped the subtraction order (`base - target` instead of
+ * `target - base`) would still pass a DIMENSION-only check -- quarter/
+ * half-turn parity is sign-symmetric, a 90° and a 270° rotation transpose
+ * width/height identically -- while shipping mirrored/sideways CONTENT.
+ * The test matrix pins exact delta values, not just parity, specifically
+ * to catch that class of bug.
  *
  * @param {{rotation_degrees?: number}|null|undefined} capabilities The
  *   target's own pushed capabilities (`HostCapabilities`), or undefined/null

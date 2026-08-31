@@ -126,9 +126,14 @@ that actually raises (a broken reference, not a missing state) is treated
 as an error — see the `400` row below.
 
 Response: `200` with `Content-Type: image/png` and the rendered bytes, at
-the target device's exact render resolution (already transposed for a
-quarter-turn rotation, matching the service's own canvas-orientation rule).
-Errors:
+the **logical drawing surface's** resolution — the same shape the designer's
+own canvas is at when it made the request (`HostPreviewDisplayGeometry`,
+vendored `.d.ts`: "the logical drawing surface the payload is authored
+against ... never the raw physical panel size"), already transposed for a
+quarter-turn rotation. This is deliberately **not** the target device's raw
+native pixel grid whenever the two differ (see the tier-2 root-cause note
+below for the bug this distinction fixes) — that grid is what the send path
+uploads to, not what preview returns. Errors:
 
 | Status | When |
 |---|---|
@@ -141,6 +146,22 @@ Errors:
 (`opendisplay`), with `compress=False` (no point building the
 BLE-upload-ready compressed payload for a preview) and nothing called after
 it — no upload, no queue, no entity write, no dispatched signal.
+
+**One deliberate divergence from the send path** (tier-2 round 2 fix):
+`prepare_image` is called with an explicit `DeviceCapabilities` describing
+the LOGICAL surface itself (`width`/`height` = the already-transposed
+`generate_image` canvas, `rotation=0`) and `rotate=Rotation.ROTATE_0` —
+**not** the real device's own capabilities and the request's `rotate`
+value, which is what the send path passes. `prepare_image`'s own
+`rotate`/target-size handling is DEVICE-FACING: given the real device
+capabilities it always fits its output to the raw native pixel grid
+regardless of what `rotate` is passed, composing that `rotate` with the
+device's stored base rotation on top. That is exactly right for a real
+upload (the device needs its own native buffer) and exactly wrong for
+preview (which needs the logical surface, untouched) — see the root-cause
+note below for the bug this now avoids. `config` is still passed alongside
+the synthetic capabilities, for `panel_ic_type`/palette derivation from the
+real device.
 
 `prepare_image` is called with the **same `tone`/`use_measured_palettes`
 values `_drawcustom_for_device` derives for a call that supplies neither
@@ -172,33 +193,61 @@ an earlier version of this endpoint's caller did) meant a preview of a
 rotated canvas letterboxed against an image rendered for the wrong
 orientation.
 
-Tier-2 (real hardware) root-cause note: a maintainer report that a rotated
+Tier-2 (real hardware) root-cause note — **two bugs, not one, and the first
+investigation round's "not a formula bug" conclusion was itself wrong** (a
+reviewer re-verification caught this): a maintainer report that a rotated
 display's SERVER preview rendered sideways, despite a correct CLIENT
 canvas. His actual device (an ESL 5 3.5", verbatim reported attributes:
 `pixel_width` 184, `pixel_height` 384, `rotation_degrees` **0**,
 `render_width` 184, `render_height` 384, `color_scheme` 3/BWRY,
-`palette_measured` false) turned out to have **base 0** — native portrait,
-no base persisted, physically mounted landscape, his own working automation
-compensating with `rotate: 270` on every call. `rotate = target - base (mod
-360)` is exactly what `_drawcustom_for_device`'s own contract requires
-(services.py: "the payload is authored against the FINAL on-screen
-orientation; the device applies (base + rotate)"), and
-`tests/test_rotation_parity.py::test_esl5_3_5_real_hardware_acceptance_vector`
-proves the render endpoint and the drawcustom send path produce
-byte-identical, correctly-dimensioned (184×384 portrait) output for this
-EXACT vector, plus every synthetic `(base, rotate)` combination in `{0, 90}
-× {0, 90, 180, 270}` — so there was no formula bug and no drift between the
-two Python code paths to find. What the investigation did surface and fix:
-**Send never carried a `rotate` value at all** (see "Known gaps" below, now
-resolved) — the maintainer's real workaround (a manual helper script
-passing `rotate: 270` on every `drawcustom` call) had no designer-side
-equivalent, so a payload rotated in the designer's own control shipped
-un-rotated. `rotateDeltaFor` itself is now covered by a dedicated matrix
-test (`tests/js/rotation.test.mjs`, including this same real vector) that
-pins exact delta values, not just quarter/half-turn parity — a bug that
-swapped the subtraction order would still pass a dimension-only check while
-shipping mirrored/sideways content, which the earlier round's testing did
-not rule out.
+`palette_measured` false) has **base 0** — native portrait, no base
+persisted, physically mounted landscape, his own working automation
+compensating with `rotate: 270` on every call.
+
+**Bug 1 (real, fixed first round): Send never carried a `rotate` value at
+all.** The maintainer's real workaround (a manual helper script passing
+`rotate: 270` on every `drawcustom` call) had no designer-side equivalent,
+so a payload rotated in the designer's own Orientation control shipped
+un-rotated through Send. Fixed by wiring Send to reuse the last-previewed
+`rotate`, the same sticky-memory shape `dither` already used (see the
+"PLAINLY" callout on that mechanism, further down and in the panel
+wrapper's own code comments — it is a real, sticky-stale residual, not
+"matching a default").
+
+**Bug 2 (the actual "sideways preview" symptom, missed the first round,
+found by re-verification): the render endpoint returned the DEVICE-FACING
+grid, not the logical surface preview needs.** The first round's own fix
+(`rotateDeltaFor`) correctly derives `rotate = target − base (mod 360)`
+per `_drawcustom_for_device`'s own contract — that part was never wrong.
+But the render endpoint then fed that `rotate` into `prepare_image`
+UNCHANGED, alongside the real device's own capabilities — exactly what the
+send path does, and exactly wrong for preview: `prepare_image`'s `rotate`
+is device-facing (it composes with the device's stored base rotation and
+always re-fits its output to the real device's raw, untransposed native
+pixel grid, regardless of what `rotate` is). For base=0 with a 90°/270°
+orientation, that meant **no `rotate` value could make the endpoint return
+the transposed logical surface at all** — it always answered 184×384
+(native portrait), never 384×184 (the designer's own canvas shape for that
+orientation). The designer letterboxed that wrong-shaped answer into its
+own 384×184 canvas: sideways content, despite `rotateDeltaFor` computing
+the mathematically correct delta the whole time.
+
+The first round's own regression suite did not catch this because it
+asserted `endpoint bytes == send-path bytes` and both code paths shared the
+identical (buggy, for preview) `prepare_image` call — trivially agreeing
+with each other while both landing on the wrong shape. Byte-parity-with-send
+was the wrong property to prove; see
+`tests/test_rotation_parity.py`'s current module docstring for the full
+corrected writeup and the three properties it asserts now (dimensions
+against an independently-derived expectation, content orientation via an
+asymmetric top-edge-bar payload, and pipeline parity against the send
+path's own real `generate_image` output run through `prepare_image` a
+second time with the LOGICAL surface as target). Fixed in `render.py`: an
+explicit synthetic `DeviceCapabilities` (logical-surface dims, rotation=0)
+plus `rotate=Rotation.ROTATE_0` for the preview call — device-facing
+rotation belongs only on the send path (see "The render endpoint" above for
+the implementation note). `rotateDeltaFor` is unchanged and still correct;
+it was never the site of this bug.
 
 A separate, unrelated finding from the same tier-2 screenshots: the
 designer's own **Resolution field** showed "384×184" while the pushed
@@ -224,7 +273,12 @@ explicit `rotate` on every render — HA does not yet have a way to
 pick the target display, set its Orientation control (0°/90°/180°/270°,
 next to Display Config) to match how the panel is actually mounted, then
 design and Send as normal — both Preview and Send now honor that choice
-(`rotateDeltaFor`, above). A persistent, per-display default orientation
+(`rotateDeltaFor`, above). **PLAINLY**: Send's `rotate` is a sticky memory
+of the last preview render, not a live read of the Orientation control
+(same mechanism, same residual, as `dither` — see "Known gaps" below) — set
+Orientation, then let at least one preview render before Send, or the
+payload ships un-rotated (sideways on a rotated display) regardless of what
+Orientation currently shows. A persistent, per-display default orientation
 (so this wouldn't need re-picking every session) is a deliberate
 deferral pending the upstream capabilities discussion on
 `rotation_degrees` base-vs-effective (see the PR body's open questions) —
@@ -302,11 +356,14 @@ against the 2.x host contract and is not regenerated by the script.
   preview**, not a live read of the designer's current dither/orientation
   controls (`onAction`'s `HostActionContext` carries only `targetId`, not
   the `HostPreviewServiceOptions`/geometry a `renderPreview` call receives).
-  `dither` defaults to `'none'`, `rotate` to `0` (both the designer's own
-  control defaults) if no preview ran this session — see the PR body's open
-  questions for the upstream seam both need (`odl-drawcustom-designer`
-  issue #105 territory: extending `HostActionContext` the same way
-  `HostPreviewContext` already carries geometry and service options).
+  PLAINLY: if no preview ran this session, or the user moved
+  Orientation/dither since the last one, Send ships `dither: 'none'`,
+  `rotate: 0` regardless of what those controls currently show — for
+  `rotate` on a rotated display that is sideways content on real hardware,
+  not a cosmetic default. See the PR body's open questions for the upstream
+  seam both need (`odl-drawcustom-designer` issue #105 territory: extending
+  `HostActionContext` the same way `HostPreviewContext` already carries
+  geometry and service options).
 - **The `dry-run` field on `opendisplay.drawcustom` still ignores `dither`**
   (it always renders the flat, un-dithered image) — an independent,
   pre-existing gap the render endpoint above does not share (it always

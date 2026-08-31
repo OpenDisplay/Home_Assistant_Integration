@@ -268,9 +268,14 @@ class OpenDisplayDesignerPanel extends HTMLElement {
     // stays stale if the Orientation control moves without a further
     // preview (same `HostActionContext`-carries-only-`targetId` limitation
     // as dither; designer issue #105 territory once `onAction` can read
-    // live service/geometry options itself). Defaults to 0 (no rotation) if
-    // no preview ran this session — the designer's own canvas orientation
-    // control defaults to 0 too.
+    // live service/geometry options itself). Starts `undefined` (no preview
+    // ran yet this session), and `?? 0` at the Send call site below falls
+    // back to `rotate: 0` in that case -- PLAINLY: if the user sets
+    // Orientation and Sends WITHOUT a preview having run first (or after
+    // moving Orientation again since the last one), Send ships an
+    // un-rotated payload. On a rotated display that is sideways on real
+    // hardware, not a cosmetic mismatch -- not "matching a default", a real
+    // gap that only a preview run (or the #105 seam) closes.
     this._lastPreviewRotate = undefined;
   }
 
@@ -495,10 +500,13 @@ class OpenDisplayDesignerPanel extends HTMLElement {
    * render last actually used, so the common "preview, then send" flow
    * ships what the user actually saw, rather than always a hardcoded value
    * regardless of what was previewed. Both are **sticky, stale values**,
-   * not a live read of the designer's current controls. `dither` defaults
-   * to 'none', `rotate` to 0, if no preview ran this session -- matching
-   * the designer's own controls' defaults (docs/embedding.md), not an
-   * arbitrary guess.
+   * not a live read of the designer's current controls -- PLAINLY: Send
+   * without a preview run first, or after moving Orientation/dither since
+   * the last preview, ships `dither: 'none'`/`rotate: 0` regardless of
+   * what those controls currently show. For `rotate` on a rotated display
+   * that means sideways content on real hardware, not a cosmetic gap --
+   * fixed only by running a preview first, or by the #105 seam
+   * (`HostActionContext` carrying live service/geometry options).
    */
   async _send(payloadYaml, targetId) {
     const hass = this._hass;
