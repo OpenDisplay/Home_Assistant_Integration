@@ -105,10 +105,17 @@ _DISPLAY_SPEC_SCHEMA = vol.Schema(
 
 # Mirrors SCHEMA_DRAWCUSTOM's own defaults for the fields it shares
 # (background/dither/rotate) -- the render endpoint is a read-only sibling of
-# that service, not a new set of conventions. Exactly one of device_id/
+# that service, not a new set of conventions. AT LEAST one of device_id/
 # display is required -- checked after schema validation (below), not
 # expressible as a plain voluptuous shape without ExactSequence/Any
-# contortions that would obscure the actual "need one of these" error.
+# contortions that would obscure the actual "need one of these" error. NOT
+# "exactly one": nothing rejects a request carrying both. device_id wins
+# silently when both are present (see post()'s own `if device_id: ... else:
+# ...` branch) -- documented explicitly (docs/designer.md) rather than left
+# as an unstated implementation detail, since the panel itself never
+# constructs a request with both (renderPreview sends exactly one, gated on
+# whether context.targetId is null), so this precedence has no live caller
+# to exercise it, only a hypothetical direct API caller.
 _SCHEMA = vol.Schema(
     {
         vol.Optional("device_id"): str,

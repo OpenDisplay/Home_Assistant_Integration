@@ -62,7 +62,8 @@ True`; the panel calls it with `hass.fetchWithAuth`, the standard pattern
 for a custom panel to fetch a binary resource with the user's own HA
 session). This is the integration's first HTTP view.
 
-Request body:
+Request body — **either `device_id` or `display` is required** (at least
+one, not exactly one — see below):
 
 ```json
 {
@@ -73,6 +74,37 @@ Request body:
   "rotate": 0
 }
 ```
+
+For the designer's built-in **Virtual display** pick, there is no HA device
+at all (`context.targetId` is `null`) — the panel sends an explicit
+`display` spec instead of `device_id`:
+
+```json
+{
+  "display": { "width": 384, "height": 184, "color_scheme": 0 },
+  "payload": [ /* … */ ]
+}
+```
+
+`generate_image`/`prepare_image` never actually needed a device object,
+only geometry and a palette, so a syntactically real but device-less
+`GlobalConfig` is built from the spec (`_synthetic_global_config`,
+`render.py`). `color_scheme` is optional (default `0`/MONO, the same
+numeric vocabulary `designer/capabilities.py` already publishes as
+`color_scheme` to the panel) — the designer's `renderPreview` context
+(`HostPreviewContext.display`) carries only width/height/rotation, and the
+designer keeps its own color-mode control entirely inside its chrome
+(ADR-018: no host UI for it), so this host genuinely has no way to know
+which color scheme the user picked for Virtual and does not guess at one;
+the panel itself never sends `color_scheme` at all today.
+
+**Precedence if a request somehow carries both**: `device_id` wins,
+silently — the schema only requires *at least* one of the two, not
+*exactly* one (see `render.py`'s own comment on `_SCHEMA` for why: nothing
+rejects a request carrying both). This has no live caller today — the
+panel's `renderPreview` sends exactly one, gated on whether
+`context.targetId` is `null` — documented here so a future direct API
+caller (or a designer change) doesn't have to read the source to find out.
 
 `background`, `dither` and `rotate` are optional, defaulting exactly as
 `opendisplay.drawcustom`'s own schema does. `dither` accepts the same names
@@ -98,7 +130,7 @@ Errors:
 
 | Status | When |
 |---|---|
-| `400` | Malformed JSON, a schema violation (e.g. `payload` isn't a list), a payload odl-renderer can't render, or a broken template in one element (`{"message": "drawcustom payload element <index> (type '<type>') has an invalid template: <reason>"}`) |
+| `400` | Malformed JSON, a schema violation (e.g. `payload` isn't a list), neither `device_id` nor `display` supplied (`{"message": "either device_id or display (width/height) is required"}`), a payload odl-renderer can't render, or a broken template in one element (`{"message": "drawcustom payload element <index> (type '<type>') has an invalid template: <reason>"}`) |
 | `401` | No valid Home Assistant auth |
 | `404` | `device_id` doesn't resolve to a loaded OpenDisplay config entry |
 
