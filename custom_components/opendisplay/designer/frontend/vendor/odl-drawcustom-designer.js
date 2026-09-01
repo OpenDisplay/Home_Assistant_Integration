@@ -8058,14 +8058,14 @@ function ne(e) {
 }
 //#endregion
 //#region src/core/buildInfo.ts
-var re = /* @__PURE__ */ new Set(["dev", "test"]), k = "main", ie = "696af7f", ae = "696af7f", A = "3.4.1", j = /^\d+\.\d+\.\d+$/;
+var re = /* @__PURE__ */ new Set(["dev", "test"]), k = "main", ie = "dcbaf69", ae = "dcbaf69", A = "3.4.2", j = /^\d+\.\d+\.\d+$/;
 function oe(e) {
 	return j.test(e);
 }
-function M(e, t) {
-	return e || (oe(t) ? t : "");
+function M(e) {
+	return oe(e) ? e : "";
 }
-var se = M("", A);
+var se = M(A);
 function ce(e, t = 12) {
 	if (re.has(e) || e.length <= t) return e;
 	let n = e.includes("/") ? e.slice(e.lastIndexOf("/") + 1) : e;
@@ -8085,7 +8085,7 @@ function F(e = ie) {
 	let t = T.replace(/\/$/, "");
 	return re.has(e) ? `${t}/commits/main` : `${t}/commit/${e}`;
 }
-function ue(e = "") {
+function ue(e = se) {
 	return `${T.replace(/\/$/, "")}/releases/tag/v${e}`;
 }
 //#endregion

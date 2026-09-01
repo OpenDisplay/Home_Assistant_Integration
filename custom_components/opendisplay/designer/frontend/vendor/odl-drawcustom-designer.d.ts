@@ -493,7 +493,7 @@ export declare interface MountHandle {
      * The designer build's version (issue #23, reworked 2026-07-29: git tags
      * are the sole version source, `package.json` stays pinned at `0.0.0`),
      * e.g. `'1.0.0'`. A release build bakes in the tag-derived version via the
-     * `APP_VERSION` env var (`tools/autoRelease.ts` sets it, `tools/version.ts`
+     * `APP_VERSION` env var (the release pipeline sets it, `tools/version.ts`
      * resolves it); any other build (local dev, CI `checks`) falls back to
      * `'0.0.0-dev'`, and Vitest gets the fixed string `'test'`. Same value as
      * the library's `version` export (`src/embed/index.ts`); handy when a host
@@ -783,10 +783,16 @@ export declare interface MountOptions {
 /**
  * Runtime version (issue #23, reworked 2026-07-29: git tags are the sole
  * version source, not package.json — see `tools/version.ts`). Baked in at
- * build time (`tools/buildDefines.ts`) from the release script's
- * `APP_VERSION` env var; a non-release build (local dev, CI `checks`) has
- * none set and falls back to `0.0.0-dev`. Re-exported from
+ * build time (`tools/buildDefines.ts`) from the release pipeline's
+ * `APP_VERSION` env var; a non-release build (local dev, CI `checks`, a PR
+ * preview) has none set and falls back to `0.0.0-dev`. Re-exported from
  * `src/embed/index.ts` (`version`) and surfaced on `MountHandle.version`.
+ *
+ * This is the project's ONE version signal (reworked 2026-09-01): the
+ * release pipeline computes the version once and every build in that run —
+ * the published library AND the standalone site — bakes this same string.
+ * There is no separate site-version define that could disagree with it any
+ * more (docs/releasing.md).
  */
 export declare const version: string;
 
