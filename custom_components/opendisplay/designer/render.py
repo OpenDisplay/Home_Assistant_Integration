@@ -6,16 +6,30 @@ drawcustom-shaped payload here and gets back rendered PNG bytes directly --
 no image-entity write, no SIGNAL_IMAGE_UPDATED dispatch, no BLE delivery, no
 log line above debug.
 
+RULING REVERSED (2026-08-31, real hardware): a `device_id` preview now
+shares the exact same device-facing preparation the send and dry-run paths
+use -- `_prepare_for_device` (`services.py`), real device capabilities,
+`rotate` composed onto the device's own stored base exactly as the send
+path derives it. See `post()`'s own comment on that call for the full
+story: this used to deliberately target the LOGICAL surface instead
+(`rotate=Rotation.ROTATE_0` against a synthetic, device-less
+`DeviceCapabilities`), which made a base=0 90/270 orientation return
+pixel-identical previews -- the one remaining view that could not catch a
+wrong orientation before Send. A `display`-spec (Virtual display) request
+still has no device to be device-facing ABOUT, so it is unchanged: no
+stored base rotation exists to compose against, and `rotate` is always 0
+for it (`renderRequestBody`, `frontend/panel/drawcustom-request.js`).
+
 It shares two calls with `_drawcustom_for_device`'s send path
-(`generate_image`, then `prepare_image`'s dither/quantize step), with the
-**same kwargs** the send path derives for a call carrying neither
-``tone_compression`` nor ``measured_palette`` (`tone="auto"`,
-`use_measured_palettes=False` -- `SCHEMA_DRAWCUSTOM`'s own defaults, not
-`prepare_image`'s own defaults, which differ: passing neither kwarg at all
-silently picks up `prepare_image(tone=0.0, use_measured_palettes=True)`
-instead and renders a visibly different image on any panel with a measured
-palette). It stops before the send-only tail: no upload, no queue, no
-entity write.
+(`generate_image`, then `prepare_image`'s dither/quantize step -- via
+`_prepare_for_device` for a `device_id` request), with the **same kwargs**
+the send path derives for a call carrying neither ``tone_compression`` nor
+``measured_palette`` (`tone="auto"`, `use_measured_palettes=False` --
+`SCHEMA_DRAWCUSTOM`'s own defaults, not `prepare_image`'s own defaults,
+which differ: passing neither kwarg at all silently picks up
+`prepare_image(tone=0.0, use_measured_palettes=True)` instead and renders a
+visibly different image on any panel with a measured palette). It stops
+before the send-only tail: no upload, no queue, no entity write.
 
 This is the integration's first authenticated HTTP view.
 """
@@ -42,6 +56,7 @@ from custom_components.opendisplay.services import (
     _dither_value,
     _font_search_dirs,
     _get_entry_for_device_id,
+    _prepare_for_device,
     preload_local_image_sources,
     render_payload_templates,
     tone_and_measured_palettes_from_call_data,
@@ -348,65 +363,87 @@ class OpenDisplayDesignerRenderView(HomeAssistantView):
                 {"message": "render failed: invalid payload"}, status=400
             )
 
-        # Same dither + quantize pipeline the send path uses
-        # (_async_send_image's prepare_image call), minus the compressed
-        # device-upload payload (compress=False) and any upload/queue/entity
-        # side effect -- this stops at the dithered PIL image and never
-        # calls anything past it. `tone`/`use_measured_palettes` are the
-        # send path's own derived values for an unset tone_compression/
-        # measured_palette (see the module docstring) -- passing neither
-        # kwarg here would silently fall back to `prepare_image`'s own
-        # different defaults instead.
+        # Same dither + quantize pipeline the send path uses, minus the
+        # send-only tail (upload/queue/entity write) -- this stops at the
+        # dithered PIL image and never calls anything past it.
+        # `tone`/`use_measured_palettes` are the send path's own derived
+        # values for an unset tone_compression/measured_palette (see the
+        # module docstring) -- passing neither kwarg here would silently
+        # fall back to `prepare_image`'s own different defaults instead.
         #
-        # CRITICAL divergence from the send path (reviewer-reproduced,
-        # tier-2 round 2): prepare_image's OWN target_size is always the
-        # raw, un-transposed device pixel grid (`capabilities.width/height`,
-        # from `config` -- correct for the send path, which uploads to that
-        # physical buffer), and its `rotate` is DEVICE-FACING: it composes
-        # with the device's own base rotation and re-fits to that native
-        # grid regardless of what rotate value is passed. Passing the
-        # request's `rotate` here (as an earlier version of this endpoint
-        # did) meant preview output was ALWAYS shaped to the native device
-        # grid, never to the transposed `(gen_width, gen_height)` canvas
-        # already built above -- for a base=0 display with a 90/270
-        # orientation, no `rotate` value could make the response land at
-        # the designer's own `context.display` geometry (`HostDisplayGeometry`,
-        # vendored `.d.ts`: "the logical drawing surface the payload is
-        # authored against ... never the raw physical panel size, never a
-        # transform to apply"). The designer then letterboxed a
-        # wrong-shaped answer into its own canvas -- sideways content,
-        # despite a correct canvas on the CLIENT side.
+        # RULING (2026-08-31, reversing the tier-2 round 2 fix below): a
+        # `device_id` request now goes through `_prepare_for_device`
+        # (`services.py`) -- the SAME helper the send path
+        # (`_async_send_image`) and a `dry-run` call share -- with the
+        # request's own `rotate` passed straight through, unmodified. That
+        # makes preview device-facing: `prepare_image`'s target_size comes
+        # from the REAL device's raw native pixel grid (`_capabilities_from_
+        # config(config)`, not a synthetic override), and `rotate` composes
+        # with the device's own stored base rotation exactly as the send
+        # path's does. A base=0 90/270 orientation therefore returns
+        # DIFFERENT previews for 90 vs. 270 (180 degrees apart), matching
+        # what a real send and a dry run already show -- before this, all
+        # three of preview/dry-run/send agreed on shape, but only preview
+        # answered with the logical surface, invariant of rotate.
         #
-        # The fix: build an explicit DeviceCapabilities describing the
-        # LOGICAL surface itself (width/height = gen_width/gen_height,
-        # rotation=0) instead of letting prepare_image derive one from
-        # `config` (the real, raw device grid) -- so its target_size
-        # already equals what generate_image just produced (no fit_image
-        # distortion) and rotate=ROTATE_0 no-ops (no extra device-facing
-        # spin). `config` is still passed for palette/panel_ic_type
-        # derivation (color_scheme/panel_ic_type come from the real
-        # display, not the synthetic capabilities). Device-facing rotation
-        # belongs ONLY on the send path (`_drawcustom_for_device` /
-        # `_async_send_image`), which this preview-only object deliberately
-        # never touches.
-        preview_capabilities = DeviceCapabilities(
-            width=gen_width,
-            height=gen_height,
-            color_scheme=color_scheme,
-        )
-        _, _, dithered = await hass.async_add_executor_job(
-            functools.partial(
-                prepare_image,
+        # Why this does not reintroduce the tier-2 round 2 shape bug it
+        # reverses: that bug was never in the delta `rotate` value itself
+        # (`rotateDeltaFor`, `frontend/panel/rotation.js`, unchanged and
+        # still correct) -- it was in feeding a device-facing `prepare_image`
+        # call a source image that was NOT built at the transposed logical
+        # surface. `gen_width`/`gen_height` above already build that source
+        # at the SAME shape `_drawcustom_for_device` builds it at, from the
+        # identical formula, for every (base, rotate) cell -- so
+        # `_rotate_source_image`'s rotation-by-`(base + rotate) % 360`
+        # always lands exactly on the device's native grid with no
+        # `fit_image` scaling/padding to do (proof: whenever the composed
+        # rotation is a quarter turn, `gen_width`/`gen_height` already
+        # swapped to compensate, and a quarter-turn image rotation swaps
+        # dimensions right back). `tests/test_rotation_parity.py`'s
+        # `test_endpoint_matches_send_paths_prepared_buffer_pixel_for_pixel`
+        # proves this across the full (base, rotate) matrix, not just by
+        # this argument.
+        #
+        # A `display`-spec (Virtual display) request has no HA device and
+        # therefore no stored base rotation to compose against at all --
+        # `context.display` is already the final oriented surface for it,
+        # and the panel wrapper always sends `rotate: 0`
+        # (`renderRequestBody`, `drawcustom-request.js`). It keeps the
+        # ORIGINAL construction: an explicit `DeviceCapabilities` describing
+        # that same logical surface (width/height = gen_width/gen_height,
+        # rotation=0) and `rotate=Rotation.ROTATE_0`, since there is no real
+        # device capabilities object to derive from. `config` (the
+        # synthetic `GlobalConfig`) still supplies palette/panel_ic_type
+        # derivation there.
+        if device_id:
+            _, _, dithered = await _prepare_for_device(
+                hass,
+                entry,
                 img,
-                config=config,
-                capabilities=preview_capabilities,
                 dither_mode=data["dither"],
-                compress=False,
                 tone=_SEND_PATH_DEFAULT_TONE,
+                rotate=Rotation(rotate),
                 use_measured_palettes=_SEND_PATH_DEFAULT_USE_MEASURED_PALETTES,
-                rotate=Rotation.ROTATE_0,
             )
-        )
+        else:
+            preview_capabilities = DeviceCapabilities(
+                width=gen_width,
+                height=gen_height,
+                color_scheme=color_scheme,
+            )
+            _, _, dithered = await hass.async_add_executor_job(
+                functools.partial(
+                    prepare_image,
+                    img,
+                    config=config,
+                    capabilities=preview_capabilities,
+                    dither_mode=data["dither"],
+                    compress=False,
+                    tone=_SEND_PATH_DEFAULT_TONE,
+                    use_measured_palettes=_SEND_PATH_DEFAULT_USE_MEASURED_PALETTES,
+                    rotate=Rotation.ROTATE_0,
+                )
+            )
         png_bytes = await hass.async_add_executor_job(_encode_png, dithered)
         _LOGGER.debug(
             "designer render endpoint: %s dither=%s bytes=%d",

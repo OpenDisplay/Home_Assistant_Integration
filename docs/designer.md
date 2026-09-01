@@ -136,15 +136,29 @@ not-yet-onboarded device still renders through cleanly. Only a template
 that actually raises (a broken reference, not a missing state) is treated
 as an error — see the `400` row below.
 
-Response: `200` with `Content-Type: image/png` and the rendered bytes, at
-the **logical drawing surface's** resolution — the same shape the designer's
-own canvas is at when it made the request (`HostDisplayGeometry`,
-vendored `.d.ts`: "the logical drawing surface the payload is authored
-against ... never the raw physical panel size"), already transposed for a
-quarter-turn rotation. This is deliberately **not** the target device's raw
-native pixel grid whenever the two differ (see the tier-2 root-cause note
-below for the bug this distinction fixes) — that grid is what the send path
-uploads to, not what preview returns. Errors:
+Response: `200` with `Content-Type: image/png` and the rendered bytes.
+
+**For a `device_id` request**, this is the DEVICE-FACING buffer (2026-08-31
+ruling, reversing the tier-2 round 2 fix described below): the same
+post-rotation, post-dither image a real send would hand
+`upload_prepared_image`, at the panel's own native pixel grid — **not** the
+logical surface the payload was authored against, whenever the two differ.
+Concretely: a landscape canvas on a display mounted 90°/270° comes back as
+a **portrait PNG**. Nothing about that needs special handling on the
+designer side — it is just an image, and the designer's Display preview
+toggle already only ever points an `<img>` at whatever bytes this endpoint
+returns (`HostPreviewRenderer`, vendored `.d.ts`); it never assumes the
+response is the canvas's own shape. See "One shared preparation path with
+Send" below for what makes this exact.
+
+**For a `display`-spec request** (Virtual display, no `device_id`), the
+response is still the **logical drawing surface's** resolution — the same
+shape the designer's own canvas is at when it made the request
+(`HostDisplayGeometry`, vendored `.d.ts`: "the logical drawing surface the
+payload is authored against ... never the raw physical panel size"),
+already transposed for a quarter-turn rotation. There is no HA device
+behind a Virtual-display request, so there is no device-facing buffer to
+speak of — see the same section below. Errors:
 
 | Status | When |
 |---|---|
@@ -154,25 +168,52 @@ uploads to, not what preview returns. Errors:
 
 **Implementation shares two calls with the send path**: `generate_image`
 (odl-renderer) followed by `prepare_image`'s dither + quantize step
-(`opendisplay`), with `compress=False` (no point building the
-BLE-upload-ready compressed payload for a preview) and nothing called after
-it — no upload, no queue, no entity write, no dispatched signal.
+(`opendisplay`), and nothing called after it — no upload, no queue, no
+entity write, no dispatched signal.
 
-**One deliberate divergence from the send path** (tier-2 round 2 fix):
-`prepare_image` is called with an explicit `DeviceCapabilities` describing
-the LOGICAL surface itself (`width`/`height` = the already-transposed
-`generate_image` canvas, `rotation=0`) and `rotate=Rotation.ROTATE_0` —
-**not** the real device's own capabilities and the request's `rotate`
-value, which is what the send path passes. `prepare_image`'s own
-`rotate`/target-size handling is DEVICE-FACING: given the real device
-capabilities it always fits its output to the raw native pixel grid
-regardless of what `rotate` is passed, composing that `rotate` with the
-device's stored base rotation on top. That is exactly right for a real
-upload (the device needs its own native buffer) and exactly wrong for
-preview (which needs the logical surface, untouched) — see the root-cause
-note below for the bug this now avoids. `config` is still passed alongside
-the synthetic capabilities, for `panel_ic_type`/palette derivation from the
-real device.
+### One shared preparation path with Send
+
+**For a `device_id` request** (2026-08-31 ruling, reversing the tier-2
+round 2 fix — see the root-cause note below for that history):
+`prepare_image` is reached through `_prepare_for_device` (`services.py`),
+the **exact same helper** the real send (`_async_send_image`) and a
+`dry-run` call share — not a lookalike call built independently in
+`render.py`. That means:
+
+- **Real device capabilities**, not a synthetic override: `prepare_image`
+  derives `capabilities` from the entry's own `config`, so `target_size` is
+  the panel's raw native pixel grid.
+- **The request's `rotate` passed straight through**, unmodified — it
+  composes with the device's own stored base rotation exactly as the send
+  path's does (`effective = (base + rotate) % 360`).
+- `compress` is whatever `_prepare_for_device` derives for this device
+  (whether it accepts compressed uploads) rather than always `False` — a
+  preview never reads the compressed half of `prepare_image`'s return
+  value, so this makes no observable difference to the response, but it
+  means the render endpoint no longer special-cases that argument either.
+
+Preview, dry run and a real send therefore all produce the **identical**
+device-facing buffer for identical (device, payload, background, dither,
+rotate) inputs — proven byte-for-byte by
+`tests/test_rotation_parity.py`'s
+`test_preview_matches_the_send_paths_prepared_buffer_byte_for_byte`. A
+`renderPreview` call is a rehearsal of what Send would ship, not a separate
+rendering that merely resembles it — the designer's own words for what a
+dry run is *("dry run should be honest of course, otherwise it won't be a
+dry run")* now apply to this preview endpoint too.
+
+**For a `display`-spec request** (Virtual display), there is no `entry` to
+build device capabilities from at all, so this path is unchanged from the
+original construction: `prepare_image` is called with an explicit
+`DeviceCapabilities` describing the LOGICAL surface itself (`width`/`height`
+= the already-transposed `generate_image` canvas, `rotation=0`),
+`rotate=Rotation.ROTATE_0`, and `compress=False`. There is no stored base
+rotation to compose against for a display that isn't an HA device, and the
+panel wrapper always sends `rotate: 0` for this case
+(`renderRequestBody`, `drawcustom-request.js`) — device-facing vs.
+logical-surface is not even a distinct question when there is no device.
+`config` (the synthetic `GlobalConfig`) still supplies
+`panel_ic_type`/palette derivation there.
 
 `prepare_image` is called with the **same `tone`/`use_measured_palettes`
 values `_drawcustom_for_device` derives for a call that supplies neither
@@ -270,18 +311,33 @@ The first round's own regression suite did not catch this because it
 asserted `endpoint bytes == send-path bytes` and both code paths shared the
 identical (buggy, for preview) `prepare_image` call — trivially agreeing
 with each other while both landing on the wrong shape. Byte-parity-with-send
-was the wrong property to prove; see
-`tests/test_rotation_parity.py`'s current module docstring for the full
-corrected writeup and the three properties it asserts now (dimensions
-against an independently-derived expectation, content orientation via an
-asymmetric top-edge-bar payload, and pipeline parity against the send
-path's own real `generate_image` output run through `prepare_image` a
-second time with the LOGICAL surface as target). Fixed in `render.py`: an
-explicit synthetic `DeviceCapabilities` (logical-surface dims, rotation=0)
-plus `rotate=Rotation.ROTATE_0` for the preview call — device-facing
-rotation belongs only on the send path (see "The render endpoint" above for
-the implementation note). `rotateDeltaFor` is unchanged and still correct;
-it was never the site of this bug.
+was the wrong property to prove. Round 2's fix (superseded by the ruling
+below, kept here for the history): an explicit synthetic
+`DeviceCapabilities` (logical-surface dims, rotation=0) plus
+`rotate=Rotation.ROTATE_0` for the preview call, so preview targeted the
+logical surface and never touched device-facing rotation at all.
+`rotateDeltaFor` was unchanged and still correct throughout; it was never
+the site of this bug.
+
+**Ruling reversed (2026-08-31, real hardware, v2.9):** the maintainer
+flashed the round-2 fix and reported the predictable consequence of
+"preview never touches device-facing rotation" — orientation 90 and
+orientation 270 previews were identical: *"didn't we want [orientation] to
+be also correct so that 90 would look upside down in relation to 270?"*
+They should, and by design now do: a base=0 90°/270° preview differs by
+exactly a half turn, matching what the entity preview and a dry run already
+showed for the identical call (tier-2 round 3, above) — this endpoint's
+Display preview was the one remaining view where a wrong orientation could
+not be caught before Send. See "One shared preparation path with Send"
+above for the mechanism (`_prepare_for_device`, shared with Send and dry
+run), and `tests/test_rotation_parity.py`'s current module docstring for
+why this does not reintroduce Bug 2: the source image `generate_image`
+builds is still shaped at the transposed logical surface (`gen_width`/
+`gen_height`, unchanged since round 1), so `prepare_image`'s device-facing
+rotate-and-fit always lands exactly on the native grid with no distortion —
+`test_endpoint_matches_send_paths_prepared_buffer_pixel_for_pixel` and
+`test_preview_matches_the_send_paths_prepared_buffer_byte_for_byte` prove
+it across the full (base, rotate) matrix, not just by that argument.
 
 A separate, unrelated finding from the same tier-2 screenshots: the
 designer's own **Resolution field** showed "384×184" while the pushed
@@ -337,7 +393,11 @@ nothing about the canvas will look different when you do.
 Since the Home Assistant `image` entity now shows the buffer that was
 actually uploaded (next paragraph), you can also tell the two apart without
 walking to the display: the entity's picture turns when the Orientation
-changes, even though the canvas does not.
+changes, even though the canvas does not. The designer's own **Display
+preview** (a real device target, "The render endpoint" above) shows the
+same thing **before you send anything** — it now returns the device-facing
+buffer too, so a wrong Orientation choice is visible in the preview itself,
+not only after a send has already gone out.
 
 **The entity preview shows what the panel was given.** After a send, the
 `image.<device>_content` entity holds the post-rotation, post-dither buffer

@@ -253,9 +253,16 @@ async def test_render_prepare_image_kwargs_match_send_path_derivation(
     different defaults (tone=0.0, use_measured_palettes=True) -- passing
     neither kwarg silently picks up the latter and renders differently on
     any measured-palette panel.
+
+    Patched at `services.prepare_image`, not `designer.render.prepare_image`
+    (2026-08-31 ruling): a `device_id` request now reaches `prepare_image`
+    through `_prepare_for_device` (`services.py`), the same helper the send
+    and dry-run paths share -- render.py no longer calls `prepare_image`
+    directly for this path (it still does for the device-less `display`
+    spec/Virtual-display path).
     """
     with patch(
-        "custom_components.opendisplay.designer.render.prepare_image",
+        "custom_components.opendisplay.services.prepare_image",
         wraps=real_prepare_image,
     ) as prepare_image_spy:
         resp = await _post_render(hass_client, device_id=device_id)

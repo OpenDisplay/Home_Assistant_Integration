@@ -1,46 +1,71 @@
 """Preview-contract parity: the designer render endpoint's shape/orientation.
 
-CORRECTION (tier-2 round 2, reviewer re-verification): this module
-previously asserted only `endpoint bytes == send-path bytes` and treated
-that as proof preview was correct. That wasn't a wrong thing to prove -- it
-was the WRONG PROPERTY for what preview needs, and the suite was
-structurally blind to the actual bug. The send path and the (then-buggy)
-render endpoint both funneled through `prepare_image`'s DEVICE-FACING
-`rotate` + fit-to-native-pixel-grid step, so they always agreed with EACH
-OTHER while both landing on the same wrong shape for preview: the raw,
-untransposed device grid, never the designer's own `context.display`
-geometry (`HostDisplayGeometry`, vendored `.d.ts`: "the logical
-drawing surface the payload is authored against ... never the raw physical
-panel size, never a transform to apply"). For a base=0 display with a
-90/270 orientation (the maintainer's real ESL 5 3.5", see the acceptance
-vector below), NO `rotate` value made the OLD endpoint return the
-transposed logical surface -- the designer letterboxed the wrong-shaped
-answer into its own canvas: sideways content, despite the send path (which
-correctly targets the native device grid) being fine all along.
+REVERSED (2026-08-31, maintainer report on real hardware): everything below
+the tier-2 round 2 fix described a DELIBERATE divergence -- the render
+endpoint targeted the LOGICAL surface (`rotate=Rotation.ROTATE_0`) so a
+base=0 90/270 orientation returned the transposed canvas instead of the
+native device grid. That made the shape bug (Bug 2, tier-2) go away, but it
+also means 90 and 270 always returned pixel-identical previews -- the
+maintainer flashed v2.9 and asked "didn't we want [orientation] to be also
+correct so that 90 would look upside down in relation to 270?" It should:
+the entity preview and a dry run already show the device-facing buffer
+(tier-2 round 3, below), so the designer's own Display preview was left as
+the ONE remaining view that could not catch a wrong orientation before
+sending -- exactly backwards from what a preview is for.
 
-Fixed in `designer/render.py`: the preview call to `prepare_image` now
-passes an explicit `DeviceCapabilities` describing the LOGICAL surface
-itself (width/height = the already-transposed `generate_image` canvas,
-rotation=0) and `rotate=Rotation.ROTATE_0`, instead of the real device
-capabilities plus the request's `rotate` value -- device-facing rotation
-belongs only on the send path.
+THE RULING: the render endpoint's device_id path now calls the SAME
+`_prepare_for_device` helper the send and dry-run paths use (`services.py`)
+-- real device capabilities, `rotate` composed onto the device's own stored
+base exactly as the send path derives it. Preview, dry run and a real send
+now all produce the identical device-facing buffer for identical inputs; a
+`renderPreview` request is a byte-for-byte rehearsal of what Send would
+ship, not a separate rendering that merely resembles it.
 
-Three independent properties per (base, orientation) cell, none of them
-"endpoint agrees with the buggy send-shaped value":
+Why this does not reintroduce Bug 2 (the tier-2 round 2 shape bug): Bug 2
+was never in the delta FORMULA (`rotateDeltaFor`, still unchanged and still
+correct -- `frontend/panel/rotation.js`); it was in feeding that correct
+`rotate` through `prepare_image` while the two callers built the SOURCE
+image at different shapes. Both the send path (`_drawcustom_for_device`)
+and this endpoint build `generate_image`'s canvas at
+`_expected_gen_dims(base, rotate, ...)` -- the transposed logical surface --
+from the identical formula. `prepare_image` then rotates that source by
+`(base + rotate) % 360` and fits to the native grid: by construction the
+rotated source's dimensions already equal the native grid for every (base,
+rotate) cell (proof: `_rotate_source_image` transposes width/height exactly
+when the composed rotation is a quarter turn, which is exactly when
+`_expected_gen_dims` itself swapped them to compensate), so `fit_image`
+never has scaling/padding to do. `test_endpoint_matches_send_paths_prepared_buffer_pixel_for_pixel`
+below proves this holds across the full (base, rotate) matrix, not just by
+this argument.
 
-1. DIMENSIONS: endpoint output size == the logical surface size, from an
-   independent formula (not imported from render.py).
-2. CONTENT ORIENTATION: an asymmetric top-edge-bar payload lands on the TOP
-   edge of the returned image, not some other edge -- catches a
-   dimension-correct-but-rotated-the-wrong-way regression a dims-only check
-   cannot.
-3. PIPELINE PARITY: the endpoint's bytes match `prepare_image`'s own
-   dither/quantize/palette output when called directly on the SEND path's
-   own real `generate_image` image (captured via a `wraps=` spy, not
-   reimplemented), with the logical surface as target and
-   `rotate=ROTATE_0` -- proves preview shares the send path's real
-   quantization pipeline without re-asserting the wrong device-grid-shaped
-   property the old suite checked.
+The VIRTUAL display case (`display` spec, no `device_id`) is unchanged and
+deliberately still targets the logical surface with `rotate=ROTATE_0`: it
+has no HA device, so no stored base rotation exists to compose against --
+`context.display` is already the final oriented surface the panel wrapper
+sends `rotate: 0` for (`renderRequestBody`, `drawcustom-request.js`), and
+device-facing vs. logical-surface is not even a distinct question when
+there is no device.
+
+Four properties per (base, orientation) cell now:
+
+1. DIMENSIONS: endpoint output size == the device's own native pixel grid
+   (`pixel_width`/`pixel_height`), invariant across every `rotate` value --
+   NOT the logical surface size any more (that was this suite's own
+   assertion through tier-2 round 2, and is now the wrong property).
+2. CONTENT ORIENTATION: an asymmetric top-edge-bar payload lands on the
+   edge implied by the COMPOSED rotation `(base + rotate) % 360`, not
+   always the top -- 90 and 270 must land on opposite edges.
+3. PIPELINE PARITY: the endpoint's decoded pixels match `prepare_image`'s
+   own output when called directly on the SEND path's own real
+   `generate_image` image (captured via a `wraps=` spy, not reimplemented),
+   with the REAL device capabilities (derived from `config`, not a
+   synthetic logical one) and the SAME `rotate` -- i.e. exactly what
+   `_prepare_for_device` does.
+4. SEND EQUALITY: the endpoint's response bytes, PNG-encoded, are
+   byte-identical to `_encode_png` of the buffer a real (non-preview) send
+   for the same device/payload/rotate hands to `upload_prepared_image` --
+   the strongest form, mirroring the byte-equality already proven for dry
+   runs below.
 
 SEND WITHOUT PREVIEW (designer 3.0.0, issue #105 WYSIWYG-send slice): the
 panel used to reuse the last preview render's `rotate` at Send time, so a
@@ -67,13 +92,7 @@ from dataclasses import replace
 import io
 from unittest.mock import MagicMock, patch
 
-from opendisplay import (
-    ColorScheme,
-    DeviceCapabilities,
-    DitherMode,
-    Rotation,
-    prepare_image as real_prepare_image,
-)
+from opendisplay import DitherMode, Rotation, prepare_image as real_prepare_image
 from PIL import Image as PILImage
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -241,9 +260,41 @@ def _row_is_mostly_white(image: PILImage.Image, y: int) -> bool:
     return light > image.width * 0.8
 
 
+def _column_is_mostly_white(image: PILImage.Image, x: int) -> bool:
+    col = [image.getpixel((x, y)) for y in range(image.height)]
+    light = sum(1 for px in col if sum(px[:3]) > 600)
+    return light > image.height * 0.8
+
+
+# Direction convention, from the library itself (`opendisplay/device.py`):
+# `prepare_image` composes `effective = (base + rotate) % 360` and rotates
+# the source CLOCKWISE by it -- `Rotation.ROTATE_90 -> Image.Transpose.
+# ROTATE_270` (PIL's ROTATE_270 is a 90-degree clockwise turn) and
+# `Rotation.ROTATE_270 -> Image.Transpose.ROTATE_90` (90 counter-clockwise).
+# So a top-edge bar in the source lands on: effective 0 -> top, 90 -> right,
+# 180 -> bottom, 270 -> left. Keyed by the COMPOSED rotation, not the
+# request's own `rotate` -- the two coincide only when base=0, which is why
+# the base=0 characterisation tests further down index this dict directly
+# by `rotate`.
+_EDGE_BY_EFFECTIVE_ROTATION = {0: "top", 90: "right", 180: "bottom", 270: "left"}
+
+
+def _bar_edge(image: PILImage.Image) -> str:
+    """Return which single edge of `image` the black bar occupies."""
+    edges = {
+        "top": _row_is_mostly_black(image, 0),
+        "bottom": _row_is_mostly_black(image, image.height - 1),
+        "left": _column_is_mostly_black(image, 0),
+        "right": _column_is_mostly_black(image, image.width - 1),
+    }
+    found = [name for name, hit in edges.items() if hit]
+    assert len(found) == 1, f"expected the bar on exactly one edge, got {found}"
+    return found[0]
+
+
 @pytest.mark.parametrize("device_config", [0, 90], indirect=True)
 @pytest.mark.parametrize("rotate", [0, 90, 180, 270])
-async def test_endpoint_returns_the_logical_surface_correctly_oriented(
+async def test_endpoint_returns_the_device_facing_buffer(
     hass,
     device_id: str,
     hass_client,
@@ -252,11 +303,14 @@ async def test_endpoint_returns_the_logical_surface_correctly_oriented(
 ) -> None:
     """Dimensions AND content orientation, for every (base, orientation) cell.
 
-    Red-first (tier-2 round 2): fails on 4c8edf2 for every `rotate > 0`
-    cell -- the old endpoint returned the native device grid (dims wrong
-    whenever the transpose applies) with the bar rotated into the pipeline
-    the send path uses for physical delivery, not the untouched logical
-    surface preview needs.
+    REVERSED (2026-08-31): this used to assert the endpoint returns the
+    LOGICAL surface, invariant of `rotate` -- see the module docstring for
+    why that is now the wrong property. The payload is still authored
+    against the logical surface (that is what the designer's canvas is at
+    when it makes the request), but the returned PNG is now the
+    DEVICE-FACING buffer: always the native pixel grid, with the bar on the
+    edge implied by the composed rotation `(base + rotate) % 360`, not
+    always the top.
     """
     display = device_config.displays[0]
     gen_width, gen_height = _expected_gen_dims(
@@ -266,36 +320,41 @@ async def test_endpoint_returns_the_logical_surface_correctly_oriented(
 
     image = await _render_endpoint_image(hass_client, device_id, rotate, payload)
 
-    assert image.size == (gen_width, gen_height), (
+    native = (display.pixel_width, display.pixel_height)
+    assert image.size == native, (
         f"base={display.rotation} rotate={rotate}: "
-        f"endpoint {image.size} != logical surface {(gen_width, gen_height)}"
+        f"endpoint {image.size} != native device grid {native}"
     )
-    assert _row_is_mostly_black(image, 0), (
-        f"base={display.rotation} rotate={rotate}: top edge is not the bar"
-    )
-    assert _row_is_mostly_white(image, image.height - 1), (
-        f"base={display.rotation} rotate={rotate}: bottom edge is not clear "
-        "-- bar landed on the wrong edge"
+    effective = (display.rotation + rotate) % 360
+    expected_edge = _EDGE_BY_EFFECTIVE_ROTATION[effective]
+    assert _bar_edge(image) == expected_edge, (
+        f"base={display.rotation} rotate={rotate} (effective={effective}): "
+        f"bar on the {_bar_edge(image)} edge, expected {expected_edge}"
     )
 
 
 @pytest.mark.parametrize("device_config", [0, 90], indirect=True)
 @pytest.mark.parametrize("rotate", [0, 90, 180, 270])
-async def test_endpoint_matches_send_paths_pre_rotation_pipeline(
+async def test_endpoint_matches_send_paths_prepared_buffer_pixel_for_pixel(
     hass,
     device_id: str,
     hass_client,
     device_config,
     rotate: int,
 ) -> None:
-    """Pipeline parity: same dither/quantize/palette, different final shape.
+    """Pipeline parity: the endpoint now shares `_prepare_for_device`'s inputs.
 
-    Not "endpoint bytes == send-path bytes" (that was the wrong property --
-    see the module docstring). Builds the reference by feeding the send
-    path's own real generate_image output through prepare_image a second
-    time, targeting the LOGICAL surface with rotate=ROTATE_0 -- exactly
-    designer/render.py's own construction, but assembled independently here
-    from the send path's real artifact rather than imported from render.py.
+    Builds the reference by feeding the send path's own real
+    `generate_image` output through `prepare_image` a second time,
+    targeting the REAL device capabilities (derived from `config`, no
+    synthetic override) with the SAME `rotate` -- exactly what
+    `_prepare_for_device` does, assembled independently here from the send
+    path's real artifact rather than imported from render.py/services.py.
+
+    Red-first (2026-08-31): fails against the pre-fix endpoint, which
+    always returns the logical-surface size (previous module state) --
+    `endpoint_image.size` would never equal `reference_rgb.size` for a cell
+    where the transpose applies.
     """
     display = device_config.displays[0]
     gen_width, gen_height = _expected_gen_dims(
@@ -306,20 +365,15 @@ async def test_endpoint_matches_send_paths_pre_rotation_pipeline(
     pre_rotation_img = await _send_paths_pregenerated_image(
         hass, device_id, payload, rotate
     )
-    color_scheme = ColorScheme.from_value(display.color_scheme)
-    reference_capabilities = DeviceCapabilities(
-        width=gen_width, height=gen_height, color_scheme=color_scheme
-    )
     _, _, reference = await hass.async_add_executor_job(
         lambda: real_prepare_image(
             pre_rotation_img,
-            capabilities=reference_capabilities,
-            panel_ic_type=display.panel_ic_type,
+            config=device_config,
             dither_mode=DitherMode.NONE,
             compress=False,
             tone=_SEND_PATH_TONE,
             use_measured_palettes=_SEND_PATH_MEASURED_PALETTES,
-            rotate=Rotation.ROTATE_0,
+            rotate=Rotation(rotate),
         )
     )
     reference_rgb = reference.convert("RGB")
@@ -354,11 +408,17 @@ async def test_esl5_3_5_real_hardware_acceptance_vector(
     (no base persisted -- per-device persistence is the deferred upstream
     feature), color_scheme BWRY, physically mounted landscape -- the
     maintainer's own working automation compensates with `rotate: 270` on
-    every `drawcustom` call. The PREVIEW endpoint must return the LOGICAL
-    surface for that orientation: 384x184 landscape (NOT 184x384 -- that
-    was the old, wrong assertion this test previously made, codifying the
-    very bug this round fixes), with the top-edge bar landing on the
-    returned image's top edge.
+    every `drawcustom` call.
+
+    REVERSED (2026-08-31): the PREVIEW endpoint now returns the
+    DEVICE-FACING buffer for that orientation -- 184x384 portrait (the
+    panel's own native grid, NOT 384x184 -- that was this test's own
+    assertion through the tier-2 round 2 fix, which is now the stale
+    property; see the module docstring), with the top-edge bar landing on
+    the LEFT edge (`effective = (0 + 270) % 360 = 270`,
+    `_EDGE_BY_EFFECTIVE_ROTATION[270] == "left"`) -- matching the entity
+    preview and a dry run for the identical call, which already showed this
+    buffer (tier-2 round 3).
     """
     gen_width, gen_height = _expected_gen_dims(0, 270, 184, 384)
     assert (gen_width, gen_height) == (384, 184)
@@ -366,9 +426,95 @@ async def test_esl5_3_5_real_hardware_acceptance_vector(
 
     image = await _render_endpoint_image(hass_client, device_id, 270, payload)
 
-    assert image.size == (384, 184), image.size
-    assert _row_is_mostly_black(image, 0)
-    assert _row_is_mostly_white(image, image.height - 1)
+    assert image.size == (184, 384), image.size
+    assert _bar_edge(image) == "left"
+
+
+@pytest.mark.parametrize("device_config", [_ESL5_ATTRS], indirect=True)
+async def test_preview_at_90_and_270_are_180_degrees_apart(
+    hass,
+    device_id: str,
+    hass_client,
+    device_config,
+) -> None:
+    """THE MAINTAINER'S REPORT, pinned directly against the preview endpoint.
+
+    v2.9: "host rendering between 90 and 270 is still identical (both show
+    up)". Same canvas, same payload, only the Orientation control differs
+    between the two requests -- the two previews must now differ, and by
+    exactly a half turn: rotating one 180 degrees must land pixel-for-pixel
+    on the other. Red-first against the pre-fix endpoint, which returned the
+    logical surface (identical for 90 and 270 by construction) for both.
+    """
+    payload = _top_bar_payload(384, 184)
+
+    preview_90 = await _render_endpoint_image(hass_client, device_id, 90, payload)
+    preview_270 = await _render_endpoint_image(hass_client, device_id, 270, payload)
+
+    assert preview_90.size == preview_270.size == (184, 384)
+    assert _bar_edge(preview_90) == "right"
+    assert _bar_edge(preview_270) == "left"
+    assert list(preview_90.transpose(PILImage.Transpose.ROTATE_180).getdata()) == list(
+        preview_270.getdata()
+    ), "orientation 90 and 270 previews must be 180 degrees apart, and nothing else"
+
+
+@pytest.mark.parametrize("device_config", [_ESL5_ATTRS], indirect=True)
+@pytest.mark.parametrize("rotate", [90, 270])
+async def test_preview_matches_the_send_paths_prepared_buffer_byte_for_byte(
+    hass,
+    device_id: str,
+    hass_client,
+    device_config,
+    mock_upload_device: MagicMock,
+    rotate: int,
+) -> None:
+    """The strongest form: PNG-encoded preview bytes == PNG-encoded send buffer.
+
+    Mirrors the byte-equality already proven for dry runs
+    (`test_dry_run_and_the_real_send_publish_identical_previews`, below): a
+    real (non-preview) send for the identical device/payload/rotate hands
+    `upload_prepared_image` a processed image; `_encode_png` of that image
+    must be byte-identical to the render endpoint's own response body for
+    the same inputs -- not merely same-shaped or same-edge, but the exact
+    same bytes, because both now go through the SAME `_prepare_for_device`
+    call.
+    """
+    payload = _top_bar_payload(384, 184)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [device_id],
+            "payload": payload,
+            "rotate": rotate,
+            "dither": "none",
+        },
+        blocking=True,
+        return_response=True,
+    )
+    sent_image = mock_upload_device.upload_prepared_image.call_args.args[0][2]
+    sent_png = io.BytesIO()
+    sent_image.save(sent_png, format="PNG")
+
+    client = await hass_client()
+    resp = await client.post(
+        DESIGNER_RENDER_URL,
+        json={
+            "device_id": device_id,
+            "payload": payload,
+            "background": "white",
+            "dither": "none",
+            "rotate": rotate,
+        },
+    )
+    assert resp.status == 200
+    preview_png = await resp.read()
+
+    assert preview_png == sent_png.getvalue(), (
+        "preview PNG bytes must match a real send's own prepared buffer, byte for byte"
+    )
 
 
 @pytest.mark.parametrize("device_config", [_ESL5_ATTRS], indirect=True)
@@ -474,30 +620,13 @@ async def test_send_without_preview_carries_the_rotate_into_the_buffer(
 # it -- `Rotation.ROTATE_90 -> Image.Transpose.ROTATE_270` (PIL's ROTATE_270
 # is a 90-degree clockwise turn) and `Rotation.ROTATE_270 ->
 # Image.Transpose.ROTATE_90` (90 counter-clockwise). So for base 0 a
-# top-edge bar lands on: 0 -> top, 90 -> right, 180 -> bottom, 270 -> left.
-
-_TOP_BAR_EDGE_BY_ROTATE = {0: "top", 90: "right", 180: "bottom", 270: "left"}
+# top-edge bar lands on: 0 -> top, 90 -> right, 180 -> bottom, 270 -> left --
+# `_EDGE_BY_EFFECTIVE_ROTATION` (defined earlier, alongside `_bar_edge`)
+# already carries exactly this mapping; aliased here under the name these
+# base=0 tests use ("rotate" and "effective" coincide only when base=0).
+_TOP_BAR_EDGE_BY_ROTATE = _EDGE_BY_EFFECTIVE_ROTATION
 
 _IMAGE_ENTITY = "image.opendisplay_1234_display_content"
-
-
-def _column_is_mostly_white(image: PILImage.Image, x: int) -> bool:
-    col = [image.getpixel((x, y)) for y in range(image.height)]
-    light = sum(1 for px in col if sum(px[:3]) > 600)
-    return light > image.height * 0.8
-
-
-def _bar_edge(image: PILImage.Image) -> str:
-    """Return which single edge of `image` the black bar occupies."""
-    edges = {
-        "top": _row_is_mostly_black(image, 0),
-        "bottom": _row_is_mostly_black(image, image.height - 1),
-        "left": _column_is_mostly_black(image, 0),
-        "right": _column_is_mostly_black(image, image.width - 1),
-    }
-    found = [name for name, hit in edges.items() if hit]
-    assert len(found) == 1, f"expected the bar on exactly one edge, got {found}"
-    return found[0]
 
 
 async def _sent_device_buffer(
