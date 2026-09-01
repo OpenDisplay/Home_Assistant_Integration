@@ -410,6 +410,19 @@ class OpenDisplayDesignerPanel extends HTMLElement {
         },
         renderPreview: (payload, context) => this._renderPreview(payload, context),
         resolveAsset: (kind, name) => this._resolveAsset(kind, name),
+        // Designer-local uploads land in this ONE browser's IndexedDB and
+        // never reach Home Assistant -- an uploaded asset renders on the
+        // canvas here and then fails the moment the design is sent, because
+        // send/render load assets from this integration's own directories
+        // (`designer/asset.py`), not from this browser's storage. `true`
+        // alone would remove the upload affordances silently; the `hint`
+        // instead points at the directories `resolveAsset` above can
+        // actually serve from, so the Content tab's read-only explorer says
+        // where a file needs to live instead of just "you can't upload
+        // here" (docs/embedding.md `hostOwnsAssets`).
+        hostOwnsAssets: {
+          hint: 'Add images anywhere under /config/www or /media, and fonts in a fonts subfolder there (e.g. /media/fonts).',
+        },
         onStatusChange: (status) => {
           this._yamlValid = status.yamlValid;
           this._yamlErrorSummary = status.yamlErrorSummary;

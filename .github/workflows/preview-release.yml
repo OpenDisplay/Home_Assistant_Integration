@@ -44,7 +44,11 @@ jobs:
           set -euo pipefail
           base_version="$(jq -er .version custom_components/opendisplay/manifest.json)"
           branch="${{ github.ref_name }}"
-          preview_version="${base_version}-${branch}.${{ github.run_number }}"
+          # Zero-padded to 3 digits (maintainer ruling: unpadded numbers sort
+          # wrong in HACS/GitHub UI, e.g. v2.9 read as newer than v2.10; %03d
+          # keeps ordering correct past 99).
+          run_number="$(printf '%03d' "${{ github.run_number }}")"
+          preview_version="${base_version}-${branch}.${run_number}"
           echo "PREVIEW_VERSION=${preview_version}" >> "$GITHUB_ENV"
           jq --arg v "$preview_version" '.version = $v' \
             custom_components/opendisplay/manifest.json > /tmp/manifest.json

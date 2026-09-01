@@ -716,6 +716,59 @@ export declare interface MountOptions {
      */
     resolveAsset?: HostAssetResolver;
     /**
+     * Declares that the host owns asset resolution (ADR-002 host asset
+     * resolver, issue #138) — set this when the host supplies
+     * {@link MountOptions.resolveAsset} (or otherwise resolves the payload's
+     * fonts and images itself). A designer-local upload lives only in that
+     * one browser's IndexedDB and never reaches the host: it renders fine on
+     * the canvas here and then fails the moment the design is sent, because
+     * whatever finally draws the image looks for it in the host's own
+     * directories and finds nothing — a trap found on real hardware, not a
+     * hypothetical.
+     *
+     * `true` turns the Content tab **read-only**: every write path into the
+     * local asset store is removed outright, not merely disabled — the
+     * upload/replace and delete controls in the tab, and the upload
+     * affordances on font and image-URL property fields. The tab stays
+     * visible and keeps listing what the current payload references and how
+     * each one resolves (including through `resolveAsset`, badged **Host**)
+     * — a read-only explorer, the same role the host-fed States panel already
+     * plays for states (issue #107). **This does not make the host's own
+     * asset library appear in the tab**; it only removes the affordance that
+     * silently fails at send time. Resolution order is unchanged (ADR-002):
+     * local content map, then bundled assets, then `resolveAsset` — this
+     * option stops new entries from reaching the first tier, it does not
+     * reorder or remove the tiers, and anything already stored still resolves
+     * and still lists.
+     *
+     * Default `false`: uploads work exactly as they do today. Absent, this
+     * option changes nothing — the same "conditional chrome, presence gates
+     * it" rule ADR-018 uses for `actions`, `targets` and `renderPreview`.
+     *
+     * Pass `{ hint }` instead of `true` to also replace the tab's upload
+     * instructions with a sentence in the host's own words — e.g. pointing at
+     * *its* standard upload location — instead of the designer's generic
+     * fallback. The designer's published surface stays domain-neutral
+     * (ADR-018: never `entity`, `hass`, or a specific host's paths), so it
+     * cannot word this for you; the host names its own directories, the
+     * designer just renders the string. Three guarantees:
+     *
+     * - **Plain text only**, always — never parsed as HTML or Markdown (no
+     *   `dangerouslySetInnerHTML`, no link parsing). A published surface that
+     *   interprets a host-supplied string as markup is a footgun the designer
+     *   does not ship, even though the host is the embedder, not an untrusted
+     *   third party.
+     * - Rendered where the upload instructions used to be, in the sidebar's
+     *   existing muted/hint text style — no new visual treatment.
+     * - `true` (or `{ hint }` with an empty/missing string) falls back to a
+     *   neutral sentence of the designer's own — assets are provided by the
+     *   host application, nothing is stored in this browser — itself free of
+     *   any host-specific vocabulary.
+     */
+    hostOwnsAssets?: boolean | {
+        hint: string;
+    };
+    /**
      * Called on a designer status transition (issue #133) — see
      * {@link HostStatusChangeHandler}. Optional: a host that only wants status
      * on demand reads {@link MountHandle.getStatus} instead and never supplies
