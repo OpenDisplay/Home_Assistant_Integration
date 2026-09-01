@@ -21,7 +21,7 @@ PANEL_JS_REL = "panel/opendisplay-designer-panel.js"
 # the panel JS changes in a way that isn't already covered by its own mtime
 # (get_frontend_cache_token appends that too) -- e.g. a vendor library bump
 # that doesn't touch the panel JS's own file.
-DESIGNER_FRONTEND_BUILD = "20260901a"
+DESIGNER_FRONTEND_BUILD = "20260901b"
 
 
 def get_frontend_cache_token() -> str:
