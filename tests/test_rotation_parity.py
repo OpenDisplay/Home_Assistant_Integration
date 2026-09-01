@@ -661,3 +661,158 @@ async def test_the_entitys_preview_is_the_buffer_that_was_sent(
     assert _bar_edge(preview) == expected_edge, (
         "the entity preview is not turned the way the uploaded buffer is"
     )
+
+
+# --- Dry run honesty (maintainer ruling: "dry run should be honest of course,
+# otherwise it won't be a dry run") ------------------------------------------
+#
+# A dry run's entire purpose is to show what WOULD be sent without sending it.
+# It used to publish the pre-rotation, un-dithered logical surface -- a
+# different artifact from the one a real send publishes, and therefore a
+# preview of something that would never reach any panel. Both halves of that
+# are now the same call to `prepare_image` (`_prepare_for_device`), so a dry
+# run and the real send it stands in for publish identical bytes.
+
+
+async def _dry_run(hass, device_id: str, payload: list[dict], rotate: int, **extra):
+    """Run a dry-run drawcustom and return its service response."""
+    return await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [device_id],
+            "payload": payload,
+            "rotate": rotate,
+            "dry-run": True,
+            **extra,
+        },
+        blocking=True,
+        return_response=True,
+    )
+
+
+async def _published_preview(hass, hass_client) -> PILImage.Image:
+    """Return the image entity's current picture, as the dashboard shows it."""
+    return PILImage.open(io.BytesIO(await _published_preview_bytes(hass, hass_client)))
+
+
+async def _published_preview_bytes(hass, hass_client) -> bytes:
+    state = hass.states.get(_IMAGE_ENTITY)
+    assert state is not None
+    client = await hass_client()
+    resp = await client.get(state.attributes["entity_picture"])
+    assert resp.status == 200
+    return await resp.read()
+
+
+@pytest.mark.parametrize("device_config", [_ESL5_ATTRS], indirect=True)
+@pytest.mark.parametrize("rotate", [90, 270])
+async def test_dry_run_previews_the_buffer_that_would_be_sent(
+    hass,
+    hass_client,
+    device_id: str,
+    device_config,
+    mock_upload_device: MagicMock,
+    rotate: int,
+) -> None:
+    """A dry run publishes the device-facing buffer, and uploads nothing.
+
+    Red-first: the old dry-run branch published `_pil_to_jpeg(img)` -- the
+    384x184 pre-rotation canvas, identical for 90 and 270 -- so this asserts
+    both the 184x384 device grid and the per-orientation edge that the
+    canvas cannot distinguish.
+    """
+    payload = _top_bar_payload(384, 184)
+
+    response = await _dry_run(hass, device_id, payload, rotate)
+
+    assert response["status"] == "dry_run"
+    mock_upload_device.upload_prepared_image.assert_not_called()
+
+    preview = (await _published_preview(hass, hass_client)).convert("RGB")
+    assert preview.size == (184, 384), (
+        "a dry run still previews the pre-rotation canvas -- it is showing "
+        "something no panel would ever be sent"
+    )
+    assert _bar_edge(preview) == _TOP_BAR_EDGE_BY_ROTATE[rotate]
+
+
+@pytest.mark.parametrize("device_config", [_ESL5_ATTRS], indirect=True)
+async def test_dry_run_and_the_real_send_publish_identical_previews(
+    hass,
+    hass_client,
+    device_id: str,
+    device_config,
+    mock_upload_device: MagicMock,
+) -> None:
+    """The honesty property itself: same call, same picture, one of them sent.
+
+    Byte-for-byte, because both go through one `prepare_image` call with the
+    same arguments and one `_pil_to_jpeg`. This is what makes the dry run a
+    dry RUN rather than a different rendering that merely looks similar --
+    and it transitively pins that a dry run honours `dither`, `rotate` and
+    the tone/measured-palette derivation, since the real send provably does.
+    """
+    payload = _top_bar_payload(384, 184)
+
+    await _dry_run(hass, device_id, payload, 270, dither="burkes")
+    dry_run_preview = await _published_preview_bytes(hass, hass_client)
+    mock_upload_device.upload_prepared_image.assert_not_called()
+
+    await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [device_id],
+            "payload": payload,
+            "rotate": 270,
+            "dither": "burkes",
+        },
+        blocking=True,
+        return_response=True,
+    )
+    real_send_preview = await _published_preview_bytes(hass, hass_client)
+    mock_upload_device.upload_prepared_image.assert_called_once()
+
+    assert dry_run_preview == real_send_preview
+
+
+@pytest.mark.parametrize("device_config", [_ESL5_ATTRS], indirect=True)
+async def test_dry_run_honours_the_dither_mode(
+    hass,
+    hass_client,
+    device_id: str,
+    device_config,
+    mock_upload_device: MagicMock,
+) -> None:
+    """A dry run dithers with the mode the call asked for.
+
+    Closes a documented gap (`docs/designer.md`, "Known gaps"): the dry run
+    always rendered the flat, un-dithered image, so on a BWRY panel a
+    mid-tone looked like a mid-tone instead of the four-colour pattern the
+    panel would actually show. A solid mid-grey is the discriminating
+    payload -- `none` maps it to one flat palette entry, `burkes` diffuses
+    the error across neighbouring pixels.
+    """
+    payload = [
+        {
+            "type": "rectangle",
+            "x_start": 0,
+            "y_start": 0,
+            "x_end": 384,
+            "y_end": 184,
+            "fill": "#808080",
+        }
+    ]
+
+    await _dry_run(hass, device_id, payload, 270, dither="none")
+    flat = (await _published_preview(hass, hass_client)).convert("RGB")
+    await _dry_run(hass, device_id, payload, 270, dither="burkes")
+    dithered = (await _published_preview(hass, hass_client)).convert("RGB")
+
+    assert flat.size == dithered.size == (184, 384)
+    assert len(set(flat.getdata())) < len(set(dithered.getdata())), (
+        "the two dither modes produced equally-flat output -- the dry run is "
+        "ignoring `dither`"
+    )
+    mock_upload_device.upload_prepared_image.assert_not_called()

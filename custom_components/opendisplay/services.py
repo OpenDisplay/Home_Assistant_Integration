@@ -673,6 +673,64 @@ async def _async_connect_and_run(
         ) from err
 
 
+async def _prepare_for_device(
+    hass: HomeAssistant,
+    entry: OpenDisplayConfigEntry,
+    img: PILImage.Image,
+    *,
+    dither_mode: DitherMode,
+    fit: FitMode = FitMode.CONTAIN,
+    tone: float | str = "auto",
+    rotate: Rotation = Rotation.ROTATE_0,
+    use_measured_palettes: bool = False,
+) -> tuple[bytes, bytes | None, PILImage.Image]:
+    """Turn a rendered image into this device's upload buffer, off the loop.
+
+    The single place a frame becomes device-facing: rotate by
+    (base + rotate), fit to the native pixel grid, dither against the
+    panel's palette, encode, and optionally zlib. Returns `prepare_image`'s
+    own `(image_data, compressed_data, processed_image)`.
+
+    Shared by the real send (`_async_send_image`) and by `drawcustom`'s
+    `dry-run`, so a dry run previews the SAME artifact a real send would
+    upload rather than a separate rendering that merely resembles it
+    (maintainer ruling: "dry run should be honest of course, otherwise it
+    won't be a dry run"). Every argument that shapes the buffer is a
+    parameter, and the one that isn't -- compression -- is derived from the
+    device here, so neither caller can drift from the other by passing
+    something different.
+
+    The heavy CPU work (rotate + fit + dither + encode + zlib on a full
+    frame) runs in an executor thread so it never blocks the event loop.
+    This mirrors what `device.upload_image()` does internally, but that call
+    ran `_prepare_image` synchronously on the loop.
+    """
+    config = entry.runtime_data.device_config
+    display_cfg = config.displays[0] if config and config.displays else None
+    # Match upload_image(): only ask prepare_image() to build compressed data
+    # when the panel accepts compressed uploads (plain ZIP bit or the
+    # streaming-decompression bit). upload_prepared_image() then falls back to
+    # the uncompressed protocol when compressed_data is None.
+    supports_compression = (
+        (display_cfg.supports_zip or display_cfg.supports_streaming_decompression)
+        if display_cfg
+        else True
+    )
+    return await hass.async_add_executor_job(
+        functools.partial(
+            prepare_image,
+            img,
+            config=config,
+            dither_mode=dither_mode,
+            compress=supports_compression,
+            tone=tone,
+            fit=fit,
+            rotate=rotate,
+            use_measured_palettes=use_measured_palettes,
+        )
+    )
+
+
 async def _async_send_image(
     hass: HomeAssistant,
     entry: OpenDisplayConfigEntry,
@@ -692,34 +750,15 @@ async def _async_send_image(
     queued (for a sleeping device). Non-sleepy devices always deliver live and
     keep the original strict-failure behavior.
     """
-    # Split the upload into its heavy CPU half and its BLE-I/O half. The CPU
-    # work (rotate + fit + dither + encode + zlib on a full frame) is offloaded
-    # to an executor thread so it never blocks the event loop; only the BLE
-    # transfer runs on the loop. This mirrors what device.upload_image() does
-    # internally, but that call ran _prepare_image synchronously on the loop.
-    config = entry.runtime_data.device_config
-    display_cfg = config.displays[0] if config and config.displays else None
-    # Match upload_image(): only ask prepare_image() to build compressed data
-    # when the panel accepts compressed uploads (plain ZIP bit or the
-    # streaming-decompression bit). upload_prepared_image() then falls back to
-    # the uncompressed protocol when compressed_data is None.
-    supports_compression = (
-        (display_cfg.supports_zip or display_cfg.supports_streaming_decompression)
-        if display_cfg
-        else True
-    )
-    prepared = await hass.async_add_executor_job(
-        functools.partial(
-            prepare_image,
-            img,
-            config=config,
-            dither_mode=dither_mode,
-            compress=supports_compression,
-            tone=tone,
-            fit=fit,
-            rotate=rotate,
-            use_measured_palettes=use_measured_palettes,
-        )
+    prepared = await _prepare_for_device(
+        hass,
+        entry,
+        img,
+        dither_mode=dither_mode,
+        fit=fit,
+        tone=tone,
+        rotate=rotate,
+        use_measured_palettes=use_measured_palettes,
     )
 
     # Partial refreshes diff against the entry's tracked frame; full/fast
@@ -1181,17 +1220,47 @@ async def _drawcustom_for_device(
         font_dirs=await hass.async_add_executor_job(_font_search_dirs, hass),
     )
 
-    if call.data["dry-run"]:
-        _LOGGER.info("Drawcustom dry run for device %s", device_id)
-        jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)
-        async_dispatcher_send(hass, f"{SIGNAL_IMAGE_UPDATED}_{entry.unique_id}", jpeg)
-        return DeliveryReceipt(status="dry_run", expires_at=None)
-
     dither_mode: DitherMode = call.data["dither"]
-    refresh_mode: RefreshMode = call.data["refresh_type"]
     tone_compression, use_measured_palettes = tone_and_measured_palettes_from_call_data(
         call.data
     )
+
+    if call.data["dry-run"]:
+        # "Dry run should be honest of course, otherwise it won't be a dry
+        # run" (maintainer ruling). It therefore prepares the frame exactly
+        # as the send below would -- same rotate, same dither, same tone and
+        # measured-palette derivation, same device config, through the one
+        # shared `_prepare_for_device` -- and publishes THAT buffer. It used
+        # to publish `img`, the pre-rotation, un-dithered logical surface: a
+        # picture of something no panel would ever be given, identical for
+        # two opposite orientations, and blind to `dither` entirely.
+        #
+        # What it deliberately does NOT do is anything a real send does
+        # beyond preparation: no upload, no queue entry, no partial-state
+        # reset, no receipt but `dry_run`. Preparation is pure CPU and
+        # touches neither the device nor the entry's delivery state.
+        #
+        # A preparation failure is left to propagate, and that is the point:
+        # if `prepare_image` cannot build a buffer for this device, the real
+        # send would fail the same way, so reporting it is the honest answer
+        # and the caller learns it without sending. Swallowing it to keep
+        # the old "dry runs always succeed" behavior would mean previewing a
+        # frame that could never be delivered.
+        _LOGGER.info("Drawcustom dry run for device %s", device_id)
+        prepared = await _prepare_for_device(
+            hass,
+            entry,
+            img,
+            dither_mode=dither_mode,
+            tone=tone_compression,
+            rotate=Rotation(rotate),
+            use_measured_palettes=use_measured_palettes,
+        )
+        jpeg = await hass.async_add_executor_job(_pil_to_jpeg, prepared[2])
+        async_dispatcher_send(hass, f"{SIGNAL_IMAGE_UPDATED}_{entry.unique_id}", jpeg)
+        return DeliveryReceipt(status="dry_run", expires_at=None)
+
+    refresh_mode: RefreshMode = call.data["refresh_type"]
 
     return await _async_send_image(
         hass,

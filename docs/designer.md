@@ -348,9 +348,10 @@ side), which is the point: that picture changes when the orientation
 choice changes, and the canvas does not. Before this, a wrong orientation
 was invisible everywhere in Home Assistant and only discoverable at the
 display. This applies to every `opendisplay.drawcustom` and
-`opendisplay.upload_image` call, not only to designer sends. One exception:
-`dry-run: true` never builds a device buffer, so it still previews the
-pre-rotation canvas.
+`opendisplay.upload_image` call, not only to designer sends — **including
+`dry-run: true`**, which prepares the frame exactly as a real send would
+and previews that, without uploading anything. So a dry run is a safe way
+to check an orientation choice before it reaches the panel.
 
 ## The asset endpoint
 
@@ -499,12 +500,15 @@ own acceptance run rather than riding along with a designer bump.
   need `HostRenderOptions` to grow, which is the rest of
   `odl-drawcustom-designer` issue #105. Until then a user who wants a
   different background or a partial refresh uses the service directly.
-- **The `dry-run` field on `opendisplay.drawcustom` still ignores `dither`**
-  (it always renders the flat, un-dithered image) — an independent,
-  pre-existing gap the render endpoint above does not share (it always
-  dithers with the send path's own tone/measured-palette values — see "The
-  render endpoint" above), noted here rather than silently fixed as part of
-  this work.
+- ~~**The `dry-run` field on `opendisplay.drawcustom` ignores `dither`**~~ —
+  fixed. A dry run now runs the same `_prepare_for_device` call a real send
+  does (same rotate, dither, tone and measured-palette values, same device
+  config) and previews that buffer, so it honours `dither` and shows the
+  orientation the panel would actually get. It still uploads nothing,
+  queues nothing, and returns only a `dry_run` receipt. One consequence
+  worth knowing: if preparation fails for a device, the dry run now
+  reports that failure instead of succeeding — which is the answer a dry
+  run should give, since the real send would fail the same way.
 - **`generate_image` still runs on the event loop**, inside the render
   endpoint exactly like it already does in `_drawcustom_for_device`'s own
   send path. Its *blocking file I/O* no longer does: a `dlimg` element
