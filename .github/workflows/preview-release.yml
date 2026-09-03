@@ -44,10 +44,16 @@ jobs:
           set -euo pipefail
           base_version="$(jq -er .version custom_components/opendisplay/manifest.json)"
           branch="${{ github.ref_name }}"
-          # Zero-padded to 3 digits (maintainer ruling: unpadded numbers sort
-          # wrong in HACS/GitHub UI, e.g. v2.9 read as newer than v2.10; %03d
-          # keeps ordering correct past 99).
-          run_number="$(printf '%03d' "${{ github.run_number }}")"
+          # DO NOT ZERO-PAD THIS. A leading zero makes the prerelease
+          # identifier invalid semver, and Home Assistant then refuses to load
+          # the integration AT ALL: "The custom integration 'opendisplay' does
+          # not have a valid version key (3.0.2-designer-v2.012) in the
+          # manifest file and was blocked from loading." Every service the
+          # integration provides disappears (`opendisplay.drawcustom` not
+          # found) and automations break. Padding was tried to fix UI ordering
+          # (v2.9 reading as newer than v2.10) and reverted for this reason;
+          # the ordering cosmetics are not worth an unloadable integration.
+          run_number="${{ github.run_number }}"
           preview_version="${base_version}-${branch}.${run_number}"
           echo "PREVIEW_VERSION=${preview_version}" >> "$GITHUB_ENV"
           jq --arg v "$preview_version" '.version = $v' \
