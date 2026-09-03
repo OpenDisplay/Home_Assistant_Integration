@@ -74,7 +74,7 @@ from .const import (
     DOMAIN,
     SIGNAL_IMAGE_UPDATED,
 )
-from .delivery import DELIVERY_DEADLINE_S, DeliveryReceipt
+from .delivery import DELIVERY_DEADLINE_S, DeliveryReceipt, display_fingerprint
 from .transport import async_run_with_fallback
 
 ATTR_IMAGE = "image"
@@ -624,6 +624,10 @@ async def _async_send_image(
             use_measured_palettes=use_measured_palettes,
         )
     )
+    # The config `prepared` was built against — compared against the live
+    # device right before sending, since it can drift without a reboot (the
+    # only event that otherwise triggers a resync).
+    fingerprint = display_fingerprint(config)
 
     # Partial refreshes diff against the entry's tracked frame; full/fast
     # refreshes re-baseline the panel, so start a fresh state that this upload
@@ -653,11 +657,50 @@ async def _async_send_image(
             use_measured_palettes=use_measured_palettes,
             preview_jpeg=jpeg,
             device_id=device_id,
+            fingerprint=fingerprint,
         )
 
     async def _upload(device: OpenDisplayDevice) -> None:
+        # Refresh from this live connection (config drift is otherwise only
+        # caught on a device reboot) and, if the device's config no longer
+        # matches what `prepared` was encoded for, re-render against the
+        # live config rather than send a corrupted frame. Unlike the queued
+        # path, the original `img` is still in scope here, so this can be
+        # corrected transparently instead of failing the upload.
+        from . import _refresh_config_from_device
+
+        live_config = await _refresh_config_from_device(hass, entry, device)
+        to_send = prepared
+        if live_config is not None:
+            live_fingerprint = display_fingerprint(live_config)
+            if live_fingerprint != fingerprint:
+                live_display_cfg = live_config.displays[0]
+                live_supports_compression = (
+                    live_display_cfg.supports_zip
+                    or live_display_cfg.supports_streaming_decompression
+                )
+                _LOGGER.warning(
+                    "%s: device config changed since the image was prepared "
+                    "(prepared for %s, now %s); re-rendering before upload",
+                    entry.unique_id,
+                    fingerprint,
+                    live_fingerprint,
+                )
+                to_send = await hass.async_add_executor_job(
+                    functools.partial(
+                        prepare_image,
+                        img,
+                        config=live_config,
+                        dither_mode=dither_mode,
+                        compress=live_supports_compression,
+                        tone=tone,
+                        fit=fit,
+                        rotate=rotate,
+                        use_measured_palettes=use_measured_palettes,
+                    )
+                )
         await device.upload_prepared_image(
-            prepared, refresh_mode=refresh_mode, state=state
+            to_send, refresh_mode=refresh_mode, state=state
         )
 
     # Freshness gate: a probably-asleep tag will not usually answer a live

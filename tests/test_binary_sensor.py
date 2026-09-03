@@ -58,6 +58,7 @@ async def test_update_pending_turns_on_when_content_is_queued(
         use_measured_palettes=False,
         preview_jpeg=b"jpeg",
         device_id=None,
+        fingerprint=MagicMock(),
     )
     await hass.async_block_till_done()
 
@@ -87,6 +88,7 @@ async def test_update_pending_survives_a_dark_device(
         use_measured_palettes=False,
         preview_jpeg=b"jpeg",
         device_id=None,
+        fingerprint=MagicMock(),
     )
     await hass.async_block_till_done()
 

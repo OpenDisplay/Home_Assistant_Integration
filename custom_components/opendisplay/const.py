@@ -90,3 +90,6 @@ CONF_CACHED_STATE = "cached_state"
 # --- Bus events -------------------------------------------------------------
 EVENT_CONTENT_DELIVERED = f"{DOMAIN}_content_delivered"
 EVENT_CONTENT_EXPIRED = f"{DOMAIN}_content_expired"
+# Fired when a queued upload is dropped because the device's live display
+# config no longer matches the config the image was prepared against.
+EVENT_CONTENT_CONFIG_MISMATCH = f"{DOMAIN}_content_config_mismatch"
