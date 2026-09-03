@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# One entry point for this harness -- `dev/ha <subcommand>` (dev-UX
+# consolidation round, maintainer ruling: "typing uv run --group dev ... is
+# bad UX"). Thin dispatcher: run/stop/snapshot/restore/verify exec the
+# existing scripts unchanged (they stay the actual implementation -- this
+# just gives them one shorter, memorable front door); inject/logs/token
+# have no dedicated script of their own and are implemented directly here.
+#
+# See dev/README.md for the full workflow. Every subcommand below still
+# works as its own standalone script too (dev/run.sh, dev/stop.sh, ...) --
+# `dev/ha` is a convenience, not the only way in.
+set -euo pipefail
+
+DEV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  cat <<'EOF'
+Usage: dev/ha <subcommand> [args]
+
+  run                Start the dev HA instance (dev/run.sh).
+  stop               Stop it (dev/stop.sh).
+  inject [--count N] Write N fabricated OpenDisplay config entries
+                     (default 3) into dev/ha-config/.storage. HA must be
+                     stopped first (dev/inject-displays.py enforces this).
+  snapshot           Capture a real device's storage into dev/seed/
+                     (dev/snapshot.sh) -- needs the one-time real-hardware
+                     bootstrap first, see dev/README.md.
+  restore            Inject a dev/seed/ snapshot into a fresh instance
+                     (dev/restore.sh).
+  verify             Run the storage-manipulation fixture self-test
+                     (dev/verify-scripts.sh) -- no HA, no hardware.
+  logs               tail -f the running instance's HA log.
+  token              Print a fresh dev-user access token (minted via the
+                     same login flow dev/internal/onboarding.sh uses), or
+                     the manual recipe if minting fails (HA not up, not
+                     onboarded, or credentials don't match).
+
+Examples:
+  dev/ha run
+  dev/ha inject --count 5
+  dev/ha stop
+  dev/ha token
+EOF
+}
+
+cmd="${1:-}"
+[[ -n "$cmd" ]] && shift || true
+
+case "$cmd" in
+  run)
+    exec "$DEV_DIR/run.sh" "$@"
+    ;;
+  stop)
+    exec "$DEV_DIR/stop.sh" "$@"
+    ;;
+  snapshot)
+    exec "$DEV_DIR/snapshot.sh" "$@"
+    ;;
+  restore)
+    exec "$DEV_DIR/restore.sh" "$@"
+    ;;
+  verify)
+    exec "$DEV_DIR/verify-scripts.sh" "$@"
+    ;;
+  inject)
+    # The user never types uv/--group/the python invocation -- that's the
+    # whole point of this subcommand existing (maintainer: "typing
+    # uv run --group dev ... is bad UX").
+    cd "$DEV_DIR/.."
+    exec uv run --group dev python dev/inject-displays.py "$@"
+    ;;
+  logs)
+    # shellcheck source=dev/internal/lib.sh
+    source "$DEV_DIR/internal/lib.sh"
+    if [[ ! -s "$LOG_FILE" ]]; then
+      echo "dev/ha logs: $LOG_FILE is empty or doesn't exist yet -- has" \
+        "dev/ha run been started at least once?" >&2
+      exit 1
+    fi
+    exec tail -f "$LOG_FILE"
+    ;;
+  token)
+    # shellcheck source=dev/internal/lib.sh
+    source "$DEV_DIR/internal/lib.sh"
+    command -v jq >/dev/null 2>&1 || {
+      echo "ERROR: jq is required (brew install jq)." >&2
+      exit 1
+    }
+    token="$(fetch_dev_access_token)" || token=""
+    if [[ -n "$token" ]]; then
+      printf '%s\n' "$token"
+    else
+      echo "dev/ha token: could not mint a token (is the dev HA instance" \
+        "up and onboarded? dev/ha run first, or the dev user's" \
+        "credentials don't match HA_DEV_USERNAME/HA_DEV_PASSWORD)." >&2
+      echo "Manual recipe instead: log in at $HA_URL, then your own" \
+        "Profile page -> Security tab -> Long-Lived Access Tokens." >&2
+      exit 1
+    fi
+    ;;
+  ""|help|-h|--help)
+    usage
+    ;;
+  *)
+    echo "dev/ha: unknown subcommand '$cmd'" >&2
+    echo >&2
+    usage >&2
+    exit 1
+    ;;
+esac

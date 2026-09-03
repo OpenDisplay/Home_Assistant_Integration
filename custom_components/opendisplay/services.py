@@ -35,6 +35,7 @@ from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.network import get_url
 from homeassistant.helpers.selector import MediaSelector, MediaSelectorConfig
+from homeassistant.helpers.template import Template, TemplateError, is_template_string
 from odl_renderer import generate_image
 from PIL import Image as PILImage, ImageOps
 import voluptuous as vol
@@ -84,6 +85,102 @@ ATTR_REFRESH_MODE = "refresh_mode"
 ATTR_FIT_MODE = "fit_mode"
 ATTR_TONE_COMPRESSION = "tone_compression"
 ATTR_USE_MEASURED_PALETTES = "measured_palette"
+
+
+def tone_and_measured_palettes_from_call_data(
+    call_data: dict[str, Any],
+) -> tuple[float | str, bool]:
+    """Derive prepare_image's tone/use_measured_palettes from a validated call.
+
+    Shared by both service handlers that call prepare_image
+    (_async_upload_image, _drawcustom_for_device) so the one formula lives
+    in one place -- and by the designer render endpoint's own test
+    (tests/test_designer_render.py), which validates a call carrying
+    neither tone_compression nor measured_palette against the real
+    SCHEMA_DRAWCUSTOM and asserts the render endpoint's prepare_image call
+    matches THIS function's output, not a hardcoded literal duplicated
+    independently of it. A future change to either the schema's defaults or
+    this formula moves that test's expectation with it, instead of the test
+    silently drifting from what the send path actually does.
+    """
+    tone_pct: float | None = call_data.get(ATTR_TONE_COMPRESSION)
+    tone: float | str = tone_pct / 100.0 if tone_pct is not None else "auto"
+    use_measured_palettes: bool = call_data[ATTR_USE_MEASURED_PALETTES]
+    return tone, use_measured_palettes
+
+
+def _render_template_node(hass: HomeAssistant, value: Any) -> Any:
+    """Recursively render HA templates in a payload element's field values."""
+    if isinstance(value, str):
+        if is_template_string(value):
+            return Template(value, hass).async_render(parse_result=True)
+        return value
+    if isinstance(value, list):
+        return [_render_template_node(hass, item) for item in value]
+    if isinstance(value, dict):
+        return {key: _render_template_node(hass, item) for key, item in value.items()}
+    return value
+
+
+def render_payload_templates(hass: HomeAssistant, payload: list[Any]) -> list[Any]:
+    """Render Home Assistant templates in every drawcustom payload element.
+
+    docs/drawcustom/supported_types.md documents that "the integration ...
+    additionally expands Home Assistant templates in field values" before
+    odl-renderer sees them -- odl-renderer's own code agrees with that
+    premise (its comments say "Home Assistant templates render to strings"
+    before it's ever called), but no code anywhere in this integration
+    actually did that rendering. (That citation is about what odl-renderer
+    itself assumes its *caller* already resolved a template to, not a claim
+    about this function's own output: ``async_render``'s default
+    ``parse_result=True`` below natively types a simple literal result --
+    e.g. a rendered ``False``/``12`` comes back as a Python ``bool``/``int``,
+    not the string "False"/"12" -- verified safe against every field that
+    matters here, including ``visible``, whose own ``_coerce_visible``
+    (odl-renderer's ``core.py``) explicitly branches on ``bool`` as well as
+    ``str``.) A literal ``{{ ... }}`` string reached
+    odl-renderer's own icon/text lookup unevaluated (tier-1 adversarial
+    review, reproduced live with the designer's Load Demo payload's
+    templated icon field: ``Icon '{{ iif(...) }}' not found``, both via
+    "Send to display" and the designer render endpoint -- neither call site
+    ever rendered templates, so both failed identically).
+
+    Fixed in exactly ONE shared place, called by both
+    ``_drawcustom_for_device`` (the send path) and the designer's render
+    endpoint (``designer/render.py``), so a caller can never observe one
+    behaving differently from the other. Each string field value that
+    contains template syntax (``is_template_string``) is rendered through
+    hass's own ``Template`` helper; everything else passes through
+    unchanged, exactly as if the caller had already resolved it -- odl-
+    renderer explicitly tolerates receiving already-resolved plain strings
+    for numeric fields too (see its own ``coordinates.py`` comment), so no
+    additional type coercion is done here beyond what ``Template.
+    async_render`` already does by default.
+
+    A template that raises (a broken reference -- HA's own template
+    functions like ``is_state_attr``/``is_state`` degrade to a sensible
+    default for a merely-missing entity rather than raising, so this is not
+    the common "state doesn't exist yet" case) becomes a
+    ``ServiceValidationError`` naming the offending element's list index
+    and ``type``, instead of either a silent unevaluated literal reaching
+    odl-renderer (the original bug) or an opaque traceback from inside
+    odl-renderer's own icon/text lookup.
+    """
+    rendered: list[Any] = []
+    for index, element in enumerate(payload):
+        try:
+            rendered.append(_render_template_node(hass, element))
+        except TemplateError as err:
+            element_type = (
+                element.get("type", "?") if isinstance(element, dict) else "?"
+            )
+            raise ServiceValidationError(
+                f"drawcustom payload element {index} (type '{element_type}') has an"
+                f" invalid template: {err}"
+            ) from err
+    return rendered
+
+
 ATTR_RECORD_TYPE = "record_type"
 ATTR_CONTENT = "content"
 ATTR_MIME_TYPE = "mime_type"
@@ -576,6 +673,64 @@ async def _async_connect_and_run(
         ) from err
 
 
+async def _prepare_for_device(
+    hass: HomeAssistant,
+    entry: OpenDisplayConfigEntry,
+    img: PILImage.Image,
+    *,
+    dither_mode: DitherMode,
+    fit: FitMode = FitMode.CONTAIN,
+    tone: float | str = "auto",
+    rotate: Rotation = Rotation.ROTATE_0,
+    use_measured_palettes: bool = False,
+) -> tuple[bytes, bytes | None, PILImage.Image]:
+    """Turn a rendered image into this device's upload buffer, off the loop.
+
+    The single place a frame becomes device-facing: rotate by
+    (base + rotate), fit to the native pixel grid, dither against the
+    panel's palette, encode, and optionally zlib. Returns `prepare_image`'s
+    own `(image_data, compressed_data, processed_image)`.
+
+    Shared by the real send (`_async_send_image`) and by `drawcustom`'s
+    `dry-run`, so a dry run previews the SAME artifact a real send would
+    upload rather than a separate rendering that merely resembles it
+    (maintainer ruling: "dry run should be honest of course, otherwise it
+    won't be a dry run"). Every argument that shapes the buffer is a
+    parameter, and the one that isn't -- compression -- is derived from the
+    device here, so neither caller can drift from the other by passing
+    something different.
+
+    The heavy CPU work (rotate + fit + dither + encode + zlib on a full
+    frame) runs in an executor thread so it never blocks the event loop.
+    This mirrors what `device.upload_image()` does internally, but that call
+    ran `_prepare_image` synchronously on the loop.
+    """
+    config = entry.runtime_data.device_config
+    display_cfg = config.displays[0] if config and config.displays else None
+    # Match upload_image(): only ask prepare_image() to build compressed data
+    # when the panel accepts compressed uploads (plain ZIP bit or the
+    # streaming-decompression bit). upload_prepared_image() then falls back to
+    # the uncompressed protocol when compressed_data is None.
+    supports_compression = (
+        (display_cfg.supports_zip or display_cfg.supports_streaming_decompression)
+        if display_cfg
+        else True
+    )
+    return await hass.async_add_executor_job(
+        functools.partial(
+            prepare_image,
+            img,
+            config=config,
+            dither_mode=dither_mode,
+            compress=supports_compression,
+            tone=tone,
+            fit=fit,
+            rotate=rotate,
+            use_measured_palettes=use_measured_palettes,
+        )
+    )
+
+
 async def _async_send_image(
     hass: HomeAssistant,
     entry: OpenDisplayConfigEntry,
@@ -595,34 +750,15 @@ async def _async_send_image(
     queued (for a sleeping device). Non-sleepy devices always deliver live and
     keep the original strict-failure behavior.
     """
-    # Split the upload into its heavy CPU half and its BLE-I/O half. The CPU
-    # work (rotate + fit + dither + encode + zlib on a full frame) is offloaded
-    # to an executor thread so it never blocks the event loop; only the BLE
-    # transfer runs on the loop. This mirrors what device.upload_image() does
-    # internally, but that call ran _prepare_image synchronously on the loop.
-    config = entry.runtime_data.device_config
-    display_cfg = config.displays[0] if config and config.displays else None
-    # Match upload_image(): only ask prepare_image() to build compressed data
-    # when the panel accepts compressed uploads (plain ZIP bit or the
-    # streaming-decompression bit). upload_prepared_image() then falls back to
-    # the uncompressed protocol when compressed_data is None.
-    supports_compression = (
-        (display_cfg.supports_zip or display_cfg.supports_streaming_decompression)
-        if display_cfg
-        else True
-    )
-    prepared = await hass.async_add_executor_job(
-        functools.partial(
-            prepare_image,
-            img,
-            config=config,
-            dither_mode=dither_mode,
-            compress=supports_compression,
-            tone=tone,
-            fit=fit,
-            rotate=rotate,
-            use_measured_palettes=use_measured_palettes,
-        )
+    prepared = await _prepare_for_device(
+        hass,
+        entry,
+        img,
+        dither_mode=dither_mode,
+        fit=fit,
+        tone=tone,
+        rotate=rotate,
+        use_measured_palettes=use_measured_palettes,
     )
 
     # Partial refreshes diff against the entry's tracked frame; full/fast
@@ -638,7 +774,24 @@ async def _async_send_image(
 
     # The preview JPEG is built up-front so a queued frame can be shown on the
     # image entity immediately (D6), not only after a successful delivery.
-    jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)
+    #
+    # Built from `prepared[2]` -- the POST-rotation, post-fit, post-dither
+    # buffer that is actually uploaded -- and NOT from `img`, the
+    # pre-rotation logical surface it was rendered from (tier-2 round 3,
+    # real hardware). The surface is identical for two opposite
+    # orientations (90 and 270 differ only in which way the panel is turned
+    # onto it), so a preview built from it looked perfect for BOTH while
+    # exactly one of them was upside down on the wall -- the maintainer's
+    # own report, and a feedback gap only a walk to the display could
+    # close. `tests/test_rotation_parity.py` pins both halves: what each
+    # orientation puts in the uploaded buffer, and that this preview is
+    # that buffer.
+    #
+    # Deliberately NOT the designer's own preview endpoint
+    # (`designer/render.py`), which returns the logical surface because the
+    # designer's canvas IS that surface. Different artifact, different
+    # audience, unchanged.
+    jpeg = await hass.async_add_executor_job(_pil_to_jpeg, prepared[2])
 
     profile = runtime.sleep_profile
     manager = runtime.delivery
@@ -733,11 +886,9 @@ async def _async_upload_image(call: ServiceCall) -> ServiceResponse:
     dither_mode: DitherMode = call.data[ATTR_DITHER_MODE]
     refresh_mode: RefreshMode = call.data[ATTR_REFRESH_MODE]
     fit_mode: FitMode = call.data[ATTR_FIT_MODE]
-    tone_compression_pct: float | None = call.data.get(ATTR_TONE_COMPRESSION)
-    tone_compression: float | str = (
-        tone_compression_pct / 100.0 if tone_compression_pct is not None else "auto"
+    tone_compression, use_measured_palettes = tone_and_measured_palettes_from_call_data(
+        call.data
     )
-    use_measured_palettes: bool = call.data[ATTR_USE_MEASURED_PALETTES]
 
     # A plain URL (e.g. an automation pushing a rendered snapshot) must be
     # explicitly allowlisted; media-source items are already trusted.
@@ -965,6 +1116,75 @@ def _font_search_dirs(hass: HomeAssistant) -> list[str]:
     return [p for p in candidates if os.path.isdir(p)]
 
 
+def _decode_local_image_sources(elements: list[Any]) -> list[Any]:
+    """Return `elements` with local-file image sources decoded to PIL images.
+
+    Runs in an executor -- see `preload_local_image_sources` for why.
+    """
+    decoded: list[Any] = []
+    for element in elements:
+        source = element.get("url") if isinstance(element, dict) else None
+        # `dlimg` is the only element type that loads an image
+        # (`odl_renderer.elements.media`), and `load_image`'s own ordering is
+        # HTTP(S) first, then `data:`, then a leading `/` for a local file --
+        # only the last of those opens a file.
+        if (
+            not isinstance(element, dict)
+            or element.get("type") != "dlimg"
+            or not isinstance(source, str)
+            or not source.startswith("/")
+        ):
+            decoded.append(element)
+            continue
+        try:
+            image = PILImage.open(source)
+            image.load()
+        except Exception:
+            # Transparent on failure: leave the element exactly as it was so
+            # `load_image` raises its own error, with its own message, at the
+            # point it always did. This preload changes WHERE the file is
+            # read, never WHETHER it is or what happens when it can't be.
+            decoded.append(element)
+            continue
+        decoded.append({**element, "url": image})
+    return decoded
+
+
+async def preload_local_image_sources(
+    hass: HomeAssistant, elements: list[Any]
+) -> list[Any]:
+    """Decode a payload's local image files off the event loop.
+
+    `generate_image` is a coroutine awaited on the loop, but a `dlimg`
+    element whose `url` is a local absolute path reaches
+    `odl_renderer.media_loader._load_from_file`, which calls
+    `PIL.Image.open` directly -- a blocking `open()` inside the event loop.
+    Home Assistant's own detector reports it (verbatim, from real hardware:
+    "Detected blocking call to open with args ('/media/pohl89-480h.png',
+    'rb') inside the event loop by custom integration 'opendisplay'"), and
+    https://developers.home-assistant.io/docs/asyncio_blocking_operations/
+    says to move that work to an executor.
+
+    `load_image` returns a `PIL.Image.Image` source AS-IS, so decoding here
+    -- in an executor -- removes the file I/O from the loop without
+    changing which file is read, how it is read, or what the renderer then
+    does with it. Deliberately NOT restricted to any permitted root: this
+    is the send/render pipeline's own resolution, and narrowing it would
+    change what a working payload renders. (The designer's asset endpoint,
+    which hands bytes to a browser, is the thing that needs a root policy;
+    see `designer/asset.py`.)
+
+    Remote (`http(s)://`) and `data:` sources are left alone: the first is
+    already fetched asynchronously through the shared session, the second
+    never touches the filesystem.
+
+    Called by both `generate_image` call sites -- the send path
+    (`_drawcustom_for_device`) and the designer's render endpoint -- so
+    neither can regain the violation while the other is fixed.
+    """
+    return await hass.async_add_executor_job(_decode_local_image_sources, elements)
+
+
 async def _drawcustom_for_device(
     hass: HomeAssistant, device_id: str, call: ServiceCall
 ) -> DeliveryReceipt:
@@ -990,7 +1210,9 @@ async def _drawcustom_for_device(
     img = await generate_image(
         width=gen_width,
         height=gen_height,
-        elements=call.data["payload"],
+        elements=await preload_local_image_sources(
+            hass, render_payload_templates(hass, call.data["payload"])
+        ),
         background=call.data["background"],
         accent_color=color_scheme.accent_color,
         session=async_get_clientsession(hass),
@@ -998,19 +1220,47 @@ async def _drawcustom_for_device(
         font_dirs=await hass.async_add_executor_job(_font_search_dirs, hass),
     )
 
+    dither_mode: DitherMode = call.data["dither"]
+    tone_compression, use_measured_palettes = tone_and_measured_palettes_from_call_data(
+        call.data
+    )
+
     if call.data["dry-run"]:
+        # "Dry run should be honest of course, otherwise it won't be a dry
+        # run" (maintainer ruling). It therefore prepares the frame exactly
+        # as the send below would -- same rotate, same dither, same tone and
+        # measured-palette derivation, same device config, through the one
+        # shared `_prepare_for_device` -- and publishes THAT buffer. It used
+        # to publish `img`, the pre-rotation, un-dithered logical surface: a
+        # picture of something no panel would ever be given, identical for
+        # two opposite orientations, and blind to `dither` entirely.
+        #
+        # What it deliberately does NOT do is anything a real send does
+        # beyond preparation: no upload, no queue entry, no partial-state
+        # reset, no receipt but `dry_run`. Preparation is pure CPU and
+        # touches neither the device nor the entry's delivery state.
+        #
+        # A preparation failure is left to propagate, and that is the point:
+        # if `prepare_image` cannot build a buffer for this device, the real
+        # send would fail the same way, so reporting it is the honest answer
+        # and the caller learns it without sending. Swallowing it to keep
+        # the old "dry runs always succeed" behavior would mean previewing a
+        # frame that could never be delivered.
         _LOGGER.info("Drawcustom dry run for device %s", device_id)
-        jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)
+        prepared = await _prepare_for_device(
+            hass,
+            entry,
+            img,
+            dither_mode=dither_mode,
+            tone=tone_compression,
+            rotate=Rotation(rotate),
+            use_measured_palettes=use_measured_palettes,
+        )
+        jpeg = await hass.async_add_executor_job(_pil_to_jpeg, prepared[2])
         async_dispatcher_send(hass, f"{SIGNAL_IMAGE_UPDATED}_{entry.unique_id}", jpeg)
         return DeliveryReceipt(status="dry_run", expires_at=None)
 
-    dither_mode: DitherMode = call.data["dither"]
     refresh_mode: RefreshMode = call.data["refresh_type"]
-    tone_compression_pct: float | None = call.data.get(ATTR_TONE_COMPRESSION)
-    tone_compression: float | str = (
-        tone_compression_pct / 100.0 if tone_compression_pct is not None else "auto"
-    )
-    use_measured_palettes: bool = call.data[ATTR_USE_MEASURED_PALETTES]
 
     return await _async_send_image(
         hass,

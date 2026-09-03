@@ -26,7 +26,7 @@ import sys
 import zipfile
 
 # Mirrors custom_components/opendisplay/manifest.json "dependencies".
-ROOTS = ["bluetooth_adapters", "http", "recorder"]
+ROOTS = ["bluetooth_adapters", "frontend", "http", "panel_custom", "recorder"]
 
 
 def _collect(read_manifest) -> tuple[set[str], dict[str, str]]:

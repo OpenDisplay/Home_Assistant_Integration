@@ -1434,6 +1434,15 @@ wheels = [
 ]
 
 [[package]]
+name = "home-assistant-frontend"
+version = "20260826.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7b/86/3252f135ef6bcae0c04c6054570a5725373b7526070a5942f8134c4e2905/home_assistant_frontend-20260826.1.tar.gz", hash = "sha256:f3a20fde404ed1eb152aafa89063756a3613a77478be3de0f5d076a67bd50972", size = 129354138, upload-time = "2026-08-27T15:20:27.895Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/93/aa/f099ff5637feb35336d1ca84f2c2cc7054734943f2cee55b3e1aa624e785/home_assistant_frontend-20260826.1-py3-none-any.whl", hash = "sha256:441f9bd9d4ba50ebf1576d2ec261fac64c41e1349b98a4c76434032136885d40", size = 129428234, upload-time = "2026-08-27T15:20:22.398Z" },
+]
+
+[[package]]
 name = "homeassistant"
 version = "2026.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1893,6 +1902,7 @@ dependencies = [
 dev = [
     { name = "aiousbwatcher" },
     { name = "dbus-fast" },
+    { name = "home-assistant-frontend" },
     { name = "mypy" },
     { name = "pytest-homeassistant-custom-component", version = "0.13.361", source = { registry = "https://pypi.org/simple" } },
     { name = "ruff" },
@@ -1902,6 +1912,7 @@ min-ha = [
     { name = "aioesphomeapi" },
     { name = "aiousbwatcher" },
     { name = "dbus-fast" },
+    { name = "home-assistant-frontend" },
     { name = "mypy" },
     { name = "pytest-homeassistant-custom-component", version = "0.13.344", source = { registry = "https://pypi.org/simple" } },
     { name = "ruff" },
@@ -1918,6 +1929,7 @@ requires-dist = [
 dev = [
     { name = "aiousbwatcher" },
     { name = "dbus-fast" },
+    { name = "home-assistant-frontend" },
     { name = "mypy", specifier = "==1.18.2" },
     { name = "pytest-homeassistant-custom-component", specifier = "==0.13.361" },
     { name = "ruff", specifier = "==0.15.17" },
@@ -1927,6 +1939,7 @@ min-ha = [
     { name = "aioesphomeapi" },
     { name = "aiousbwatcher" },
     { name = "dbus-fast" },
+    { name = "home-assistant-frontend" },
     { name = "mypy", specifier = "==1.18.2" },
     { name = "pytest-homeassistant-custom-component", specifier = "==0.13.344" },
     { name = "ruff", specifier = "==0.15.17" },
