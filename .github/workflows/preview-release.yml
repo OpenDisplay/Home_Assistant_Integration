@@ -44,17 +44,22 @@ jobs:
           set -euo pipefail
           base_version="$(jq -er .version custom_components/opendisplay/manifest.json)"
           branch="${{ github.ref_name }}"
-          # DO NOT ZERO-PAD THIS. A leading zero makes the prerelease
-          # identifier invalid semver, and Home Assistant then refuses to load
-          # the integration AT ALL: "The custom integration 'opendisplay' does
-          # not have a valid version key (3.0.2-designer-v2.012) in the
-          # manifest file and was blocked from loading." Every service the
-          # integration provides disappears (`opendisplay.drawcustom` not
-          # found) and automations break. Padding was tried to fix UI ordering
-          # (v2.9 reading as newer than v2.10) and reverted for this reason;
-          # the ordering cosmetics are not worth an unloadable integration.
           run_number="${{ github.run_number }}"
-          preview_version="${base_version}-${branch}.${run_number}"
+          # Composition lives in scripts/preview_version.py (regression-
+          # tested against Home Assistant's own AwesomeVersion loader check
+          # in tests/test_preview_version.py) -- not reimplemented here, so
+          # the tested procedure IS the shipped procedure. DO NOT zero-pad
+          # run_number before passing it in: a leading zero makes the
+          # prerelease identifier invalid semver, and Home Assistant then
+          # refuses to load the integration AT ALL: "The custom integration
+          # 'opendisplay' does not have a valid version key
+          # (3.0.2-designer-v2.012) in the manifest file and was blocked
+          # from loading." Every service the integration provides
+          # disappears (`opendisplay.drawcustom` not found) and automations
+          # break. Padding was tried to fix UI ordering (v2.9 reading as
+          # newer than v2.10) and reverted for this reason; the ordering
+          # cosmetics are not worth an unloadable integration.
+          preview_version="$(python3 scripts/preview_version.py "$base_version" "$branch" "$run_number")"
           echo "PREVIEW_VERSION=${preview_version}" >> "$GITHUB_ENV"
           jq --arg v "$preview_version" '.version = $v' \
             custom_components/opendisplay/manifest.json > /tmp/manifest.json
