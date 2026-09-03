@@ -1,67 +1,134 @@
 name: Preview Release
 
-# Fork-only automation (maintainer-approved, dev-UX round): cuts a HACS-
-# installable preview build on every push to a `designer-*` branch, so a
-# gated push is immediately pickable by HACS for manual testing, without
+# Fork-only automation: cuts a HACS-installable preview build on every push
+# to any branch in a fork (other than the fork's own default branch), so a
+# pushed branch is immediately pickable by HACS for manual testing without
 # waiting for the real release-please.yml flow (which only fires on `main`
-# pushes -- see that workflow's own `on:` block -- and only after this PR
-# actually merges). Trigger isolation from release-please.yml is by
-# construction, not just guarded: that workflow listens for `main`, this
-# one listens for `designer-*`; the two `on:` blocks don't overlap, so
-# there's nothing to race regardless of the repository guard below.
+# pushes -- see that workflow's own `on:` block -- and only after a PR
+# actually merges upstream).
 #
-# The `github.repository` guard is what stops this from ever firing again
-# once this PR's branch merges upstream and `main` picks up this file: a
-# `designer-*` branch could plausibly exist in the upstream repo too
-# (nothing about the branch NAME is fork-specific), so the guard checks
-# the repository itself, not just the branch pattern.
+# Generalized (2026-09-03, round 2) from a version hard-gated to one fork's
+# `owner/repo` and one branch prefix (`designer-*`) to something every fork
+# gets automatically, no per-fork edits:
+#
+# - `github.event.repository.fork` is the generic "is this a fork, not the
+#   upstream repo" discriminator -- true for every fork, false for
+#   upstream, so releases here never collide with upstream's real
+#   release-please releases or spam its release list. Verified available on
+#   a real push-event payload for this repository, not assumed: `gh api
+#   repos/<owner>/<repo> --jq '{fork, default_branch}'` against this very
+#   repo returns `{"default_branch":"main","fork":true}` -- Actions'
+#   `github.event.repository` is a deserialization of that same GitHub
+#   "repository" object (identical shape whether returned by the REST API
+#   or embedded in a webhook payload; see
+#   https://docs.github.com/en/webhooks/webhook-events-and-payloads#push),
+#   so both fields are present on the real event this job runs from. This
+#   push itself is further, live confirmation: the job only runs at all if
+#   `github.event.repository.fork` was truthy on the actual payload.
+# - `github.event.repository.default_branch` (not a hardcoded `main`)
+#   excludes the fork's own default branch, which tracks upstream --
+#   syncing it must never cut a preview. Both checks are job-level `if:`
+#   conditions, not `on.push` filters: `branches:` glob patterns are
+#   static and can't reference `default_branch`, which differs per fork.
+# - `branches: ['**']` (any branch, still excludes tag pushes) replaces the
+#   old `designer-*`-only filter -- every branch in a fork gets a preview
+#   build, not just ones with a specific prefix; that was this workflow's
+#   whole reason to be forked-only in the first place.
+#
+# A branch name is otherwise unconstrained free text (slashes, dots,
+# uppercase, leading digits, ...) and gets embedded in a semver prerelease
+# identifier below -- scripts/preview_version.py's
+# `sanitize_branch_for_version` maps ANY branch name onto something Home
+# Assistant's own version check accepts (tested in
+# tests/test_preview_version.py against every shape a contributor could
+# actually push), rather than narrowing the trigger to branch patterns that
+# happen to already be safe.
 on:
   push:
     branches:
-      - 'designer-*'
+      - '**'
 
 jobs:
   preview-release:
-    if: github.repository == 'schlomo/OD_Home_Assistant_Integration'
+    if: >-
+      github.event.repository.fork &&
+      github.ref_name != github.event.repository.default_branch
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
 
-      # Compute the preview version and tag first (Version already known
-      # before the zip step needs it) -- then stamp manifest.json with the
-      # preview version IN THIS CHECKOUT ONLY, never committed/pushed: the
-      # runner's checkout is thrown away after the job, so this edit never
-      # reaches git. Without it, HA's integration card shows the last
+      # Compute the preview version/name and stamp manifest.json IN THIS
+      # CHECKOUT ONLY, never committed/pushed: the runner's checkout is
+      # thrown away after the job, so these edits never reach git.
+      #
+      # `version`: without it, HA's integration card shows the last
       # released "Version 3.0.2" for every preview install, indistinguishable
       # from the real release (maintainer tier-2 finding) -- patching it
       # makes the HA UI and logs identify the exact preview build.
-      # Fails loudly (`jq -e`, unset -u) if .version is ever missing/renamed
-      # rather than silently zipping an unpatched manifest.
-      - name: Compute preview version and stamp manifest
+      #
+      # `name`: a fork's build otherwise looks identical to every other
+      # fork's and to upstream's -- "OpenDisplay" -- everywhere Home
+      # Assistant shows it (Devices & Services, the integration detail
+      # page, log lines), because that string comes from THIS SAME
+      # manifest.json, baked into the installed zip below. Appending
+      # `(fork: <owner>/<repo>)` from `github.repository` makes a fork
+      # self-identifying with no hand-edited GitHub repo description (the
+      # previous, per-fork-manual approach). This deliberately does NOT
+      # touch `hacs.json` or `manifest.json`'s `domain`:
+      #   - `domain` must stay `opendisplay` so a fork still replaces the
+      #     stock integration rather than installing alongside it.
+      #   - hacs.json's list-card name/description in the HACS UI are read
+      #     LIVE from the repository's git tree (hacs.json's own "name" key
+      #     if set, else this same manifest's "name" -- both via GitHub's
+      #     API at whatever ref HACS resolves) -- never from a release
+      #     ZIP asset, and hacs.json isn't even packaged into the zip
+      #     (zip step below only touches custom_components/opendisplay/,
+      #     hacs.json lives at repo root). A checkout-only stamp in a job
+      #     that never commits cannot reach either of those, regardless of
+      #     which ref HACS reads -- confirmed against HACS's own source
+      #     (hacs/integration, `repositories/base.py`: `display_name`
+      #     returns `repository_manifest.name` -- i.e. hacs.json's tracked
+      #     "name" -- unconditionally if set, before ever looking at any
+      #     manifest; `description` is a separate field populated from the
+      #     GitHub repository object, not from any file in the repo at
+      #     all). What DOES reach the user unconditionally: Home
+      #     Assistant's own UI, which reads the manifest baked into the
+      #     zip HACS actually downloads and installs -- the same mechanism
+      #     already proven by the version stamp above.
+      #
+      # Both compositions live in scripts/preview_version.py (regression-
+      # tested against Home Assistant's own AwesomeVersion loader check in
+      # tests/test_preview_version.py) -- not reimplemented here, so the
+      # tested procedure IS the shipped procedure. DO NOT zero-pad
+      # run_number, and do NOT embed a raw, unsanitized branch name: a
+      # leading zero, or a branch containing "/" or a dozen other
+      # characters, makes the prerelease identifier invalid semver, and
+      # Home Assistant then refuses to load the integration AT ALL: "The
+      # custom integration 'opendisplay' does not have a valid version key
+      # (3.0.2-designer-v2.012) in the manifest file and was blocked from
+      # loading." Every service the integration provides disappears
+      # (`opendisplay.drawcustom` not found) and automations break.
+      # Padding was tried once to fix UI ordering (v2.9 reading as newer
+      # than v2.10) and reverted for this reason; the ordering cosmetics
+      # are not worth an unloadable integration.
+      #
+      # Fails loudly (`jq -e`, unset -u) if .version/.name are ever
+      # missing/renamed rather than silently zipping an unpatched manifest.
+      - name: Compute preview metadata and stamp manifest
         run: |
           set -euo pipefail
           base_version="$(jq -er .version custom_components/opendisplay/manifest.json)"
+          base_name="$(jq -er .name custom_components/opendisplay/manifest.json)"
           branch="${{ github.ref_name }}"
           run_number="${{ github.run_number }}"
-          # Composition lives in scripts/preview_version.py (regression-
-          # tested against Home Assistant's own AwesomeVersion loader check
-          # in tests/test_preview_version.py) -- not reimplemented here, so
-          # the tested procedure IS the shipped procedure. DO NOT zero-pad
-          # run_number before passing it in: a leading zero makes the
-          # prerelease identifier invalid semver, and Home Assistant then
-          # refuses to load the integration AT ALL: "The custom integration
-          # 'opendisplay' does not have a valid version key
-          # (3.0.2-designer-v2.012) in the manifest file and was blocked
-          # from loading." Every service the integration provides
-          # disappears (`opendisplay.drawcustom` not found) and automations
-          # break. Padding was tried to fix UI ordering (v2.9 reading as
-          # newer than v2.10) and reverted for this reason; the ordering
-          # cosmetics are not worth an unloadable integration.
-          preview_version="$(python3 scripts/preview_version.py "$base_version" "$branch" "$run_number")"
+          repository="${{ github.repository }}"
+          preview_version="$(python3 scripts/preview_version.py version "$base_version" "$branch" "$run_number")"
+          preview_name="$(python3 scripts/preview_version.py name "$base_name" "$repository")"
           echo "PREVIEW_VERSION=${preview_version}" >> "$GITHUB_ENV"
-          jq --arg v "$preview_version" '.version = $v' \
+          jq --arg v "$preview_version" --arg n "$preview_name" \
+            '.version = $v | .name = $n' \
             custom_components/opendisplay/manifest.json > /tmp/manifest.json
           mv /tmp/manifest.json custom_components/opendisplay/manifest.json
 
@@ -76,14 +143,18 @@ jobs:
 
       # Tag reuses PREVIEW_VERSION computed above (base manifest version --
       # not bumped, this is a preview of unreleased work, not a
-      # release-please release -- plus the pushed branch name and this
-      # workflow's own run number), so pushes to different designer-*
-      # branches -- or repeated pushes to the same one -- never collide on a
-      # tag. Matches the maintainer's own manual precedent
-      # (v3.0.2-designer.1, cut by hand from 74a8e9d) in shape, not
-      # literally: that one used a shortened branch label by hand, this uses
-      # the real branch name so a future designer-v3 branch's tags can't
-      # collide with this branch's.
+      # release-please release -- plus the sanitized branch name and this
+      # workflow's own run number), so pushes to different branches -- or
+      # repeated pushes to the same one -- never collide on a tag, and the
+      # tag itself is always a legal git ref name (sanitize_branch_for_version
+      # restricts the branch component to `[0-9A-Za-z-]`, a strict subset of
+      # legal tag characters -- see tests/test_preview_version.py's
+      # `assert_valid_git_tag`, which checks every test-matrix case with
+      # `git check-ref-format` itself). Matches the maintainer's own manual
+      # precedent (v3.0.2-designer.1, cut by hand from 74a8e9d) in shape,
+      # not literally: that one used a shortened branch label by hand, this
+      # uses the real (sanitized) branch name so two different branches'
+      # tags can't collide.
       - name: Create preview release
         env:
           GH_TOKEN: ${{ github.token }}

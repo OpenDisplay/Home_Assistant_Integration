@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import subprocess
 
 from awesomeversion import (
     AwesomeVersion,
@@ -93,6 +94,23 @@ def assert_ha_loadable(version: str) -> None:
     check, called the same way it calls it.
     """
     AwesomeVersion(version, ensure_strategy=_HA_STRATEGIES)
+
+
+def assert_valid_git_tag(tag: str) -> None:
+    """Assert `tag` is a legal git ref name -- via git's own validator, not eyeballing.
+
+    The release step creates a tag from the composed version
+    (`v${PREVIEW_VERSION}`); a name git rejects (contains "..", ends with
+    ".lock", etc.) would fail the release step rather than the install.
+    """
+    result = subprocess.run(
+        ["git", "check-ref-format", f"refs/tags/{tag}"],
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"{tag!r} is not a valid git tag: {result.stderr.decode()}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -136,20 +154,117 @@ def test_compose_preview_version_matches_incident_report():
         assert_ha_loadable(version)
 
 
-def test_branch_name_with_a_slash_is_not_ha_loadable_but_is_unreachable():
-    """Document a second, DIFFERENT invalid-version shape -- not this incident.
+# --- Branch-name sanitization (2026-09-03 round 2: the trigger now fires on
+# ANY branch in a fork, not just `designer-*`) ------------------------------
+#
+# RED-FIRST: before `sanitize_branch_for_version` existed, this exact
+# assertion --
+#
+#     version = preview_version.compose_preview_version("3.0.2", "feat/foo", "7")
+#     assert_ha_loadable(version)
+#
+# -- failed with:
+#
+#     awesomeversion.exceptions.AwesomeVersionStrategyException: Strategy
+#     unknown does not match ['CalVer', 'SemVer', 'SimpleVer', 'BuildVer',
+#     'PEP 440'] for 3.0.2-feat/foo.7
+#
+# i.e. an unsanitized "/" reproduces the exact incident class (HA blocks
+# the whole manifest, every service disappears) via a different route than
+# the zero-padded run number. `sanitize_branch_for_version` closes that gap;
+# the parametrized test below is what turned that failure green.
+@pytest.mark.parametrize(
+    ("branch", "expected_token"),
+    [
+        ("designer-v2", "designer-v2"),  # unchanged -- keeps this push's own numbering
+        ("feat/foo", "feat-foo"),  # the incident-reproducing case: a single slash
+        ("fix/bar/baz", "fix-bar-baz"),  # multiple slashes
+        ("feature_underscores", "feature-underscores"),
+        ("MixedCase", "MixedCase"),  # semver identifiers allow uppercase -- left alone
+        ("dots.in.name", "dots-in-name"),
+        ("2fast", "b2fast"),  # leading digit
+        ("007", "b007"),  # purely digits, leading zero -- the leading-zero trap again
+        (
+            "42",
+            "b42",
+        ),  # purely digits, no leading zero -- still prefixed for uniformity
+        ("--weird--", "weird"),  # leading/trailing hyphen runs stripped
+        ("foo-", "foo"),  # single trailing hyphen
+        ("-foo", "foo"),  # single leading hyphen
+        ("///", "branch"),  # sanitizes to nothing -- separators only
+        ("...", "branch"),
+        ("___", "branch"),
+        ("", "branch"),  # pathological empty input
+        ("a" * 200, "a" * preview_version.MAX_BRANCH_TOKEN_LENGTH),  # length cap
+        (
+            "1" + "a" * 45,
+            "b" + ("1" + "a" * 45)[: preview_version.MAX_BRANCH_TOKEN_LENGTH - 1],
+        ),  # leading digit AND over length
+    ],
+)
+def test_sanitize_branch_for_version(branch, expected_token):
+    """The sanitizer's exact output for every case in the test matrix."""
+    assert preview_version.sanitize_branch_for_version(branch) == expected_token
 
-    A branch containing "/" (e.g. "feature/designer-v2") also composes a
-    version HA's loader rejects (the "/" is not a valid semver build/
-    prerelease character). Unlike the zero-padding bug this is NOT
-    currently reachable: `preview-release.yml`'s trigger is
-    `branches: ['designer-*']`, and GitHub's branch-filter glob does not
-    match `/` with `*`, so `github.ref_name` can never contain one here.
-    Recorded so a future change to the trigger (e.g. widening it) doesn't
-    silently reintroduce an unloadable-manifest bug of this same shape.
+
+@pytest.mark.parametrize(
+    ("base_version", "branch", "run_number"),
+    [
+        ("3.0.2", "designer-v2", "14"),
+        ("3.0.2", "feat/foo", "7"),
+        ("3.0.2", "fix/bar/baz", "7"),
+        ("3.0.2", "feature_underscores", "7"),
+        ("3.0.2", "MixedCase", "7"),
+        ("3.0.2", "dots.in.name", "7"),
+        ("3.0.2", "2fast", "7"),
+        ("3.0.2", "007", "7"),
+        ("3.0.2", "--weird--", "7"),
+        ("3.0.2", "foo-", "7"),
+        ("3.0.2", "///", "7"),
+        ("3.0.2", "...", "7"),
+        ("3.0.2", "", "7"),
+        ("3.0.2", "a" * 200, "7"),
+        ("3.0.2", "1" + "a" * 45, "7"),
+    ],
+)
+def test_compose_preview_version_sanitizes_unsafe_branch_names(
+    base_version, branch, run_number
+):
+    """Every branch a person can actually push composes an HA-loadable version."""
+    version = preview_version.compose_preview_version(base_version, branch, run_number)
+    assert_ha_loadable(version)  # must not raise
+    assert_valid_git_tag(f"v{version}")  # the release step's tag must be legal too
+
+
+def test_designer_v2_composition_is_unchanged_by_sanitization():
+    """The branch actually in use keeps producing exactly what it produces today.
+
+    This push's own release number (v3.0.2-designer-v2.N) must stay in
+    sequence -- sanitization must be a no-op for a branch name that was
+    already safe.
     """
-    version = preview_version.compose_preview_version(
-        "3.0.2", "feature/designer-v2", "7"
+    assert (
+        preview_version.compose_preview_version("3.0.2", "designer-v2", "14")
+        == "3.0.2-designer-v2.14"
     )
-    with pytest.raises(AwesomeVersionException):
-        assert_ha_loadable(version)
+
+
+# --- Fork identity (`name`) composition -------------------------------------
+
+
+def test_compose_preview_name_appends_fork_identity():
+    """The composed `name` reads as the tracked name plus a generic fork suffix."""
+    assert (
+        preview_version.compose_preview_name(
+            "OpenDisplay", "schlomo/OD_Home_Assistant_Integration"
+        )
+        == "OpenDisplay (fork: schlomo/OD_Home_Assistant_Integration)"
+    )
+
+
+def test_compose_preview_name_uses_whatever_base_name_is_tracked():
+    """Not hardcoded to "OpenDisplay" -- tracks manifest.json's own name field."""
+    assert (
+        preview_version.compose_preview_name("Something Else", "acme/fork")
+        == "Something Else (fork: acme/fork)"
+    )

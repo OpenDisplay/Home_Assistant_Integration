@@ -483,22 +483,43 @@ and doesn't prove.
 
 ## Preview releases (`.github/workflows/preview-release.yml`, fork-only)
 
-Every push to a `designer-*` branch that lands on this fork
-(`schlomo/OD_Home_Assistant_Integration`) cuts a GitHub release automatically
-— zip built the same way `release-please.yml` builds a real release, tag
-`v<manifest-version>-<branch>.<run-number>` (e.g. `v3.0.2-designer-v2.17`),
-attached as the `opendisplay.zip` asset HACS's `zip_release` install path
-expects. The zipped `manifest.json`'s `"version"` is stamped to that same
-preview version first (checkout-local edit, never committed) so HA's
-integration card and logs show the exact preview build rather than the
-stale last-released version. In short: **every gated push here is
-immediately HACS-pickable** — add this fork/branch as a HACS custom
-repository once, then HACS will offer each new preview release, but it
-still needs a manual redownload/update per release; nothing auto-pushes to
-an already-installed instance. The workflow guards on `github.repository`
-so it goes inert the moment this branch/PR merges upstream — upstream's own
-`release-please.yml` only fires on `main` pushes, so the two never overlap
-regardless.
+Every push to any branch in **your fork** (other than your fork's own
+default branch) cuts a GitHub release there automatically — no setup, no
+per-fork configuration. This is a fast, no-build way to test a change as an
+end user would, not just under `dev/ha`: push, wait for the workflow, add
+your fork as a HACS custom repository, install.
+
+The release: zip built the same way `release-please.yml` builds a real
+release, tag `v<manifest-version>-<sanitized-branch>.<run-number>` (e.g.
+`v3.0.2-designer-v2.17`), attached as the `opendisplay.zip` asset HACS's
+`zip_release` install path expects. A branch name that is not already
+semver-safe (contains `/`, starts with a digit, is purely digits with a
+leading zero, ...) is sanitized into one that is — see
+`scripts/preview_version.py`'s `sanitize_branch_for_version` and
+`tests/test_preview_version.py` for the exact rules and every case they
+cover; your branch may show up in the version as a slightly different
+string than its literal name (e.g. `feat/foo` becomes `feat-foo`), never as
+something Home Assistant rejects. The zipped `manifest.json` is stamped
+with that same preview version, AND with a `name` that becomes
+`<integration name> (fork: <owner>/<repo>)` (both a checkout-local edit,
+never committed) — so Home Assistant's Devices & Services page identifies
+both the exact preview build and which fork it came from, with nothing
+hand-edited per fork. (HACS's own repository list card does NOT reflect
+either stamp — it reads `hacs.json`/`manifest.json` live from the git tree,
+never from a release asset — so it still shows the plain, tracked name
+there; only the installed integration self-identifies.)
+
+In short: **every push to a non-default branch in your fork is immediately
+HACS-pickable** — add your fork as a HACS custom repository once, then HACS
+will offer each new preview release, but it still needs a manual
+redownload/update per release; nothing auto-pushes to an already-installed
+instance. The workflow guards on `github.event.repository.fork` (true for
+any fork, false for the upstream repository) and skips your fork's default
+branch (`github.event.repository.default_branch`, e.g. a `main` that just
+tracks upstream) — both generic, so this works unmodified for any fork and
+stays inert on the upstream repository itself, where `release-please.yml`
+(pushes to `main` only, and only after a PR merges) is the real release
+path.
 
 ## Iterating on the integration
 
