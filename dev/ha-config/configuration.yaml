@@ -1,0 +1,75 @@
+# Minimal dev config for the OpenDisplay local harness (dev/README.md).
+#
+# Deliberately NOT `default_config:` (maintainer ruling 2026-08-30): that
+# pulls in the full discovery/scraping suite (bluetooth, dhcp, ssdp,
+# zeroconf, usb, cloud, mobile_app, ...) this harness has no use for and
+# does not want silently probing the dev machine. Every line below was
+# added because something broke without it (empirically minimal, not
+# guessed) -- see dev/README.md "Minimal configuration.yaml" for what each
+# one is doing and how it was verified.
+
+# `country` kills the "Country not configured" Repair (tier-1 round 2,
+# finding 3) -- HA's own core_config.py raises it whenever
+# hass.config.country is None (_raise_issue_if_no_country), checked right
+# after processing this same `homeassistant:` YAML block at every boot
+# (async_process_ha_core_config -- CONF_COUNTRY is read straight off this
+# key into hass.config.country before that check runs). NOT set via
+# onboarding's own /api/onboarding/core_config call: that view's POST body
+# is unused by CoreConfigOnboardingView (homeassistant/components/
+# onboarding/views.py) -- it only marks the step done and fires off
+# google_translate/met/radio_browser/shopping_list, nothing reads a country
+# out of the request at all. The country code itself is arbitrary for a
+# harness with no real location -- "US" picked with no other significance.
+homeassistant:
+  country: US
+
+# No `http:` key (tier-1 round 2, finding 3): an earlier version of this
+# file had one, !including a generated http_port.yaml to make a non-default
+# HA_PORT actually bind. Ripped out entirely, not just the port override --
+# HA itself shows a "HTTP YAML configuration is ignored after migration"
+# Repair once onboarding stores its own network config in
+# .storage/core.config, meaning that !include was already silently ignored
+# past the first boot regardless of what it said (broken by platform
+# behavior, not a bug in how this harness wired it). Port is always 8123.
+
+# Needed for the Lovelace UI and the onboarding wizard's own frontend
+# assets -- without it there is nothing to open in a browser at all, and
+# dev/internal/onboarding.sh's API calls 404 (onboarding is served through
+# the frontend's static path).
+frontend:
+
+# Pulls in `http` and `websocket_api` as manifest dependencies and exposes
+# Developer Tools -> Actions/States/Template in the UI, which is how this
+# harness's own verification (calling opendisplay.drawcustom, reading
+# device_id()/device_attr() Jinja) is done by hand.
+config:
+
+# The plain REST API (GET/POST /api/...) -- onboarding.sh's HTTP calls and
+# this harness's own curl-based verification go through it directly, not
+# just the websocket connection the frontend UI uses.
+api:
+
+# Deliberately NO bare `opendisplay:` key here (tier-1 review, finding 2):
+# an earlier version of this file had one, on the theory that it's what
+# makes HA call the domain's async_setup() (-> async_setup_services(),
+# custom_components/opendisplay/__init__.py) even with zero config entries
+# -- which is true, but a bare domain key for a config-entry-only
+# integration (CONFIG_SCHEMA = cv.config_entry_only_config_schema) also
+# raises a visible red "does not support YAML setup" Repair in the UI, not
+# just a harmless log line as that earlier version assumed. The maintainer
+# hit this live. Removed: HA calls async_setup()/async_setup_entry() for
+# this domain on its own once at least one config entry exists (real or
+# fabricated) -- so the only real effect of removing this key is that the
+# opendisplay.* services and the designer panel are both absent on a
+# totally pristine (zero-entry) boot, appearing once the first entry does
+# -- see dev/README.md's "Why the designer panel and opendisplay.*
+# services are absent before the first config entry".
+
+# Not itself required for anything to boot -- included so this harness's
+# own debug output (and this integration's) is visible in dev/ha-config/
+# ha.log by default, without a maintainer needing to know to turn it on
+# separately the first time something needs debugging.
+logger:
+  default: warning
+  logs:
+    custom_components.opendisplay: debug

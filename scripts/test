@@ -9,6 +9,13 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+# tests/js/ (plain node --test -- see scripts/test-js's own comment) is the
+# ONLY coverage for the designer panel's keyboard-containment fix; run it
+# as part of this same gate so it's never skipped by accident. Not passed
+# any of pytest's own arguments below ($@ is pytest-specific, e.g. -k) --
+# this is a separate, much smaller suite with nothing to select within.
+scripts/test-js
+
 group="dev"
 if [ "${1:-}" = "--min-ha" ]; then
     group="min-ha"

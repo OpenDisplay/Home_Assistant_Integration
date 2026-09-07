@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "minor_version": 13,
+  "key": "core.entity_registry",
+  "data": {
+    "entities": [
+      {
+        "id": "od_fake_entity_1",
+        "entity_id": "image.opendisplay_aabbccddeeff_image",
+        "config_entry_id": "od_fake_entry_1",
+        "device_id": "od_fake_device_1",
+        "platform": "opendisplay",
+        "unique_id": "AA:BB:CC:DD:EE:FF-image"
+      },
+      {
+        "id": "met_fake_entity_1",
+        "entity_id": "weather.forecast_home",
+        "config_entry_id": "met_fake_entry_1",
+        "device_id": "met_fake_device_1",
+        "platform": "met",
+        "unique_id": "home-forecast"
+      }
+    ],
+    "deleted_entities": []
+  }
+}

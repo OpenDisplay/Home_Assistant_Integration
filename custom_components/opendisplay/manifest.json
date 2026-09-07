@@ -13,7 +13,9 @@
   "config_flow": true,
   "dependencies": [
     "bluetooth_adapters",
+    "frontend",
     "http",
+    "panel_custom",
     "recorder"
   ],
   "documentation": "https://github.com/OpenDisplay/Home_Assistant_Integration",
