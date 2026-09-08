@@ -2,8 +2,10 @@
 
 import asyncio
 from collections.abc import Generator
+from dataclasses import replace
 import io
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
@@ -16,6 +18,7 @@ from opendisplay import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
     BLEConnectionError,
+    ColorScheme,
     NfcNotSupportedError,
     NfcWriteError,
 )
@@ -91,6 +94,98 @@ async def test_upload_image_local_file(
     )
 
     mock_upload_device.upload_prepared_image.assert_called_once()
+
+
+async def test_upload_image_refreshes_runtime_config(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_resolve_media: MagicMock,
+) -> None:
+    """A live upload re-interrogates the device and refreshes the cached config.
+
+    This is what catches a config change made without a device reboot — the
+    only other event that would otherwise trigger a refresh.
+    """
+    device_id = _device_id(hass, mock_config_entry)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "upload_image",
+        {
+            "device_id": device_id,
+            "image": {
+                "media_content_id": "media-source://local/test.png",
+                "media_content_type": "image/png",
+            },
+        },
+        blocking=True,
+    )
+
+    mock_upload_device.interrogate.assert_awaited()
+    assert mock_config_entry.runtime_data.device_config is mock_upload_device.config
+
+
+async def test_upload_image_config_mismatch_rerenders_and_uploads(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_resolve_media: MagicMock,
+) -> None:
+    """A config drift detected mid-connection re-renders instead of sending stale bytes.
+
+    Unlike the queued/sleepy path, the original source image is still in
+    scope for a live upload, so the corrected frame can be sent transparently
+    -- the service call must still succeed, not raise.
+    """
+    device_id = _device_id(hass, mock_config_entry)
+    original_config = mock_upload_device.config
+    mismatched_config = replace(
+        original_config,
+        displays=[
+            replace(original_config.displays[0], color_scheme=ColorScheme.MONO.value)
+        ],
+    )
+
+    def _drift_on_interrogate() -> None:
+        mock_upload_device.config = mismatched_config
+
+    mock_upload_device.interrogate.side_effect = _drift_on_interrogate
+
+    from custom_components.opendisplay import services as services_mod
+
+    real_prepare_image = services_mod.prepare_image
+    prepared_results: list[Any] = []
+
+    def _tracking_prepare_image(*args: Any, **kwargs: Any) -> Any:
+        result = real_prepare_image(*args, **kwargs)
+        prepared_results.append(result)
+        return result
+
+    with patch.object(
+        services_mod, "prepare_image", side_effect=_tracking_prepare_image
+    ) as spy_prepare:
+        await hass.services.async_call(
+            DOMAIN,
+            "upload_image",
+            {
+                "device_id": device_id,
+                "image": {
+                    "media_content_id": "media-source://local/test.png",
+                    "media_content_type": "image/png",
+                },
+            },
+            blocking=True,
+        )
+
+    assert spy_prepare.call_count == 2
+    assert spy_prepare.call_args_list[0].kwargs["config"] is original_config
+    assert spy_prepare.call_args_list[1].kwargs["config"] is mismatched_config
+    # Different color schemes must not encode to the same bytes.
+    assert prepared_results[0] != prepared_results[1]
+    mock_upload_device.upload_prepared_image.assert_called_once()
+    sent_data = mock_upload_device.upload_prepared_image.call_args[0][0]
+    assert sent_data == prepared_results[1]
 
 
 async def test_upload_image_remote_url(

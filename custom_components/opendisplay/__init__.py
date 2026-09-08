@@ -159,6 +159,37 @@ def _write_cache(
     )
 
 
+async def _refresh_config_from_device(
+    hass: HomeAssistant,
+    entry: OpenDisplayConfigEntry,
+    device: OpenDisplayDevice,
+) -> GlobalConfig | None:
+    """Interrogate an already-connected device and refresh runtime + cache.
+
+    ``OpenDisplayDevice`` skips live interrogation whenever it was constructed
+    with a pre-supplied ``config=`` which every connection in this
+    integration does. This avoids a redundant read when the cached config is
+    still accurate. ``interrogate()`` is cheap and idempotent, so calling it
+    here on every connection is the only way to catch config drift that
+    happened without a device reboot (the only other trigger for a refresh).
+    Returns the fresh config, or None if the device didn't return one.
+    """
+    await device.interrogate()
+    live_config = device.config
+    if live_config is None:
+        return None
+    fw = await device.read_firmware_version()
+    is_flex = device.is_flex
+    landing_url = device.landing_url()
+    runtime = entry.runtime_data
+    runtime.firmware = fw
+    runtime.device_config = live_config
+    runtime.is_flex = is_flex
+    runtime.config_resync_pending = False
+    _write_cache(hass, entry, live_config, fw, is_flex, landing_url)
+    return live_config
+
+
 def _cache_setup_if_sleepy(
     entry: OpenDisplayConfigEntry,
 ) -> _CachedState | None:

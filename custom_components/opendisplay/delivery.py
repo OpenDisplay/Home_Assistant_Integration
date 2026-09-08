@@ -37,6 +37,7 @@ from opendisplay import (
     AuthenticationRequiredError,
     BLEConnectionError,
     BLETimeoutError,
+    GlobalConfig,
     OpenDisplayDevice,
     OpenDisplayError,
     PartialState,
@@ -50,6 +51,7 @@ from .const import (
     CONF_MAX_QUEUE_SIZE,
     DEFAULT_BLOCKS_PER_ACK,
     DEFAULT_MAX_QUEUE_SIZE,
+    EVENT_CONTENT_CONFIG_MISMATCH,
     EVENT_CONTENT_DELIVERED,
     EVENT_CONTENT_EXPIRED,
     SIGNAL_IMAGE_UPDATED,
@@ -80,6 +82,36 @@ MAX_DELIVERY_ATTEMPTS = 5
 _KEY_INVALID = object()
 
 
+@dataclass(frozen=True)
+class DisplayFingerprint:
+    """The subset of a display's config that determines image encoding.
+
+    Used to detect drift between the config an image was prepared against and
+    the device's current live config, e.g. a `color_scheme` change made
+    without a reboot. A reboot-triggered resync would otherwise miss this.
+    Deliberately narrow: comparing the whole `GlobalConfig` would false-positive
+    on unrelated field changes (LEDs, WiFi, sensors, ...) and drop good uploads.
+    """
+
+    pixel_width: int
+    pixel_height: int
+    color_scheme: int
+    panel_ic_type: int
+    rotation: int
+
+
+def display_fingerprint(config: GlobalConfig) -> DisplayFingerprint:
+    """Extract the encoding-relevant fingerprint from a device's config."""
+    display = config.displays[0]
+    return DisplayFingerprint(
+        pixel_width=display.pixel_width,
+        pixel_height=display.pixel_height,
+        color_scheme=display.color_scheme,
+        panel_ic_type=display.panel_ic_type,
+        rotation=display.rotation,
+    )
+
+
 @dataclass
 class PendingUpload:
     """A prepared image queued for delivery at the next wake."""
@@ -94,6 +126,9 @@ class PendingUpload:
     device_id: str | None
     queued_at: float
     expires_at: float
+    # The display config `prepared` was built against — compared against the
+    # live device at drain time so a stale-encoded frame is never sent.
+    fingerprint: DisplayFingerprint
     attempts: int = 0
     cancel_deadline: CALLBACK_TYPE | None = None
 
@@ -202,6 +237,7 @@ class DeliveryManager:
         use_measured_palettes: bool,
         preview_jpeg: bytes,
         device_id: str | None,
+        fingerprint: DisplayFingerprint,
     ) -> DeliveryReceipt:
         """Queue a prepared image for delivery at the next wake (latest-wins)."""
         now = time.time()
@@ -218,6 +254,7 @@ class DeliveryManager:
             device_id=device_id,
             queued_at=now,
             expires_at=expires_at,
+            fingerprint=fingerprint,
         )
         self._schedule_expiry(slot)
         self._pending_upload = slot
@@ -347,14 +384,32 @@ class DeliveryManager:
         }
 
         async def _run(device: OpenDisplayDevice) -> None:
+            # Always refresh first, unconditionally: a config change made
+            # without a device reboot is otherwise never picked up (the only
+            # other trigger is the reboot-advertised resync flag), and
+            # draining a stale-encoded upload before a pending resync ran was
+            # the original ordering bug this replaces. Local import avoids an
+            # import cycle (__init__ imports this module).
+            from . import _refresh_config_from_device
+
+            live_config = await _refresh_config_from_device(
+                self._hass, self._entry, device
+            )
+            if live_config is not None:
+                self._pending_config_resync = False
+
             # Re-read pending state each invocation: if a WiFi attempt uploaded
             # then failed on resync, the BLE fallback re-runs this and must not
             # re-upload an already-delivered frame (``_drain_upload`` clears it).
             pending = self._pending_upload
-            if pending is not None:
-                await self._drain_upload(device, pending)
-            if self._pending_config_resync:
-                await self._drain_resync(device)
+            if pending is None:
+                return
+            if live_config is not None:
+                live_fingerprint = display_fingerprint(live_config)
+                if live_fingerprint != pending.fingerprint:
+                    self._drop_mismatched_upload(pending, live_fingerprint)
+                    return
+            await self._drain_upload(device, pending)
 
         # Prefer WiFi when the entry has a fresh mDNS host; fall back to BLE on any
         # WiFi failure. All inside the per-MAC lock (MAC-keyed, transport-neutral).
@@ -393,26 +448,6 @@ class DeliveryManager:
         self._fire_content_event(EVENT_CONTENT_DELIVERED, upload)
         self._notify_state()
         _LOGGER.info("%s: queued content delivered", self._address)
-
-    async def _drain_resync(self, device: OpenDisplayDevice) -> None:
-        """Re-read firmware/config over the open link and refresh the cache."""
-        # Local import avoids an import cycle (__init__ imports this module).
-        from . import _write_cache
-
-        fw = await device.read_firmware_version()
-        is_flex = device.is_flex
-        landing_url = device.landing_url()
-        device_config = device.config
-        if device_config is None:
-            return
-        runtime = self._entry.runtime_data
-        runtime.firmware = fw
-        runtime.device_config = device_config
-        runtime.is_flex = is_flex
-        runtime.config_resync_pending = False
-        self._pending_config_resync = False
-        _write_cache(self._hass, self._entry, device_config, fw, is_flex, landing_url)
-        _LOGGER.debug("%s: config resync complete", self._address)
 
     # -- expiry -------------------------------------------------------------
 
@@ -464,6 +499,35 @@ class DeliveryManager:
             reason,
         )
         self._fire_content_event(EVENT_CONTENT_EXPIRED, slot)
+        self._notify_state()
+
+    @callback
+    def _drop_mismatched_upload(
+        self, slot: PendingUpload, live_fingerprint: DisplayFingerprint
+    ) -> None:
+        """Drop a queued upload whose fingerprint no longer matches the live device.
+
+        The device's display config changed (e.g. `color_scheme` edited
+        without a reboot) since this frame was prepared, so its encoded bytes
+        no longer match what the panel expects — sending it would corrupt the
+        display. Unlike a live/immediate upload, there is no source image
+        available here to re-render from (``PendingUpload`` only retains the
+        already-encoded/dithered result), so the safest option is to drop it
+        and let the next scheduled push re-prepare against the current config.
+        """
+        if slot.cancel_deadline:
+            slot.cancel_deadline()
+            slot.cancel_deadline = None
+        self._pending_upload = None
+        self._last_error = "config_mismatch"
+        _LOGGER.warning(
+            "%s: dropping queued upload - device config changed since the image "
+            "was prepared (prepared for %s, device is now %s)",
+            self._address,
+            slot.fingerprint,
+            live_fingerprint,
+        )
+        self._fire_content_event(EVENT_CONTENT_CONFIG_MISMATCH, slot)
         self._notify_state()
 
     # -- helpers ------------------------------------------------------------
