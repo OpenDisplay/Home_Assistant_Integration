@@ -16,11 +16,15 @@ from homeassistant.const import (
     PERCENTAGE,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     EntityCategory,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
     UnitOfElectricPotential,
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
+import homeassistant.util.dt as dt_util
 
 from opendisplay import voltage_to_percent
 from opendisplay.models.advertisement import Sht40Reading
@@ -132,10 +136,26 @@ _LAST_SEEN_DESCRIPTION = OpenDisplaySensorEntityDescription(
     device_class=SensorDeviceClass.TIMESTAMP,
     entity_category=EntityCategory.DIAGNOSTIC,
     entity_registry_enabled_default=False,
-    # native_value is overridden by OpenDisplayLastSeenSensor, so this value_fn
+    # native_value is overridden by OpenDisplayLastSeenSensorEntity, so this value_fn
     # is dead code; value_fn is a required field, hence the no-op.
     value_fn=lambda _upd: None,
 )
+
+
+def _entity_for_description(
+    coordinator, description: OpenDisplaySensorEntityDescription
+) -> OpenDisplaySensorEntity:
+    """Pick the entity class for a sensor description."""
+    
+    if description.key == "last_seen":
+        return OpenDisplayLastSeenSensorEntity(coordinator, description)
+    # Battery readings only ride in the advertisement, so they update far less
+    # often than the device's own wake cadence. Keep showing the last known
+    # value (and stay available) across Bluetooth gaps instead of flashing
+    # unavailable.
+    if description.key in {"battery", "battery_voltage", "rssi", "temperature"}:
+        return OpenDisplayStickySensorEntity(coordinator, description)
+    return OpenDisplaySensorEntity(coordinator, description)
 
 
 async def async_setup_entry(
@@ -174,11 +194,7 @@ async def async_setup_entry(
         ]
 
     async_add_entities(
-        (
-            OpenDisplayLastSeenSensor(coordinator, description)
-            if description.key == "last_seen"
-            else OpenDisplaySensorEntity(coordinator, description)
-        )
+        _entity_for_description(coordinator, description)
         for description in descriptions
     )
 
@@ -196,7 +212,52 @@ class OpenDisplaySensorEntity(OpenDisplayEntity, SensorEntity):
         return self.entity_description.value_fn(self.coordinator.data)
 
 
-class OpenDisplayLastSeenSensor(OpenDisplaySensorEntity):
+class OpenDisplayStickySensorEntity(OpenDisplaySensorEntity, RestoreEntity):
+    """A sensor that keeps its last known value once observed.
+    
+    Some readings (e.g. battery) only ride in the advertisement and can go
+    a long time between updates. Rather than flashing "unavailable" whenever
+    Bluetooth briefly loses the device, cache the last non-None value and
+    stay available.
+    """
+    
+    def __init__(
+        self,
+        coordinator,
+        description: OpenDisplaySensorEntityDescription,
+    ) -> None:
+        """Initialize the sticky sensor."""
+        super().__init__(coordinator, description)
+        self._last_value: float | int | str | datetime | None = None
+    
+    @property
+    def available(self) -> bool:
+        """Stay available once a value has been observed."""
+        return self._last_value is not None or super().available
+    
+    @property
+    def native_value(self) -> float | int | str | datetime | None:
+        """Return the last known value, updating it if a fresh one is present."""
+        if self.coordinator.data is not None:
+            value = self.entity_description.value_fn(self.coordinator.data)
+            if value is not None:
+                self._last_value = value
+        return self._last_value
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the previous value until Bluetooth has one."""
+        await super().async_added_to_hass()
+        if (last_state := await self.async_get_last_state()) is None:
+            return
+        if last_state.state in {STATE_UNKNOWN, STATE_UNAVAILABLE}:
+            return
+        if self.device_class == SensorDeviceClass.TIMESTAMP:
+            self._last_value = dt_util.parse_datetime(last_state.state)
+        else:
+            self._last_value = last_state.state
+
+
+class OpenDisplayLastSeenSensorEntity(OpenDisplayStickySensorEntity):
     """last_seen sourced from the bluetooth stack, not the gated callback."""
 
     @property
@@ -209,8 +270,9 @@ class OpenDisplayLastSeenSensor(OpenDisplaySensorEntity):
             self.hass, self.coordinator.address, connectable=False
         )
         if info is None:
-            return None
+            return self._last_value
         # info.time is a monotonic clock (monotonic_time_coarse); convert to
         # wall time with the same offset the advertisement monitor uses.
         wall = info.time + (time.time() - time.monotonic())
-        return datetime.fromtimestamp(wall, tz=UTC)
+        self._last_value = datetime.fromtimestamp(wall, tz=UTC)
+        return self._last_value
