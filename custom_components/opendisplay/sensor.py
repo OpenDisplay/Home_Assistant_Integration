@@ -25,7 +25,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from opendisplay import voltage_to_percent
 from opendisplay.models.advertisement import Sht40Reading
 from opendisplay.models.config import SensorData
-from opendisplay.models.enums import CapacityEstimator, PowerMode, SensorType
+from opendisplay.models.enums import CapacityEstimator, PowerMode
 
 from . import OpenDisplayConfigEntry
 from .coordinator import OpenDisplayUpdate
@@ -56,15 +56,35 @@ _TEMPERATURE_DESCRIPTION = OpenDisplaySensorEntityDescription(
 )
 
 
-def _sht40_descriptions(
-    sensor: SensorData,
+# Ambient temperature/humidity sensor types whose measurement the firmware packs
+# into the same 3-byte block of the advertisement's dynamic return data. All of
+# them are written through the shared write_sht40_msd() helper
+# (v = (rh_deci & 0x3FF) | ((t_deci + 400) << 10)), so one decoder covers them
+# all and only the entity-key prefix differs.
+#
+# Matched on the raw uint16 from the device config rather than through
+# SensorType: the py-opendisplay pinned in manifest.json has no
+# SensorType.AHT20, so SensorData.sensor_type_enum degrades to the bare int for
+# type 7 while still returning the enum for type 4. Comparing the raw field
+# treats both the same way and needs no dependency bump.
+_ENV_SENSOR_PREFIX: dict[int, str] = {
+    4: "sht40",  # SensorType.SHT40
+    7: "aht20",  # AHT20 (NM-EPD-420); absent from py-opendisplay 7.16.0
+}
+
+
+def _env_sensor_descriptions(
+    sensor: SensorData, prefix: str
 ) -> list[OpenDisplaySensorEntityDescription]:
-    """Build ambient temperature and humidity entities for one SHT40.
+    """Build ambient temperature and humidity entities for one SHT40/AHT20.
 
     The reading rides in the advertisement, so these need no connection. Its
     offset within the dynamic block is per-board and cannot be assumed --
     reTerminal E1001/E1002/E1004 use 1 while the firmware default is 7 -- so it
     comes from the device's own config and is captured once per entity here.
+
+    ``prefix`` namespaces the entity key by sensor type ("sht40" / "aht20"), so
+    an AHT20 reading does not collide with -- or masquerade as -- an SHT40 one.
 
     Unlike the chip temperature these are primary entities: not diagnostic, and
     enabled by default.
@@ -84,7 +104,7 @@ def _sht40_descriptions(
 
     return [
         OpenDisplaySensorEntityDescription(
-            key=f"sht40_{sensor.instance_number}_temperature",
+            key=f"{prefix}_{sensor.instance_number}_temperature",
             device_class=SensorDeviceClass.TEMPERATURE,
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             state_class=SensorStateClass.MEASUREMENT,
@@ -92,7 +112,7 @@ def _sht40_descriptions(
             value_fn=_temperature,
         ),
         OpenDisplaySensorEntityDescription(
-            key=f"sht40_{sensor.instance_number}_humidity",
+            key=f"{prefix}_{sensor.instance_number}_humidity",
             device_class=SensorDeviceClass.HUMIDITY,
             native_unit_of_measurement=PERCENTAGE,
             state_class=SensorStateClass.MEASUREMENT,
@@ -154,8 +174,9 @@ async def async_setup_entry(
     ]
 
     for sensor in device_config.sensors:
-        if sensor.sensor_type_enum is SensorType.SHT40:
-            descriptions += _sht40_descriptions(sensor)
+        prefix = _ENV_SENSOR_PREFIX.get(int(sensor.sensor_type))
+        if prefix is not None:
+            descriptions += _env_sensor_descriptions(sensor, prefix)
 
     if power_config.power_mode_enum in _BATTERY_POWER_MODES:
         capacity_estimator = power_config.capacity_estimator or CapacityEstimator.LI_ION
