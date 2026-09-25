@@ -15,6 +15,7 @@ from opendisplay import (
     BLEConnectionError,
     BLETimeoutError,
     OpenDisplayError,
+    build_landing_url,
 )
 import pytest
 from pytest_homeassistant_custom_component.common import (
@@ -38,6 +39,7 @@ from . import (
     TEST_ADDRESS,
     VALID_SERVICE_INFO,
     ZEROCONF_INFO,
+    make_service_info,
     make_zeroconf_info,
 )
 
@@ -686,3 +688,95 @@ async def test_zeroconf_confirm_reports_an_unreachable_endpoint(
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
+
+
+# --- QR-code landing URL as encryption key ---------------------------------
+
+
+def _landing_url(device_id: bytes, key_hex: str | None) -> str:
+    """Build a firmware-style landing URL for the given device id and key."""
+    return build_landing_url(
+        0, device_id, bytes.fromhex(key_hex) if key_hex else None, 3
+    )
+
+
+async def _start_encrypted_flow_for(hass: HomeAssistant, name: str) -> dict:
+    """Discover an encrypted device with ``name`` and land on the key step."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_BLUETOOTH},
+        data=make_service_info(name=name),
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={}
+    )
+    assert result["step_id"] == "encryption_key"
+    return result
+
+
+async def test_encryption_key_from_qr_url(
+    hass: HomeAssistant, mock_opendisplay_device: MagicMock
+) -> None:
+    """A scanned/pasted landing URL for this device yields its key."""
+    mock_opendisplay_device.__aenter__.side_effect = [
+        AuthenticationRequiredError("auth required"),
+        mock_opendisplay_device,
+    ]
+    result = await _start_encrypted_flow_for(hass, "OD4B3F63")
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={CONF_ENCRYPTION_KEY: _landing_url(b"\x4b\x3f\x63", ENCRYPTION_KEY)},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"] == {CONF_ENCRYPTION_KEY: ENCRYPTION_KEY}
+
+
+@pytest.mark.parametrize(
+    ("url", "error"),
+    [
+        (_landing_url(b"\x01\x02\x03", ENCRYPTION_KEY), "qr_wrong_device"),
+        (_landing_url(b"\x4b\x3f\x63", None), "qr_key_hidden"),
+        ("https://opendisplay.org/l/?AAAA", "invalid_key_format"),
+    ],
+)
+async def test_encryption_key_bad_qr_url(
+    hass: HomeAssistant, mock_opendisplay_device: MagicMock, url: str, error: str
+) -> None:
+    """Wrong-device, keyless and malformed QR links get specific errors."""
+    mock_opendisplay_device.__aenter__.side_effect = [
+        AuthenticationRequiredError("auth required"),
+    ]
+    result = await _start_encrypted_flow_for(hass, "OD4B3F63")
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={CONF_ENCRYPTION_KEY: url}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {CONF_ENCRYPTION_KEY: error}
+
+
+async def test_reauth_key_from_qr_url(
+    hass: HomeAssistant,
+    mock_opendisplay_device: MagicMock,
+    mock_encrypted_config_entry: MockConfigEntry,
+) -> None:
+    """Reauth accepts a landing URL too (entry title isn't OD######: no id check)."""
+    mock_encrypted_config_entry.add_to_hass(hass)
+    new_key = "00112233445566778899aabbccddeeff"
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={
+            "source": config_entries.SOURCE_REAUTH,
+            "entry_id": mock_encrypted_config_entry.entry_id,
+        },
+        data=mock_encrypted_config_entry.data,
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        user_input={CONF_ENCRYPTION_KEY: _landing_url(b"\x4b\x3f\x63", new_key)},
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    assert mock_encrypted_config_entry.data[CONF_ENCRYPTION_KEY] == new_key

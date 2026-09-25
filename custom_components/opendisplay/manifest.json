@@ -1,6 +1,9 @@
 {
   "domain": "opendisplay",
   "name": "OpenDisplay",
+  "after_dependencies": [
+    "frontend"
+  ],
   "bluetooth": [
     {
       "connectable": true,
@@ -24,7 +27,7 @@
     "opendisplay"
   ],
   "requirements": [
-    "py-opendisplay[silabs-ota]==7.16.0",
+    "py-opendisplay[silabs-ota]==7.17.0",
     "silabs-ble-ota==0.1.0",
     "odl-renderer==0.5.12"
   ],

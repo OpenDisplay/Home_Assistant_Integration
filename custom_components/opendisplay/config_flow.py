@@ -28,6 +28,7 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
 )
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 import voluptuous as vol
@@ -67,6 +68,13 @@ from .const import (
     SLEEP_MODE_OFF,
     SLEEP_MODE_ON,
     TCP_CONNECT_TIMEOUT_S,
+)
+from .frontend import async_register_frontend
+from .qr import (
+    InvalidKeyFormat,
+    QrCodeKeyHidden,
+    QrCodeWrongDevice,
+    resolve_encryption_key,
 )
 from .transport import note_mdns_seen
 
@@ -146,7 +154,19 @@ def _options_schema() -> vol.Schema:
     )
 
 
-_ENCRYPTION_KEY_VALIDATOR = vol.All(str.strip, str.lower, vol.Match(r"^[0-9a-f]{32}$"))
+def _resolve_key_or_error(
+    value: str, device_name: str | None, errors: dict[str, str]
+) -> str | None:
+    """Resolve a hex key or QR landing URL; on failure fill ``errors``."""
+    try:
+        return resolve_encryption_key(value, device_name)
+    except QrCodeWrongDevice:
+        errors[CONF_ENCRYPTION_KEY] = "qr_wrong_device"
+    except QrCodeKeyHidden:
+        errors[CONF_ENCRYPTION_KEY] = "qr_key_hidden"
+    except InvalidKeyFormat:
+        errors[CONF_ENCRYPTION_KEY] = "invalid_key_format"
+    return None
 
 
 class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -432,11 +452,8 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
         name: str = self.context["title_placeholders"]["name"]
 
         if user_input is not None:
-            try:
-                key: str = _ENCRYPTION_KEY_VALIDATOR(user_input[CONF_ENCRYPTION_KEY])
-            except vol.Invalid:
-                errors[CONF_ENCRYPTION_KEY] = "invalid_key_format"
-            else:
+            key = _resolve_key_or_error(user_input[CONF_ENCRYPTION_KEY], name, errors)
+            if key is not None:
                 if TYPE_CHECKING:
                     assert self.unique_id is not None
                 if await self._async_try_connection(
@@ -446,10 +463,13 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
                         title=name,
                         data={CONF_ENCRYPTION_KEY: key},
                     )
+        else:
+            # Lets the companion app offer a native "scan QR code" button.
+            await async_register_frontend(self.hass)
 
         return self.async_show_form(
             step_id="encryption_key",
-            data_schema=vol.Schema({vol.Required(CONF_ENCRYPTION_KEY): str}),
+            data_schema=vol.Schema({vol.Required(CONF_ENCRYPTION_KEY): TextSelector()}),
             description_placeholders={"name": name},
             errors=errors,
         )
@@ -469,11 +489,8 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             key: str | None = None
-            if user_input[CONF_ENCRYPTION_KEY].strip():
-                try:
-                    key = _ENCRYPTION_KEY_VALIDATOR(user_input[CONF_ENCRYPTION_KEY])
-                except vol.Invalid:
-                    errors[CONF_ENCRYPTION_KEY] = "invalid_key_format"
+            if raw := user_input.get(CONF_ENCRYPTION_KEY, "").strip():
+                key = _resolve_key_or_error(raw, reauth_entry.title, errors)
 
             if not errors:
                 address = reauth_entry.unique_id
@@ -491,11 +508,13 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
                         reauth_entry,
                         data=new_data,
                     )
+        else:
+            await async_register_frontend(self.hass)
 
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=vol.Schema(
-                {vol.Optional(CONF_ENCRYPTION_KEY, default=""): str}
+                {vol.Optional(CONF_ENCRYPTION_KEY, default=""): TextSelector()}
             ),
             description_placeholders={"name": reauth_entry.title},
             errors=errors,

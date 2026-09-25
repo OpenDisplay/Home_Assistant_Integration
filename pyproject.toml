@@ -9,7 +9,7 @@ requires-python = ">=3.14.2"
 # else the integration imports (aiohttp, voluptuous, PIL) is supplied by Home
 # Assistant itself, which the test dependency groups pin transitively.
 dependencies = [
-    "py-opendisplay[silabs-ota]==7.16.0",
+    "py-opendisplay[silabs-ota]==7.17.0",
     "odl-renderer==0.5.12",
 ]
 
