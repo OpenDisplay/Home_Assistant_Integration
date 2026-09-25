@@ -1,6 +1,9 @@
 {
   "domain": "opendisplay",
   "name": "OpenDisplay",
+  "after_dependencies": [
+    "frontend"
+  ],
   "bluetooth": [
     {
       "connectable": true,

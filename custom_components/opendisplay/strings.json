@@ -12,7 +12,9 @@
     "error": {
       "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
       "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-      "invalid_key_format": "The encryption key must be exactly 32 hexadecimal characters (0-9, a-f).",
+      "invalid_key_format": "Enter the 32-character hexadecimal key (0-9, a-f) or the link from the device's QR code.",
+      "qr_key_hidden": "This device hides its encryption key, so the QR code does not include it. Enter the key manually, or turn on the device's show_key_on_screen security flag.",
+      "qr_wrong_device": "This QR code belongs to a different device than {name}.",
       "unknown": "[%key:common::config_flow::error::unknown%]"
     },
     "flow_title": "{name}",
@@ -29,7 +31,7 @@
           "encryption_key": "Encryption key"
         },
         "data_description": {
-          "encryption_key": "Enter the 32-character hexadecimal AES-128 encryption key for this device."
+          "encryption_key": "The 32-character hexadecimal AES-128 key, or the opendisplay.org link from the QR code on the device's screen. In the Home Assistant app, tap the QR icon to scan it."
         },
         "description": "{name} requires an encryption key to connect.",
         "title": "Encryption required"
