@@ -39,6 +39,7 @@ from opendisplay import (
     BLEConnectionError,
     OpenDisplayDevice,
     OpenDisplayError,
+    parse_advertisement,
 )
 
 from .ble_lock import ble_connection
@@ -71,6 +72,23 @@ from .const import (
 from .transport import note_mdns_seen
 
 _LOGGER = logging.getLogger(__name__)
+
+
+# Firmware advertises as "OD" followed by the device id in hex.
+NAME_PREFIX = "OD"
+
+
+def _is_opendisplay(discovery_info: BluetoothServiceInfoBleak) -> bool:
+    """Return if the advertisement looks like an OpenDisplay device."""
+    if not discovery_info.name.startswith(NAME_PREFIX):
+        return False
+    if (data := discovery_info.manufacturer_data.get(MANUFACTURER_ID)) is None:
+        return False
+    try:
+        parse_advertisement(data)
+    except ValueError:
+        return False
+    return True
 
 
 def _txt_str(properties: Mapping[str, Any], key: str) -> str | None:
@@ -308,6 +326,8 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
         self, discovery_info: BluetoothServiceInfoBleak
     ) -> ConfigFlowResult:
         """Handle the Bluetooth discovery step."""
+        if not _is_opendisplay(discovery_info):
+            return self.async_abort(reason="not_supported")
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
         self._discovery_info = discovery_info
@@ -382,7 +402,7 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
                 address = discovery_info.address
                 if address in current_addresses or address in self._discovered_devices:
                     continue
-                if MANUFACTURER_ID in discovery_info.manufacturer_data:
+                if _is_opendisplay(discovery_info):
                     self._discovered_devices[address] = discovery_info
 
         if not self._discovered_devices:

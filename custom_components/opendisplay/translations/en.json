@@ -6,6 +6,7 @@
             "cannot_connect": "Failed to connect",
             "no_devices_found": "No devices found on the network",
             "no_mac": "The discovered device did not advertise a MAC address and cannot be set up.",
+      "not_supported": "Device not supported",
             "reauth_successful": "Re-authentication was successful",
             "unknown": "Unexpected error"
         },
