@@ -194,6 +194,9 @@
     "no_targets_specified": {
       "message": "No target devices specified."
     },
+    "setup_connection_error": {
+      "message": "Failed to connect to the OpenDisplay device: {error}"
+    },
     "upload_error": {
       "message": "Failed to upload to the display: {error}"
     },
