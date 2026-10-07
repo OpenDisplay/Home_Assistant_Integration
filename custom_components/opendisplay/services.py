@@ -83,6 +83,7 @@ ATTR_DITHER_MODE = "dither_mode"
 ATTR_REFRESH_MODE = "refresh_mode"
 ATTR_FIT_MODE = "fit_mode"
 ATTR_TONE_COMPRESSION = "tone_compression"
+ATTR_REFINE_DITHERING = "refine_dithering"
 ATTR_USE_MEASURED_PALETTES = "measured_palette"
 ATTR_RECORD_TYPE = "record_type"
 ATTR_CONTENT = "content"
@@ -180,6 +181,7 @@ SCHEMA_UPLOAD_IMAGE = vol.Schema(
         vol.Optional(ATTR_TONE_COMPRESSION): vol.All(
             vol.Coerce(float), vol.Range(min=0.0, max=100.0)
         ),
+        vol.Optional(ATTR_REFINE_DITHERING, default=False): cv.boolean,
         vol.Optional(ATTR_USE_MEASURED_PALETTES, default=True): cv.boolean,
     }
 )
@@ -200,6 +202,7 @@ SCHEMA_DRAWCUSTOM = vol.Schema(
         vol.Optional(ATTR_TONE_COMPRESSION): vol.All(
             vol.Coerce(float), vol.Range(min=0.0, max=100.0)
         ),
+        vol.Optional(ATTR_REFINE_DITHERING, default=False): cv.boolean,
         vol.Optional(ATTR_USE_MEASURED_PALETTES, default=False): cv.boolean,
         vol.Optional("dry-run", default=False): cv.boolean,
     },
@@ -588,6 +591,7 @@ async def _async_send_image(
     tone: float | str = "auto",
     rotate: Rotation = Rotation.ROTATE_0,
     use_measured_palettes: bool = False,
+    refine_dithering: bool = False,
 ) -> DeliveryReceipt:
     """Upload a PIL image, delivering live or queuing it for the next wake.
 
@@ -622,6 +626,7 @@ async def _async_send_image(
             fit=fit,
             rotate=rotate,
             use_measured_palettes=use_measured_palettes,
+            dbs=refine_dithering,
         )
     )
 
@@ -791,6 +796,7 @@ async def _async_upload_image(call: ServiceCall) -> ServiceResponse:
             tone=tone_compression,
             rotate=rotation,
             use_measured_palettes=use_measured_palettes,
+            refine_dithering=call.data[ATTR_REFINE_DITHERING],
         )
         return _receipt_response(receipt)
     except asyncio.CancelledError:
@@ -1022,6 +1028,7 @@ async def _drawcustom_for_device(
         tone=tone_compression,
         rotate=Rotation(rotate),
         use_measured_palettes=use_measured_palettes,
+        refine_dithering=call.data[ATTR_REFINE_DITHERING],
     )
 
 
