@@ -6,6 +6,7 @@ import contextlib
 from datetime import UTC, datetime, timedelta
 from enum import IntEnum
 import functools
+import importlib
 import io
 import logging
 import os
@@ -373,25 +374,6 @@ def _load_image_from_bytes(data: bytes) -> PILImage.Image:
     return ImageOps.exif_transpose(image)
 
 
-# media_source resolves these two domains to their *_proxy_stream sibling: an
-# endless multipart feed, because it resolves for media players, which want
-# something to keep playing. A panel wants the frame that is current now.
-_STILL_ENDPOINTS = {
-    "camera": "/api/camera_proxy/{}",
-    "image": "/api/image_proxy/{}",
-}
-
-
-def _still_endpoint(media_content_id: str) -> str | None:
-    """Return the still-image path for a camera/image source, else None."""
-    domain, _, entity_id = media_content_id.removeprefix("media-source://").partition(
-        "/"
-    )
-    if (path := _STILL_ENDPOINTS.get(domain)) is None:
-        return None
-    return path.format(entity_id)
-
-
 async def _async_download_image(hass: HomeAssistant, url: str) -> PILImage.Image:
     """Download an image from a URL and return a PIL Image."""
     if not url.startswith(("http://", "https://")):
@@ -413,6 +395,41 @@ async def _async_download_image(hass: HomeAssistant, url: str) -> PILImage.Image
         ) from err
 
     return await hass.async_add_executor_job(_load_image_from_bytes, data)
+
+
+# Entity domains that media_source resolves to an endless MJPEG stream.
+_SNAPSHOT_DOMAINS = ("camera", "image")
+
+
+async def _async_get_media_image(
+    hass: HomeAssistant, media_content_id: str
+) -> PILImage.Image:
+    """Return a PIL Image for a media-source item.
+
+    media_source resolves camera and image entities to their never-ending
+    MJPEG proxy stream, because it resolves for media players. A panel wants
+    the frame that is current now, so take a single snapshot from the entity.
+    """
+    domain, _, entity_id = media_content_id.removeprefix("media-source://").partition(
+        "/"
+    )
+    if domain in _SNAPSHOT_DOMAINS:
+        # Imported here, not at module level: camera imports its own
+        # requirements (PyTurboJPEG) at import time, and Home Assistant only
+        # installs those once camera is set up. It always is when one of its
+        # entities can be picked as media, but not necessarily otherwise.
+        integration = await hass.async_add_import_executor_job(
+            importlib.import_module, f"homeassistant.components.{domain}"
+        )
+        snapshot = await integration.async_get_image(hass, entity_id)
+        return await hass.async_add_executor_job(
+            _load_image_from_bytes, snapshot.content
+        )
+
+    media = await async_resolve_media(hass, media_content_id, None)
+    if media.path is not None:
+        return await hass.async_add_executor_job(_load_image, str(media.path))
+    return await _async_download_image(hass, media.url)
 
 
 class _DeviceUnavailable(Exception):
@@ -772,18 +789,10 @@ async def _async_upload_image(call: ServiceCall) -> ServiceResponse:
     try:
         if isinstance(image_data, str):
             pil_image = await _async_download_image(call.hass, image_data)
-        elif (still := _still_endpoint(image_data["media_content_id"])) is not None:
-            pil_image = await _async_download_image(call.hass, still)
         else:
-            media = await async_resolve_media(
-                call.hass, image_data["media_content_id"], None
+            pil_image = await _async_get_media_image(
+                call.hass, image_data["media_content_id"]
             )
-            if media.path is not None:
-                pil_image = await call.hass.async_add_executor_job(
-                    _load_image, str(media.path)
-                )
-            else:
-                pil_image = await _async_download_image(call.hass, media.url)
 
         receipt = await _async_send_image(
             call.hass,

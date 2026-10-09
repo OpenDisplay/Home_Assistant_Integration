@@ -4,12 +4,12 @@ import asyncio
 from collections.abc import Generator
 import io
 from pathlib import Path
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
-from homeassistant.core_config import async_process_ha_core_config
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 from opendisplay import (
@@ -257,29 +257,32 @@ def _png_bytes() -> bytes:
 
 
 @pytest.mark.parametrize(
-    ("domain", "entity_id", "path"),
-    [
-        ("camera", "camera.front_door", "/api/camera_proxy/camera.front_door"),
-        ("image", "image.tag_content", "/api/image_proxy/image.tag_content"),
-    ],
+    ("domain", "entity_id"),
+    [("camera", "camera.front_door"), ("image", "image.tag_content")],
 )
-async def test_upload_image_entity_still_frame(
+async def test_upload_image_entity_snapshot(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_upload_device: MagicMock,
-    aioclient_mock: AiohttpClientMocker,
     domain: str,
     entity_id: str,
-    path: str,
 ) -> None:
-    """Camera/image entities are fetched from their still endpoint."""
-    device_id = _device_id(hass, mock_config_entry)
-    await async_process_ha_core_config(hass, {"internal_url": "http://127.0.0.1:8123"})
-    aioclient_mock.get(f"http://127.0.0.1:8123{path}", content=_png_bytes())
+    """Camera/image entities upload a single snapshot taken from the entity.
 
-    with patch(
-        "custom_components.opendisplay.services.async_resolve_media",
-    ) as mock_resolve:
+    media_source would resolve them to an endless MJPEG stream, so it must not
+    be consulted at all. The component is stubbed in sys.modules because camera
+    imports PyTurboJPEG at import time, which the test environment lacks.
+    """
+    device_id = _device_id(hass, mock_config_entry)
+    component = MagicMock()
+    component.async_get_image = AsyncMock(return_value=MagicMock(content=_png_bytes()))
+
+    with (
+        patch.dict(sys.modules, {f"homeassistant.components.{domain}": component}),
+        patch(
+            "custom_components.opendisplay.services.async_resolve_media",
+        ) as mock_resolve,
+    ):
         await hass.services.async_call(
             DOMAIN,
             "upload_image",
@@ -287,14 +290,13 @@ async def test_upload_image_entity_still_frame(
                 "device_id": device_id,
                 "image": {
                     "media_content_id": f"media-source://{domain}/{entity_id}",
-                    "media_content_type": "image/jpeg",
+                    "media_content_type": "image/png",
                 },
             },
             blocking=True,
         )
 
-    assert aioclient_mock.call_count == 1
-    assert aioclient_mock.mock_calls[0][1].path == path
+    component.async_get_image.assert_awaited_once_with(hass, entity_id)
     mock_resolve.assert_not_called()
     mock_upload_device.upload_prepared_image.assert_called_once()
 
