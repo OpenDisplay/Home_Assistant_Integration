@@ -6,6 +6,7 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 from homeassistant import config_entries
+from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.util import dt as dt_util
@@ -34,10 +35,12 @@ from custom_components.opendisplay.const import (
 
 from . import (
     ENCRYPTION_KEY,
-    NOT_OPENDISPLAY_SERVICE_INFO,
+    OPENDISPLAY_MANUFACTURER_ID,
     TEST_ADDRESS,
+    TEST_NAME,
     VALID_SERVICE_INFO,
     ZEROCONF_INFO,
+    make_service_info,
     make_zeroconf_info,
 )
 
@@ -67,9 +70,39 @@ async def test_bluetooth_discovery(hass: HomeAssistant) -> None:
     )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["title"] == "OpenDisplay 1234"
+    assert result["title"] == TEST_NAME
     assert result["data"] == {}
     assert result["result"].unique_id == "AA:BB:CC:DD:EE:FF"
+
+
+UNSUPPORTED_SERVICE_INFOS = [
+    pytest.param(make_service_info(name="Other Device"), id="wrong_name"),
+    pytest.param(
+        make_service_info(manufacturer_data={0x1234: b"\x00\x01"}),
+        id="wrong_manufacturer_id",
+    ),
+    pytest.param(
+        make_service_info(manufacturer_data={OPENDISPLAY_MANUFACTURER_ID: b"\x00\x01"}),
+        id="malformed_advertisement",
+    ),
+]
+
+
+@pytest.mark.parametrize("service_info", UNSUPPORTED_SERVICE_INFOS)
+async def test_bluetooth_discovery_not_opendisplay(
+    hass: HomeAssistant,
+    mock_opendisplay_device_class: MagicMock,
+    service_info: BluetoothServiceInfoBleak,
+) -> None:
+    """Discovery aborts for devices that are not OpenDisplay devices."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": config_entries.SOURCE_BLUETOOTH},
+        data=service_info,
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "not_supported"
+    mock_opendisplay_device_class.assert_not_called()
 
 
 async def test_bluetooth_discovery_already_configured(
@@ -233,7 +266,7 @@ async def test_user_step_with_devices(hass: HomeAssistant) -> None:
     )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["title"] == "OpenDisplay 1234"
+    assert result["title"] == TEST_NAME
     assert result["data"] == {}
     assert result["result"].unique_id == "AA:BB:CC:DD:EE:FF"
 
@@ -253,11 +286,14 @@ async def test_user_step_no_devices(hass: HomeAssistant) -> None:
     assert result["reason"] == "no_devices_found"
 
 
-async def test_user_step_filters_unsupported(hass: HomeAssistant) -> None:
+@pytest.mark.parametrize("service_info", UNSUPPORTED_SERVICE_INFOS)
+async def test_user_step_filters_unsupported(
+    hass: HomeAssistant, service_info: BluetoothServiceInfoBleak
+) -> None:
     """Test user step filters out unsupported devices."""
     with patch(
         "custom_components.opendisplay.config_flow.async_discovered_service_info",
-        return_value=[NOT_OPENDISPLAY_SERVICE_INFO],
+        return_value=[service_info],
     ):
         result = await hass.config_entries.flow.async_init(
             DOMAIN,

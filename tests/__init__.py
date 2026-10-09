@@ -43,6 +43,8 @@ V1_ADVERTISEMENT_DATA = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x82\x72\x
 
 TEST_ADDRESS = "AA:BB:CC:DD:EE:FF"
 TEST_TITLE = "OpenDisplay 1234"
+# Firmware advertises as "OD" followed by the device id in hex.
+TEST_NAME = "OD1A2B3C"
 ENCRYPTION_KEY = "aabbccddee112233aabbccddee112233"  # 32 hex chars = 16 bytes
 
 # The device registry's configuration_url, built by landing_url().
@@ -133,7 +135,7 @@ DEVICE_CONFIG = GlobalConfig(
 
 
 def make_service_info(
-    name: str | None = "OpenDisplay 1234",
+    name: str | None = TEST_NAME,
     address: str = "AA:BB:CC:DD:EE:FF",
     manufacturer_data: dict[int, bytes] | None = None,
 ) -> BluetoothServiceInfoBleak:
@@ -187,7 +189,7 @@ BUTTON_DEVICE_CONFIG = GlobalConfig(
 
 def make_v1_service_info(
     dynamic_data: bytes = b"\x00" * 11,
-    name: str | None = "OpenDisplay 1234",
+    name: str | None = TEST_NAME,
     address: str = TEST_ADDRESS,
     reboot: bool = False,
     loop_counter: int = 0x11,
@@ -452,11 +454,6 @@ def make_button_device_config(binary_inputs: list[BinaryInputs]) -> GlobalConfig
 
 
 VALID_SERVICE_INFO = make_service_info()
-
-NOT_OPENDISPLAY_SERVICE_INFO = make_service_info(
-    name="Other Device",
-    manufacturer_data={0x1234: b"\x00\x01"},
-)
 
 
 _UNSET = object()
