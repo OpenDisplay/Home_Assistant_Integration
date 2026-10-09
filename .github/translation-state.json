@@ -740,6 +740,14 @@
       "out": "0466eb8ca82b",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "04db1d7ee60e",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "3fecc95ef30b",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "b9e70315e14a",
       "src": "0fe957da240a"
@@ -1553,6 +1561,14 @@
     "services\u0000upload_image\u0000fields\u0000measured_palette\u0000name": {
       "out": "708f2b8f834d",
       "src": "672d38bdeb19"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "e62dfb5e1e81",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "16d88ffedd2a",
+      "src": "82240fa39ccb"
     },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "af677ca92e0c",
@@ -2368,6 +2384,14 @@
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "5c0e4eb05615",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "ae8b00406c9d",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "ed81e0545ff2",
       "src": "0fe957da240a"
@@ -3181,6 +3205,14 @@
     "services\u0000upload_image\u0000fields\u0000measured_palette\u0000name": {
       "out": "07a336053344",
       "src": "672d38bdeb19"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "cd94fd07dda3",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "15599c60c0f3",
+      "src": "82240fa39ccb"
     },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "25e346fc6cf0",
@@ -3996,6 +4028,14 @@
       "out": "8fa251e7bc0b",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "c8d855031278",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "85513cd6bde6",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "f7cae6b3137e",
       "src": "0fe957da240a"
@@ -4809,6 +4849,14 @@
     "services\u0000upload_image\u0000fields\u0000measured_palette\u0000name": {
       "out": "cf0f0ae71e1c",
       "src": "672d38bdeb19"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "969e5e2cf225",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "c6a3b33b8e57",
+      "src": "82240fa39ccb"
     },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "f79a2bbbc325",
@@ -5624,6 +5672,14 @@
       "out": "0dc89a1bd99a",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "1a2f87eafc5c",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "b6fb1572bfda",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "2c1e87687bda",
       "src": "0fe957da240a"
@@ -6438,6 +6494,14 @@
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "60952a321f47",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "1b737f02bdf1",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "c95e6952e934",
       "src": "0fe957da240a"
@@ -7251,6 +7315,14 @@
     "services\u0000upload_image\u0000fields\u0000measured_palette\u0000name": {
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "4da85f2fccce",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "1b737f02bdf1",
+      "src": "82240fa39ccb"
     },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "2fb68afd6acf",

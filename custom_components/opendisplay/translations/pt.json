@@ -431,6 +431,10 @@
           "description": "Usar a paleta de cores medida do painel quando disponível. Desligar para aplicar dithering contra o esquema de cores teórico. Sem efeito em painéis sem dados medidos.",
           "name": "Usar paleta medida"
         },
+        "refine_dithering": {
+          "description": "Refina a imagem ditherizada para a forma como é percebida a uma distância normal de visualização, o que normalmente reproduz cores e tons de forma mais fiel. Demora visivelmente mais do que o dithering simples.",
+          "name": "Refinar dithering"
+        },
         "refresh_mode": {
           "description": "O modo de atualização do ecrã. Atualização completa elimina ghosting mas é mais lenta. Atualização rápida não é suportada em todos os ecrãs. Atualização parcial atualiza apenas a região alterada sem piscar (painéis P/B com suporte parcial; recorre automaticamente a atualização completa quando não possível).",
           "name": "Modo de atualização"

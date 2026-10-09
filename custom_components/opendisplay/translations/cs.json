@@ -431,6 +431,10 @@
           "description": "Použít naměřenou barevnou paletu panelu, pokud je k dispozici. Vypnout pro dithering podle teoretické barevné schématu. Bez vlivu na panely bez naměřených dat.",
           "name": "Použít naměřenou paletu"
         },
+        "refine_dithering": {
+          "description": "Vylepšuje dithering obrazu tak, jak je vnímán z běžné vzdálenosti, což obvykle věrněji reprodukuje barvy a tóny. Trvá výrazně déle než obyčejný dithering.",
+          "name": "Vylepšit dithering"
+        },
         "refresh_mode": {
           "description": "Režim obnovy displeje. Plná obnova odstraní duchy, ale je pomalejší. Rychlá obnova není podporována na všech displejích. Částečná aktualizace mění pouze změněnou oblast bez blikání (B/W panely s částečnou podporou; automaticky přepne na plnou obnovu, pokud není možná).",
           "name": "Režim obnovy"

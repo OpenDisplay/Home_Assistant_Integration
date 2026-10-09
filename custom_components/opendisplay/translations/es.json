@@ -431,6 +431,10 @@
           "description": "Usar la paleta de colores medida del panel cuando esté disponible. Desactivar para aplicar tramado contra el esquema de color teórico. Sin efecto en paneles sin datos medidos.",
           "name": "Usar paleta medida"
         },
+        "refine_dithering": {
+          "description": "Refina la imagen tramada para cómo se percibe a una distancia normal de visualización, lo que normalmente reproduce colores y tonos con mayor fidelidad. Toma notablemente más tiempo que el tramado simple.",
+          "name": "Refinar tramado"
+        },
         "refresh_mode": {
           "description": "El modo de actualización de la pantalla. La actualización completa elimina imágenes fantasma pero es más lenta. La actualización rápida no es compatible con todas las pantallas. La actualización parcial solo actualiza la región cambiada sin parpadeo (paneles B/N con soporte parcial; vuelve automáticamente a actualización completa si no es posible).",
           "name": "Modo de actualización"

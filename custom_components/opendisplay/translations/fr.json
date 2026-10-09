@@ -431,6 +431,10 @@
           "description": "Utiliser la palette de couleurs mesurée du panneau si disponible. Désactiver pour appliquer un tramage selon le schéma de couleurs théorique. Sans effet sur les panneaux sans données mesurées.",
           "name": "Utiliser la palette mesurée"
         },
+        "refine_dithering": {
+          "description": "Affiner l'image tramée pour la perception à une distance normale, ce qui reproduit généralement les couleurs et les tons de manière plus fidèle. Prend nettement plus de temps que le tramage simple.",
+          "name": "Affiner le tramage"
+        },
         "refresh_mode": {
           "description": "Mode de rafraîchissement de l'affichage. Le rafraîchissement complet élimine les images fantômes mais est plus lent. Le rafraîchissement rapide n'est pas supporté par tous les écrans. Le rafraîchissement partiel met à jour uniquement la zone modifiée sans clignotement (panneaux N/B avec support partiel ; bascule automatiquement sur un rafraîchissement complet si impossible).",
           "name": "Mode de rafraîchissement"
