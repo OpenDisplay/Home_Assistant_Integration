@@ -136,16 +136,22 @@ class OpenDisplayFirmwareUpdateEntity(
 
     @property
     def available(self) -> bool:
-        """Stay available while a firmware update is installing.
+        """Stay available once the installed version is known.
 
-        During an update the device leaves app mode for the AppLoader, so the
-        passive-BLE availability tracker would otherwise mark this entity
-        unavailable mid-install and hide the progress, making a working update
-        look like a silent failure. The install runs on its own BLE connection
-        and is unaffected by the app-mode advertisement stopping, so keep the
-        entity available until it finishes.
+        installed_version is captured once at setup from stored device config,
+        so it never goes stale between BLE adverts the way a live reading
+        would. Gating availability on the passive-BLE tracker would otherwise
+        flash this entity unavailable on every brief Bluetooth gap -- and,
+        during an update, hide install progress entirely, since the device
+        leaves app mode for the AppLoader and stops advertising in a form the
+        tracker recognizes. The install itself runs on its own BLE connection
+        and is unaffected by that gap regardless of transient BLE state.
         """
-        return self._installing or super().available
+        return (
+            self._installing
+            or self._attr_installed_version is not None
+            or super().available
+        )
 
     @property
     def release_url(self) -> str | None:
