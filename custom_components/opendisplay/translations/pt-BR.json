@@ -6,6 +6,7 @@
       "cannot_connect": "Falha ao conectar",
       "no_devices_found": "Nenhum dispositivo encontrado na rede",
       "no_mac": "O dispositivo descoberto não anunciou um endereço MAC e não pode ser configurado.",
+      "not_supported": "Dispositivo não suportado",
       "reauth_successful": "Reautenticação bem-sucedida",
       "unknown": "Erro inesperado"
     },
@@ -168,6 +169,9 @@
     },
     "no_targets_specified": {
       "message": "Nenhum dispositivo alvo especificado."
+    },
+    "setup_connection_error": {
+      "message": "Falha ao conectar ao dispositivo OpenDisplay: {error}"
     },
     "upload_error": {
       "message": "Falha ao enviar para o display: {error}"
@@ -430,6 +434,10 @@
         "measured_palette": {
           "description": "Usar a paleta de cores medida do painel quando disponível. Desative para aplicar dithering contra o esquema de cores teórico. Sem efeito em painéis sem dados medidos.",
           "name": "Usar paleta medida"
+        },
+        "refine_dithering": {
+          "description": "Refina a imagem ditherizada para como ela é percebida a uma distância normal de visualização, o que normalmente reproduz cores e tons com mais fidelidade. Leva significativamente mais tempo que o dithering simples.",
+          "name": "Refinar dithering"
         },
         "refresh_mode": {
           "description": "Modo de atualização do display. Atualização completa elimina ghosting, mas é mais lenta. Atualização rápida não é suportada em todos os displays. Atualização parcial atualiza apenas a região alterada sem piscar (painéis P/B com suporte parcial; reverte para atualização completa automaticamente quando não possível).",
