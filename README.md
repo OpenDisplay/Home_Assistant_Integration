@@ -18,7 +18,7 @@ Home Assistant Integration for the [OpenDisplay](https://opendisplay.org/) proje
 
 ## Requirements
 
-- Home Assistant **2026.7.0** or newer
+- Home Assistant **2026.10.0** or newer
 - A Bluetooth adapter, or an ESPHome Bluetooth proxy
 - An OpenDisplay-compatible board and panel. See the
   [compatibility guide](https://opendisplay.org/firmware/seeed_display_compatibility.html)
