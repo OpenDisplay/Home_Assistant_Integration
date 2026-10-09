@@ -278,6 +278,10 @@
                 "measured_palette": {
                     "description": "Use the panel's measured color palette when available. Turn off to dither against the theoretical color scheme. No effect on panels without measured data.",
                     "name": "Use measured palette"
+                },
+                "refine_dithering": {
+                    "description": "Refines the dithered image for how it is perceived at a normal viewing distance, which typically reproduces colors and tones more faithfully. Takes noticeably longer than plain dithering.",
+                    "name": "Refine dithering"
                 }
             },
             "name": "Upload image",

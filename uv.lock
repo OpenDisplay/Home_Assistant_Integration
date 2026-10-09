@@ -1126,28 +1126,28 @@ wheels = [
 
 [[package]]
 name = "epaper-dithering"
-version = "6.0.0"
+version = "6.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pillow", version = "12.2.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-25-opendisplay-homeassistant-min-ha'" },
     { name = "pillow", version = "12.3.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/80/3d/6ee82654ff6ee9f3e3ac58d5159ef84d7f295c4556a82386a46dd4822b7a/epaper_dithering-6.0.0.tar.gz", hash = "sha256:9b45236e6bacf7d9126e797069f3ae0ed749ce8b59e4a28e5f3cbe62216286d5", size = 84940, upload-time = "2026-07-23T10:47:03.678Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/34/a8/62d2daabca49f9f5be9a51e301f44bb5d5351f449e5096d68bf3862d8636/epaper_dithering-6.1.1.tar.gz", hash = "sha256:fcf6bd3bb235dcd5d5b7d0c3fb200e07ff613449ee66f6a8f4b8ab1e7102838a", size = 99776, upload-time = "2026-10-07T12:29:49.296Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/37/1e/0c95b535959a569b0c7158c43fda6e4a257e04efdff1bce12b2a74beab13/epaper_dithering-6.0.0-cp314-cp314-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:da555eacea346459b8e35d29724287207eddd7e55a5f1bda786245da3629fc5b", size = 642797, upload-time = "2026-07-23T10:46:32.725Z" },
-    { url = "https://files.pythonhosted.org/packages/89/9c/f38f05d359092d4c10bf686f23fca6f203f6f5d6c7258206ce99da589018/epaper_dithering-6.0.0-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8968e7d8dee04977d1ad774ee8e0d448f8dab74a7ba0ba1e2165c9d2635e76a3", size = 374090, upload-time = "2026-07-23T10:46:34.537Z" },
-    { url = "https://files.pythonhosted.org/packages/48/f7/7d46991dbd3261f672f516be14dd6ee73f6833df1ffa3a05a719fe68747d/epaper_dithering-6.0.0-cp314-cp314-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:779a610e769b64e42e6362b1e0bfff360d9f2b625489c959974b011c0ceecf97", size = 373036, upload-time = "2026-07-23T10:46:36.003Z" },
-    { url = "https://files.pythonhosted.org/packages/db/3d/eecaba60c3784044897e5079dd80d9e3556e8f7746a20192177b792852c4/epaper_dithering-6.0.0-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cb00aadf87d6a9973ef27a71ea866b097023c2ca258fbce1949932cd6072a21d", size = 376212, upload-time = "2026-07-23T10:46:37.89Z" },
-    { url = "https://files.pythonhosted.org/packages/6c/95/09486e572d2832f944db91f45c8b61d90416551c809b3c4150c6eaaa9e9a/epaper_dithering-6.0.0-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:d9a44ccf6d46b87324d480c705e33e7be39317d02a97173cd343ab5b4c609a27", size = 550113, upload-time = "2026-07-23T10:46:39.773Z" },
-    { url = "https://files.pythonhosted.org/packages/2b/65/845038a48d1e2a5abf280164ea33b0643efc83fe081cd19160a1085c279b/epaper_dithering-6.0.0-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:1533d91f3a28c4f4c8c131200fb1b4722ac4c37eaf7ecd1a47267050f29c5196", size = 581607, upload-time = "2026-07-23T10:46:41.497Z" },
-    { url = "https://files.pythonhosted.org/packages/05/50/5df447c196fd81a1f06c5d45f5f261627efe64aba70d781424a4d8944ca9/epaper_dithering-6.0.0-cp314-cp314-win_amd64.whl", hash = "sha256:0dba44107d06332d44d9acf3f603346470c3fb9709d7d135d861331c4b862d05", size = 214583, upload-time = "2026-07-23T10:46:43.001Z" },
-    { url = "https://files.pythonhosted.org/packages/d9/0b/3944ba5892d50df1b22c2d23f23252806cb5850556cc06f4afb50e5300c7/epaper_dithering-6.0.0-cp314-cp314t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:66e4f8d102e54f57394d5cbf34b56ed77fad7d354e9d8e767772edf17bd97700", size = 372666, upload-time = "2026-07-23T10:46:44.458Z" },
-    { url = "https://files.pythonhosted.org/packages/10/d8/b729f22ce3ced95ae100a3f58cc95fab431acf65caf0ca165b365fa39b9b/epaper_dithering-6.0.0-cp314-cp314t-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:1030fe1436e4fccfd81f02b67789eff8b43e00c41b06cfacf9e6e2b41dbd3413", size = 372498, upload-time = "2026-07-23T10:46:45.978Z" },
-    { url = "https://files.pythonhosted.org/packages/c5/47/c54e08cb97b9f45798d5c00681caed5ff02f8298c203dd928d0720e9a0c0/epaper_dithering-6.0.0-cp314-cp314t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:62b539450bdceefe2daf8126588f08de38540f26c1948707d312666d91632d1f", size = 375809, upload-time = "2026-07-23T10:46:47.604Z" },
-    { url = "https://files.pythonhosted.org/packages/27/4a/59a7da6284dd712e2ec92a6550cff1f229cf25f5c94a05a2f720442ffc5d/epaper_dithering-6.0.0-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:953eac493575e2a4f7258359bddad887dac8d1a6cfc0d857328389d7c62de892", size = 548612, upload-time = "2026-07-23T10:46:49.342Z" },
-    { url = "https://files.pythonhosted.org/packages/c5/e0/9d32f3b7434ef385532b5571ad7b73ae2ec0b0f69bbf0ae1ad1a499fa836/epaper_dithering-6.0.0-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:7bcd2859d5c60d39f44bdecb5e5c2e6671dd508e732e46fcda474798db9e05ec", size = 580613, upload-time = "2026-07-23T10:46:50.746Z" },
-    { url = "https://files.pythonhosted.org/packages/a4/11/466a127dddff8c7b34c6ceabef33a5a498937b7db69a73826e56348d23c4/epaper_dithering-6.0.0-cp315-cp315-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7a906e496a09609ae7c5a8d172e32af228dbbd0ba5d9986d0fdbed6edc97b1ff", size = 376307, upload-time = "2026-07-23T10:46:52.388Z" },
-    { url = "https://files.pythonhosted.org/packages/27/96/6d45b4379f6a9e8329034e82376855d3ea6385fcdfbf28959ed98ca8c132/epaper_dithering-6.0.0-cp315-cp315t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:05d99ec811a2209f3038dc45d5cfd2b942f0f521ccbce1938e7772e88ac17bcd", size = 375960, upload-time = "2026-07-23T10:46:54.152Z" },
+    { url = "https://files.pythonhosted.org/packages/bc/b4/3a69839ff2cd3ac16320422f7ed44e2cafee8319cf3aaf3e8345e682c443/epaper_dithering-6.1.1-cp314-cp314-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:4229485954e51f1388f4ddc1a2be24bb3206fddf3104f4b522331ec7b5532fe9", size = 730101, upload-time = "2026-10-07T12:29:20.265Z" },
+    { url = "https://files.pythonhosted.org/packages/66/88/918c76105875bea370cb78e0a8bf2d13fe773760727923691b3cfd3784c7/epaper_dithering-6.1.1-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4b95e47cb127c2624dded54fec71667ad0b2decd0d093814fe4d8ed4685bb8e0", size = 419093, upload-time = "2026-10-07T12:29:21.728Z" },
+    { url = "https://files.pythonhosted.org/packages/f4/c1/b1f1a06907ea5f7bf11768b858eb9959fea6023aea898149aee4e0c733a4/epaper_dithering-6.1.1-cp314-cp314-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:37379272e9478fae936250f3507defd5798586eb57412631eafa1dd71ad783ba", size = 420275, upload-time = "2026-10-07T12:29:23.332Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/10/273750c974ac6c9b3f4052480c6f0e571e0c23d63f8ad09b9497fadfce87/epaper_dithering-6.1.1-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:18a88ad5298ff019aead278e5083f9b6deaa1ae940e73d2cb39c0cd11dde6fcc", size = 426326, upload-time = "2026-10-07T12:29:24.767Z" },
+    { url = "https://files.pythonhosted.org/packages/99/e7/abbb17d6542af12e8803425fd87a163075d053dd5567159215a58281b5e1/epaper_dithering-6.1.1-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:158d2754462aa6c01e2e2bd75285a903818584bde53bf9ba983032fe04c79ef2", size = 596244, upload-time = "2026-10-07T12:29:26.236Z" },
+    { url = "https://files.pythonhosted.org/packages/9e/3f/5f3fcc0885bb23d1bd275c70e7f27e6dc03082eda30ac144baac1f3926e2/epaper_dithering-6.1.1-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:3a11a1603181fd5ce38207bd992745cab57c70d62b675b25d95c99a619689572", size = 629936, upload-time = "2026-10-07T12:29:27.68Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/e3/d5497c54a8992a9d715f93205596250778477b331fd8069148e48df9a93f/epaper_dithering-6.1.1-cp314-cp314-win_amd64.whl", hash = "sha256:f3da3a7f09346789c22946da3e16a328dd7d45e217888b943ccdb1572b9d6108", size = 258531, upload-time = "2026-10-07T12:29:29.182Z" },
+    { url = "https://files.pythonhosted.org/packages/15/9e/44df2da347e52ab5f65ab4530a5da00f34083339660e2f07321c77fbd12d/epaper_dithering-6.1.1-cp314-cp314t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ecb02c5f52091c36ee695d19a5f2eeb4070e651096613a12ab77ca55e29883ac", size = 419065, upload-time = "2026-10-07T12:29:30.538Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/3e/dff9c891a2f56cb30f08bb4c86d00a31ab516f6325d0be59320636db7903/epaper_dithering-6.1.1-cp314-cp314t-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:4f8691ffb877fda69d2ec53b51bd125be5e5014815ad274e76609ec4c6ada23f", size = 419035, upload-time = "2026-10-07T12:29:32.175Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/a5/46de5294071395f2f4e950a4c3e619b2fc739957fc9d89c0565c28e07dac/epaper_dithering-6.1.1-cp314-cp314t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ed94650f6dc3b519f4da66fa274b74557d26de51c4026992290c10363f4c359d", size = 426512, upload-time = "2026-10-07T12:29:33.566Z" },
+    { url = "https://files.pythonhosted.org/packages/26/be/f471a3804e2c8812761a4683f1f98e5bbf46f9860eb1607875a6bec319c8/epaper_dithering-6.1.1-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:75255cec3b556503fc21f018c362471afea4acb4435637309fca5d184043491e", size = 595755, upload-time = "2026-10-07T12:29:35.26Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/bf/39ae17c60fc7d015acbf61a1d3b4192ed51fdfcde8715d76970d42161af2/epaper_dithering-6.1.1-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:062dbc1fe2fd13b2a397e94b9f104ebd68f115aae0bcb2f5e3da22349c81e980", size = 628925, upload-time = "2026-10-07T12:29:36.946Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/17/a2bff2cbfd911447285294c0278f1e49c84d23f25eb759490d2a9e7b265a/epaper_dithering-6.1.1-cp315-cp315-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b77565519166094e0b6624c68b762a3bf70cc1c4468e2fd9f9aa9c9be5300692", size = 426704, upload-time = "2026-10-07T12:29:38.298Z" },
+    { url = "https://files.pythonhosted.org/packages/81/ee/797d2778489c2ce4cd7c46be41206b240244ed08f3103f2ea3f3862b3b9d/epaper_dithering-6.1.1-cp315-cp315t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4293413a01ca426f071c01f47b9937a78077f436fcd082ba5928df41dc5a531c", size = 426817, upload-time = "2026-10-07T12:29:39.601Z" },
 ]
 
 [[package]]
@@ -1911,7 +1911,7 @@ min-ha = [
 [package.metadata]
 requires-dist = [
     { name = "odl-renderer", specifier = "==0.5.12" },
-    { name = "py-opendisplay", extras = ["silabs-ota"], specifier = "==7.16.0" },
+    { name = "py-opendisplay", extras = ["silabs-ota"], specifier = "==7.18.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -2204,7 +2204,7 @@ wheels = [
 
 [[package]]
 name = "py-opendisplay"
-version = "7.16.0"
+version = "7.18.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bleak" },
@@ -2215,9 +2215,9 @@ dependencies = [
     { name = "pillow", version = "12.2.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-25-opendisplay-homeassistant-min-ha'" },
     { name = "pillow", version = "12.3.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/91/60/50af1aa8aa99ade4faa37078483dba2121316cb26675095f315244e632e4/py_opendisplay-7.16.0.tar.gz", hash = "sha256:47283ec6b058c06a49e7f8cac5e7dade04d68ae46824f700212bf56ed1a4a636", size = 348831, upload-time = "2026-08-14T10:46:29.577Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e3/e7/e77233483b092711a2379f304c8e4b85f2c0e2a436b9cb717a1fb9cf8658/py_opendisplay-7.18.1.tar.gz", hash = "sha256:c32e25f5417e974d57a85d761866bc06937e501484290054c40547fd134bdf9e", size = 357244, upload-time = "2026-10-07T17:02:16.233Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/41/e0/1dabe3b802c66624351c332002abc9eca02eb8b21330713f34ebdbd48549/py_opendisplay-7.16.0-py3-none-any.whl", hash = "sha256:15c662c69d48780ed6bf97afc31dd98c0b473387c855b006d60dddd63cd10095", size = 161359, upload-time = "2026-08-14T10:46:28.128Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/88/ad28389c237c62a765d9f7851f46a71641b2198c1d45d87c1aeec6cc58d5/py_opendisplay-7.18.1-py3-none-any.whl", hash = "sha256:8a0d0ce4efebc4d38903e5c15d421167908b83cb43e6dd2c708cbfcef5245340", size = 164435, upload-time = "2026-10-07T17:02:14.739Z" },
 ]
 
 [package.optional-dependencies]

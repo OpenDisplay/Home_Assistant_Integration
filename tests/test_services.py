@@ -25,6 +25,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 import voluptuous as vol
 
+from custom_components.opendisplay import services
 from custom_components.opendisplay.const import CONF_ENCRYPTION_KEY, DOMAIN
 from custom_components.opendisplay.services import HA_TAG_URL_PREFIX, NFC_MAX_PAYLOAD
 
@@ -945,6 +946,76 @@ async def test_drawcustom_renders_and_uploads(
     assert mock_render.await_args.kwargs["height"] == 128
     mock_upload_device.upload_prepared_image.assert_awaited_once()
     assert response["status"] == "delivered"
+
+
+@pytest.mark.parametrize(
+    ("service_data", "expected_dbs"),
+    [({}, False), ({"refine_dithering": True}, True)],
+    ids=["default_off", "enabled"],
+)
+async def test_upload_image_refine_dithering(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_resolve_media: MagicMock,
+    service_data: dict[str, bool],
+    expected_dbs: bool,
+) -> None:
+    """refine_dithering reaches prepare_image as dbs, and defaults to off."""
+    with patch(
+        "custom_components.opendisplay.services.prepare_image",
+        wraps=services.prepare_image,
+    ) as prepare:
+        await hass.services.async_call(
+            DOMAIN,
+            "upload_image",
+            {
+                "device_id": _device_id(hass, mock_config_entry),
+                "image": {
+                    "media_content_id": "media-source://local/test.png",
+                    "media_content_type": "image/png",
+                },
+                **service_data,
+            },
+            blocking=True,
+        )
+
+    assert prepare.call_args.kwargs["dbs"] is expected_dbs
+    mock_upload_device.upload_prepared_image.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("service_data", "expected_dbs"),
+    [({}, False), ({"refine_dithering": True}, True)],
+    ids=["default_off", "enabled"],
+)
+async def test_drawcustom_refine_dithering(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_render: MagicMock,
+    service_data: dict[str, bool],
+    expected_dbs: bool,
+) -> None:
+    """The drawcustom action passes refine_dithering to prepare_image as dbs."""
+    with patch(
+        "custom_components.opendisplay.services.prepare_image",
+        wraps=services.prepare_image,
+    ) as prepare:
+        await hass.services.async_call(
+            DOMAIN,
+            "drawcustom",
+            {
+                "device_id": [_device_id(hass, mock_config_entry)],
+                "payload": [{"type": "text", "value": "hi"}],
+                **service_data,
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    assert prepare.call_args.kwargs["dbs"] is expected_dbs
+    mock_upload_device.upload_prepared_image.assert_awaited_once()
 
 
 async def test_drawcustom_dry_run_previews_without_uploading(
