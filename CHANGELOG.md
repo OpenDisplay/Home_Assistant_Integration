@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.1.0](https://github.com/OpenDisplay/Home_Assistant_Integration/compare/3.0.2...3.1.0) (2026-10-09)
+
+
+### Features
+
+* add a connectivity binary sensor ([a7635e7](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/a7635e71f98d4ade62733da583b0c3cec57909f9))
+* add a refine dithering option to image uploads ([3df2171](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/3df21710dfd5374e22984a73fbf0b86b8704231b))
+
+
+### Bug Fixes
+
+* only offer devices that advertise as OpenDisplay ([02e5e79](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/02e5e790053edf6a0077a0b87e62bfac591974a1))
+* require py-opendisplay&gt;=7.18.1 instead of an exact pin ([735ceb8](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/735ceb8d201715997657dbb04476c8d347b8f3ee))
+* take camera and image snapshots from the entity directly ([9dd46e4](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/9dd46e498746e93f5914111f1b29330757b8c15f))
+* translate the setup errors ([9124594](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/9124594124b071b86fa5168988e27586a6b9e54b))
+* update py-opendisplay to 7.18.1 ([1ad2af9](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/1ad2af9f2c42273cbf27b06acf1dfb9db1146471))
+
 ## [3.0.2](https://github.com/OpenDisplay/Home_Assistant_Integration/compare/3.0.1...3.0.2) (2026-08-26)
 
 
