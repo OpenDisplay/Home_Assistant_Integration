@@ -169,6 +169,9 @@
     "no_targets_specified": {
       "message": "Aucun appareil cible spécifié."
     },
+    "setup_connection_error": {
+      "message": "Échec de la connexion à l’appareil OpenDisplay : {error}"
+    },
     "upload_error": {
       "message": "Échec du téléversement vers l’affichage : {error}"
     },
@@ -430,6 +433,10 @@
         "measured_palette": {
           "description": "Utiliser la palette de couleurs mesurée du panneau si disponible. Désactiver pour appliquer un tramage selon le schéma de couleurs théorique. Sans effet sur les panneaux sans données mesurées.",
           "name": "Utiliser la palette mesurée"
+        },
+        "refine_dithering": {
+          "description": "Affiner l’image tramée pour la perception à distance normale, ce qui reproduit généralement les couleurs et les tons plus fidèlement. Prend nettement plus de temps que le tramage simple.",
+          "name": "Affiner le tramage"
         },
         "refresh_mode": {
           "description": "Mode de rafraîchissement de l'affichage. Le rafraîchissement complet élimine les images fantômes mais est plus lent. Le rafraîchissement rapide n'est pas supporté par tous les écrans. Le rafraîchissement partiel met à jour uniquement la zone modifiée sans clignotement (panneaux N/B avec support partiel ; bascule automatiquement sur un rafraîchissement complet si impossible).",

@@ -236,6 +236,10 @@
       "out": "5e2456ad2a50",
       "src": "80c472afefe6"
     },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "55e50ef57968",
+      "src": "7cd20d347119"
+    },
     "exceptions\u0000upload_error\u0000message": {
       "out": "946a74a36d9a",
       "src": "75561a03be6e"
@@ -740,6 +744,14 @@
       "out": "0466eb8ca82b",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "04db1d7ee60e",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "3fecc95ef30b",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "b9e70315e14a",
       "src": "0fe957da240a"
@@ -1049,6 +1061,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "1937c120929b",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "9d82175b2a78",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "a0d49d0ede2c",
@@ -1554,6 +1570,14 @@
       "out": "708f2b8f834d",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "c9d161827b46",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "16d88ffedd2a",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "af677ca92e0c",
       "src": "0fe957da240a"
@@ -1863,6 +1887,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "6e6821bc84e0",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "27a498ee0cdb",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "d063ac6d2b60",
@@ -2368,6 +2396,14 @@
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "d6e8c7de8ffc",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "ae8b00406c9d",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "ed81e0545ff2",
       "src": "0fe957da240a"
@@ -2677,6 +2713,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "1fb3bf9319c3",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "2890fca4f64b",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "e9e642fc50a4",
@@ -3182,6 +3222,14 @@
       "out": "07a336053344",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "6270be597ed9",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "15599c60c0f3",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "25e346fc6cf0",
       "src": "0fe957da240a"
@@ -3491,6 +3539,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "458896e84018",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "cac0e73eaa21",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "431a9f4a0b8f",
@@ -3996,6 +4048,14 @@
       "out": "8fa251e7bc0b",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "c8d855031278",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "85513cd6bde6",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "f7cae6b3137e",
       "src": "0fe957da240a"
@@ -4305,6 +4365,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "ab7b84944fc6",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "168f922d24d9",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "a760962cc17d",
@@ -4810,6 +4874,14 @@
       "out": "cf0f0ae71e1c",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "e227624e2379",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "c6a3b33b8e57",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "f79a2bbbc325",
       "src": "0fe957da240a"
@@ -5119,6 +5191,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "9753955e1882",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "7c384e28b60a",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "781b6268b30d",
@@ -5624,6 +5700,14 @@
       "out": "0dc89a1bd99a",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "32653f109f04",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "b6fb1572bfda",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "2c1e87687bda",
       "src": "0fe957da240a"
@@ -5933,6 +6017,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "82b619c1673b",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "8a5d15313b15",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "34ab7a45dc33",
@@ -6438,6 +6526,14 @@
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "60952a321f47",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "1b737f02bdf1",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "c95e6952e934",
       "src": "0fe957da240a"
@@ -6747,6 +6843,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "82b619c1673b",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "4e2275bf5f39",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "1462256b83ef",
@@ -7251,6 +7351,14 @@
     "services\u0000upload_image\u0000fields\u0000measured_palette\u0000name": {
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "4da85f2fccce",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "1b737f02bdf1",
+      "src": "82240fa39ccb"
     },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "2fb68afd6acf",

@@ -169,6 +169,9 @@
     "no_targets_specified": {
       "message": "Nie określono docelowych urządzeń."
     },
+    "setup_connection_error": {
+      "message": "Nie udało się połączyć z urządzeniem OpenDisplay: {error}"
+    },
     "upload_error": {
       "message": "Nie udało się przesłać na wyświetlacz: {error}"
     },
@@ -430,6 +433,10 @@
         "measured_palette": {
           "description": "Użyć zmierzonej palety kolorów panelu, jeśli dostępna. Wyłącz, aby stosować dithering względem teoretycznej palety kolorów. Brak efektu na panelach bez danych pomiarowych.",
           "name": "Użyj zmierzonej palety"
+        },
+        "refine_dithering": {
+          "description": "Udoskonala obraz z ditheringiem pod kątem postrzegania z normalnej odległości, co zwykle wierniej odwzorowuje kolory i tony. Zajmuje zauważalnie więcej czasu niż zwykły dithering.",
+          "name": "Udoskonal dithering"
         },
         "refresh_mode": {
           "description": "Tryb odświeżania wyświetlacza. Pełne odświeżanie usuwa efekt duchów, ale jest wolniejsze. Szybkie odświeżanie nie jest obsługiwane na wszystkich wyświetlaczach. Częściowe aktualizuje tylko zmieniony obszar bez migotania (panele B/W z częściowym wsparciem; automatycznie przełącza na pełne odświeżanie, gdy nie jest możliwe).",
