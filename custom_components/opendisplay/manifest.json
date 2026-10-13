@@ -28,7 +28,7 @@
     "silabs-ble-ota==0.1.0",
     "odl-renderer==0.5.14"
   ],
-  "version": "3.1.0",
+  "version": "3.1.1",
   "zeroconf": [
     "_opendisplay._tcp.local."
   ]

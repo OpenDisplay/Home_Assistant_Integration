@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.1](https://github.com/OpenDisplay/Home_Assistant_Integration/compare/3.1.0...3.1.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* keep Home Assistant responsive while drawcustom renders ([f6941c9](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/f6941c9b456a04cfd3608be367c1091f021847a6))
+
 ## [3.1.0](https://github.com/OpenDisplay/Home_Assistant_Integration/compare/3.0.2...3.1.0) (2026-10-12)
 
 
