@@ -2112,7 +2112,7 @@ wheels = [
 
 [[package]]
 name = "odl-renderer"
-version = "0.5.12"
+version = "0.5.14"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp", version = "3.14.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-25-opendisplay-homeassistant-min-ha'" },
@@ -2122,9 +2122,9 @@ dependencies = [
     { name = "qrcode", extra = ["pil"] },
     { name = "resize-image" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/23/14/b353f393a726e3bcfecaebc22a7dc9dc590bde29ab70d2423f6417541390/odl_renderer-0.5.12.tar.gz", hash = "sha256:c7cc048941b6948ef087db8bb03fbe16ea373e54af1b353784f11f88888ff0fe", size = 1115738, upload-time = "2026-07-06T18:21:50.219Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7f/86/d40587f558f3b55ade2a21134ebdcfea535c2bf21abfc24faf37f6dee2ac/odl_renderer-0.5.14.tar.gz", hash = "sha256:6356619dc43cbaad41e504cb414cd59430de1153278536d9ddc777cb0c85ed94", size = 1124038, upload-time = "2026-10-13T13:43:14.029Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/03/6b88db9b336051fae4110f81c273b50eabe38bae6ba3059516315a2da413/odl_renderer-0.5.12-py3-none-any.whl", hash = "sha256:86054c32e75305ef2b77e31cab8398db9db8d2173277fcdb343455e8b8131769", size = 872107, upload-time = "2026-07-06T18:21:48.625Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/b1/cee1fb80901543508fdc08d12faf50080fee47d398eaec9a208331e44123/odl_renderer-0.5.14-py3-none-any.whl", hash = "sha256:88800c36e86507b122a610cdd3b90b7d71aa6fca9a1c2bffd091adfbf9db22d1", size = 876214, upload-time = "2026-10-13T13:43:12.485Z" },
 ]
 
 [[package]]
@@ -2157,7 +2157,7 @@ min-ha = [
 
 [package.metadata]
 requires-dist = [
-    { name = "odl-renderer", specifier = "==0.5.12" },
+    { name = "odl-renderer", specifier = "==0.5.14" },
     { name = "py-opendisplay", extras = ["silabs-ota"], specifier = "==7.18.1" },
 ]
 
