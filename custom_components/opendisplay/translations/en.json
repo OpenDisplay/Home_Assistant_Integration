@@ -192,6 +192,9 @@
         "no_targets_specified": {
             "message": "No target devices specified."
         },
+        "path_not_allowed": {
+            "message": "Path `{path}` is not allowed. Add its folder to `allowlist_external_dirs` in configuration.yaml."
+        },
         "setup_connection_error": {
             "message": "Failed to connect to the OpenDisplay device: {error}"
         },
