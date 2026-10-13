@@ -36,7 +36,7 @@ from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.network import get_url
 from homeassistant.helpers.selector import MediaSelector, MediaSelectorConfig
-from odl_renderer import generate_image
+from odl_renderer import SourceNotAllowedError, generate_image
 from PIL import Image as PILImage, ImageOps
 import voluptuous as vol
 
@@ -938,6 +938,20 @@ async def _async_drawcustom(call: ServiceCall) -> ServiceResponse:
     for device_id in unique_ids:
         try:
             receipt = await _drawcustom_for_device(hass, device_id, call)
+        except SourceNotAllowedError as err:
+            # The payload is the same for every target, so this is not a
+            # per-device failure: refuse the whole call.
+            if err.kind == "url":
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="url_not_allowed",
+                    translation_placeholders={"url": err.source},
+                ) from err
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="path_not_allowed",
+                translation_placeholders={"path": err.source},
+            ) from err
         except (HomeAssistantError, ServiceValidationError) as err:
             errors.append(f"{device_id}: {err}")
         else:
@@ -968,6 +982,25 @@ async def _async_drawcustom(call: ServiceCall) -> ServiceResponse:
         else None
     )
     return {"status": status, "expires_at": expires_at, "results": results}
+
+
+def _source_guard(hass: HomeAssistant) -> Callable[[str, str], bool]:
+    """Return the renderer's source policy: Home Assistant's own allowlists.
+
+    The renderer asks before it fetches a URL or opens an image or font file
+    named by a drawcustom payload. Holding those to the same allowlists as
+    upload_image keeps the action from reading arbitrary files or making Home
+    Assistant request arbitrary hosts.
+    """
+
+    def allow_source(kind: str, source: str) -> bool:
+        if kind == "url":
+            return hass.config.is_allowed_external_url(source)
+        # Resolves symlinks, which touches the disk; the renderer calls this
+        # from its drawing thread, never from the event loop.
+        return hass.config.is_allowed_path(source)
+
+    return allow_source
 
 
 def _font_search_dirs(hass: HomeAssistant) -> list[str]:
@@ -1011,6 +1044,7 @@ async def _drawcustom_for_device(
         session=async_get_clientsession(hass),
         data_provider=HADataProvider(hass),
         font_dirs=await hass.async_add_executor_job(_font_search_dirs, hass),
+        allow_source=_source_guard(hass),
     )
 
     if call.data["dry-run"]:

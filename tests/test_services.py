@@ -1112,3 +1112,144 @@ async def test_drawcustom_transposes_the_canvas_for_a_rotated_panel(
 
     assert mock_render.await_args.kwargs["width"] == 128
     assert mock_render.await_args.kwargs["height"] == 296
+
+
+def _dlimg(url: str, **extra: object) -> dict[str, object]:
+    return {
+        "type": "dlimg",
+        "url": url,
+        "x": 0,
+        "y": 0,
+        "xsize": 8,
+        "ysize": 8,
+        **extra,
+    }
+
+
+def _png_bytes() -> bytes:
+    buf = io.BytesIO()
+    PILImage.new("RGB", (8, 8), "red").save(buf, format="PNG")
+    return buf.getvalue()
+
+
+# These run the real renderer: the allowlists are enforced where it loads a
+# source, so mocking the render would test nothing.
+@pytest.mark.parametrize(
+    ("element", "translation_key", "placeholder"),
+    [
+        (
+            _dlimg("http://192.168.1.1/admin.png"),
+            "url_not_allowed",
+            "http://192.168.1.1/admin.png",
+        ),
+        (_dlimg("/etc/secret.png"), "path_not_allowed", "/etc/secret.png"),
+        (
+            {"type": "text", "value": "hi", "x": 0, "font": "/etc/secret.ttf"},
+            "path_not_allowed",
+            "/etc/secret.ttf",
+        ),
+        (
+            {"type": "text", "value": "hi", "x": 0, "font": "../../secret.ttf"},
+            "path_not_allowed",
+            "../../secret.ttf",
+        ),
+    ],
+    ids=["image_url", "image_path", "font_path", "font_name_climbing_out"],
+)
+async def test_drawcustom_refuses_sources_outside_the_allowlists(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    aioclient_mock: AiohttpClientMocker,
+    element: dict[str, object],
+    translation_key: str,
+    placeholder: str,
+) -> None:
+    """A payload cannot name a file or URL Home Assistant has not allowed."""
+    with pytest.raises(ServiceValidationError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "drawcustom",
+            {
+                "device_id": [_device_id(hass, mock_config_entry)],
+                "payload": [{"type": "text", "value": "ok", "x": 0}, element],
+            },
+            blocking=True,
+        )
+
+    assert exc_info.value.translation_key == translation_key
+    assert exc_info.value.translation_placeholders == {
+        translation_key.split("_")[0]: placeholder
+    }
+    assert aioclient_mock.call_count == 0
+    mock_upload_device.upload_prepared_image.assert_not_called()
+
+
+async def test_drawcustom_renders_allowlisted_sources(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """Allowlisted files and bundled fonts still render; hidden elements are skipped."""
+    (tmp_path / "b.png").write_bytes(_png_bytes())
+    hass.config.allowlist_external_dirs.add(str(tmp_path))
+
+    await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [_device_id(hass, mock_config_entry)],
+            "payload": [
+                _dlimg(str(tmp_path / "b.png")),
+                # Hidden, so the renderer never loads it.
+                _dlimg("http://192.168.1.1/admin.png", visible=False),
+                {"type": "text", "value": "hi", "x": 0, "font": "ppb.ttf"},
+            ],
+        },
+        blocking=True,
+    )
+
+    mock_upload_device.upload_prepared_image.assert_awaited_once()
+
+
+async def test_drawcustom_source_guard_follows_the_url_allowlist(
+    hass: HomeAssistant,
+) -> None:
+    """The guard handed to the renderer allows exactly the allowlisted URLs."""
+    hass.config.allowlist_external_urls.add("https://example.com/images/")
+    allow_source = services._source_guard(hass)
+
+    assert allow_source("url", "https://example.com/images/a.png")
+    assert not allow_source("url", "https://example.com/other/a.png")
+    assert not allow_source("url", "http://192.168.1.1/admin.png")
+
+
+async def test_drawcustom_refuses_a_symlink_out_of_an_allowed_folder(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """An allowed folder cannot be used to reach a file outside it."""
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    outside = tmp_path / "outside.png"
+    outside.write_bytes(_png_bytes())
+    (allowed / "link.png").symlink_to(outside)
+    hass.config.allowlist_external_dirs.add(str(allowed))
+
+    for url in (str(allowed / "link.png"), str(allowed / ".." / "outside.png")):
+        with pytest.raises(ServiceValidationError) as exc_info:
+            await hass.services.async_call(
+                DOMAIN,
+                "drawcustom",
+                {
+                    "device_id": [_device_id(hass, mock_config_entry)],
+                    "payload": [_dlimg(url)],
+                },
+                blocking=True,
+            )
+        assert exc_info.value.translation_key == "path_not_allowed"
+
+    mock_upload_device.upload_prepared_image.assert_not_called()
