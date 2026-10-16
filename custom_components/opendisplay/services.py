@@ -183,7 +183,7 @@ SCHEMA_UPLOAD_IMAGE = vol.Schema(
             vol.Coerce(float), vol.Range(min=0.0, max=100.0)
         ),
         vol.Optional(ATTR_REFINE_DITHERING, default=False): cv.boolean,
-        vol.Optional(ATTR_USE_MEASURED_PALETTES, default=True): cv.boolean,
+        vol.Optional(ATTR_USE_MEASURED_PALETTES, default=False): cv.boolean,
     }
 )
 
