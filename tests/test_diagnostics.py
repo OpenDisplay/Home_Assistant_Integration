@@ -1,6 +1,7 @@
 """Test the OpenDisplay diagnostics."""
 
 from collections.abc import Awaitable, Callable
+import dataclasses
 from unittest.mock import MagicMock
 
 from homeassistant.components.diagnostics import REDACTED
@@ -13,7 +14,7 @@ from pytest_homeassistant_custom_component.components.diagnostics import (
 from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
 from syrupy.assertion import SnapshotAssertion
 
-from . import make_wifi_device_config
+from . import DEVICE_CONFIG, make_wifi_device_config
 
 
 async def test_diagnostics(
@@ -56,3 +57,27 @@ async def test_diagnostics_redacts_wifi_credentials(
     assert wifi["ssid"] == REDACTED
     assert wifi["password"] == REDACTED
     assert wifi["server_url"] == REDACTED
+
+
+@pytest.mark.parametrize(
+    "device_config",
+    [dataclasses.replace(DEVICE_CONFIG, unparsed_tail=b"\xde\xad\xbe\xef")],
+)
+async def test_diagnostics_redacts_unparsed_config_bytes(
+    hass: HomeAssistant,
+    hass_client: ClientSessionGenerator,
+    mock_config_entry: MockConfigEntry,
+    setup_entry: Callable[[], Awaitable[None]],
+) -> None:
+    """Raw bytes of config packets the library does not recognise never leak.
+
+    Their content is unknown, so they could hold anything; diagnostics would
+    otherwise render them as hex.
+    """
+    await setup_entry()
+
+    result = await get_diagnostics_for_config_entry(
+        hass, hass_client, mock_config_entry
+    )
+
+    assert result["device_config"]["unparsed_tail"] == REDACTED

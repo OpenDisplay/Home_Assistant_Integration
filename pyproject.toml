@@ -9,8 +9,8 @@ requires-python = ">=3.14.2"
 # else the integration imports (aiohttp, voluptuous, PIL) is supplied by Home
 # Assistant itself, which the test dependency groups pin transitively.
 dependencies = [
-    "py-opendisplay[silabs-ota]==7.16.0",
-    "odl-renderer==0.5.12",
+    "py-opendisplay[silabs-ota]==7.18.1",
+    "odl-renderer==0.5.14",
 ]
 
 [dependency-groups]
@@ -19,8 +19,8 @@ dependencies = [
 # per release, so never re-pin those here -- picking the PHCC version *is*
 # picking the HA version being tested against.
 #
-#   0.13.356 -> homeassistant 2026.8.2  (latest)
-#   0.13.344 -> homeassistant 2026.7.0  (the hacs.json floor)
+#   0.13.372 -> homeassistant 2026.10.1  (latest)
+#   0.13.371 -> homeassistant 2026.10.0  (the hacs.json floor)
 #
 # The three extras below are Home Assistant *component* requirements. HA
 # installs those at runtime from each component's own manifest.json, so they
@@ -40,7 +40,7 @@ dependencies = [
 # If a future HA bump adds another such import, `scripts/ha-component-reqs`
 # prints the full component requirement set to compare against.
 dev = [
-    "pytest-homeassistant-custom-component==0.13.371",
+    "pytest-homeassistant-custom-component==0.13.372",
     "ruff==0.15.17",
     "mypy==1.18.2",
     "aiousbwatcher",
@@ -54,9 +54,6 @@ min-ha = [
     "aiousbwatcher",
     "serialx",
     "dbus-fast",
-    # 2026.7.0 only: components/usb imports serialx's esphome transport
-    # eagerly (2026.8.x defers it), which drags in aioesphomeapi.
-    "aioesphomeapi",
 ]
 
 [tool.uv]

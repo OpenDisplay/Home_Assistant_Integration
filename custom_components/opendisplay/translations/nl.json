@@ -6,6 +6,7 @@
       "cannot_connect": "Verbinding mislukt",
       "no_devices_found": "Geen apparaten gevonden op het netwerk",
       "no_mac": "Het ontdekte apparaat heeft geen MAC-adres geadverteerd en kan niet worden ingesteld.",
+      "not_supported": "Apparaat niet ondersteund",
       "reauth_successful": "Her-authenticatie was succesvol",
       "unknown": "Onverwachte fout"
     },
@@ -168,6 +169,9 @@
     },
     "no_targets_specified": {
       "message": "Geen doelapparaten opgegeven."
+    },
+    "setup_connection_error": {
+      "message": "Verbinding met het OpenDisplay-apparaat mislukt: {error}"
     },
     "upload_error": {
       "message": "Uploaden naar het display mislukt: {error}"
@@ -430,6 +434,10 @@
         "measured_palette": {
           "description": "Gebruik het gemeten kleurenpalet van het paneel indien beschikbaar. Uitschakelen om te dither tegen het theoretische kleurenpalet. Geen effect op panelen zonder gemeten data.",
           "name": "Gemeten palet gebruiken"
+        },
+        "refine_dithering": {
+          "description": "Verfijnt de geditherde afbeelding voor de waarneming op normale kijkafstand, wat doorgaans kleuren en tonen getrouwer reproduceert. Duurt merkbaar langer dan gewone dithering.",
+          "name": "Dithering verfijnen"
         },
         "refresh_mode": {
           "description": "De verversingsmodus van het display. Volledige verversing verwijdert ghosting maar is trager. Snelle verversing wordt niet door alle displays ondersteund. Gedeeltelijke verversing werkt alleen het veranderde gebied bij zonder te flikkeren (Z/W panelen met gedeeltelijke ondersteuning; valt automatisch terug op volledige verversing als het niet mogelijk is).",

@@ -6,6 +6,7 @@
       "cannot_connect": "Verbindung fehlgeschlagen",
       "no_devices_found": "Keine Geräte im Netzwerk gefunden",
       "no_mac": "Das gefundene Gerät hat keine MAC-Adresse gesendet und kann nicht eingerichtet werden.",
+      "not_supported": "Gerät nicht unterstützt",
       "reauth_successful": "Re-Authentifizierung war erfolgreich",
       "unknown": "Unerwarteter Fehler"
     },
@@ -168,6 +169,9 @@
     },
     "no_targets_specified": {
       "message": "Keine Zielgeräte angegeben."
+    },
+    "setup_connection_error": {
+      "message": "Verbindung zum OpenDisplay-Gerät fehlgeschlagen: {error}"
     },
     "upload_error": {
       "message": "Hochladen auf das Display fehlgeschlagen: {error}"
@@ -430,6 +434,10 @@
         "measured_palette": {
           "description": "Die gemessene Farbpalette des Panels verwenden, wenn verfügbar. Ausschalten, um gegen das theoretische Farbschema zu dithern. Keine Auswirkung auf Panels ohne gemessene Daten.",
           "name": "Gemessene Palette verwenden"
+        },
+        "refine_dithering": {
+          "description": "Verfeinert das gerasterte Bild für die Wahrnehmung aus normaler Betrachtungsentfernung, was Farben und Töne in der Regel originalgetreuer wiedergibt. Dauert deutlich länger als einfaches Rastern.",
+          "name": "Rastern verfeinern"
         },
         "refresh_mode": {
           "description": "Der Anzeigenerneuerungsmodus. Volle Erneuerung beseitigt Nachbilder, ist aber langsamer. Schnelle Erneuerung wird nicht von allen Displays unterstützt. Teilweise Aktualisierung aktualisiert nur den geänderten Bereich ohne Flackern (B/W-Panels mit Teilunterstützung; fällt automatisch auf volle Erneuerung zurück, wenn nicht möglich).",
