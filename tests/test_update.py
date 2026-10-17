@@ -29,6 +29,7 @@ from . import (
     GITHUB_LATEST,
     OTA_REPO,
     VALID_SERVICE_INFO,
+    make_nrf_device_config,
     make_ota_device_config,
 )
 from .bluetooth import inject_bluetooth_service_info
@@ -312,3 +313,127 @@ async def test_install_refused_while_the_device_sleeps(
 
     assert err.value.translation_key == "device_sleeping_ota"
     mock_ota.assert_not_awaited()
+
+
+# --- nRF52840 (Nordic Legacy DFU) -------------------------------------------
+
+
+NRF_GITHUB_LATEST = "https://api.github.com/repos/OpenDisplay/Firmware/releases/latest"
+
+
+@pytest.fixture
+def mock_nrf_ota(aioclient_mock: AiohttpClientMocker) -> MagicMock:
+    """Patch the DFU trigger, DFU-device lookup, nRF flash, and asset download."""
+    aioclient_mock.get(NRF_GITHUB_LATEST, json={"tag_name": LATEST, "body": "notes"})
+    dfu_device = MagicMock(address="AA:BB:CC:DD:EE:00")
+    device = MagicMock()
+    device.trigger_dfu_bootloader = AsyncMock()
+    opendisplay_device = MagicMock()
+    opendisplay_device.return_value.__aenter__ = AsyncMock(return_value=device)
+    opendisplay_device.return_value.__aexit__ = AsyncMock(return_value=False)
+    with (
+        patch(
+            "custom_components.opendisplay.update.OpenDisplayDevice",
+            opendisplay_device,
+        ),
+        patch(
+            "custom_components.opendisplay.update.find_nrf_dfu_device",
+            AsyncMock(return_value=dfu_device),
+        ),
+        patch(
+            "custom_components.opendisplay.update.perform_nrf_dfu", AsyncMock()
+        ) as ota,
+        patch(
+            "custom_components.opendisplay.update.OpenDisplayFirmwareUpdateEntity._download_asset",
+            AsyncMock(return_value=b"firmware"),
+        ),
+    ):
+        ota.trigger = device.trigger_dfu_bootloader
+        ota.dfu_device = dfu_device
+        yield ota
+
+
+@pytest.mark.parametrize("device_config", [make_nrf_device_config()])
+async def test_install_is_offered_for_nrf52840(
+    hass: HomeAssistant,
+    setup_seen: Callable[[], Awaitable[None]],
+    mock_nrf_ota: MagicMock,
+) -> None:
+    """An nRF52840 can be flashed over BLE, also through a proxy."""
+    await setup_seen()
+
+    features = hass.states.get(ENTITY).attributes[ATTR_SUPPORTED_FEATURES]
+    assert features & UpdateEntityFeature.INSTALL
+    assert features & UpdateEntityFeature.SPECIFIC_VERSION
+
+
+@pytest.mark.parametrize("device_config", [make_nrf_device_config()])
+async def test_nrf_install_triggers_dfu_and_flashes(
+    hass: HomeAssistant,
+    setup_seen: Callable[[], Awaitable[None]],
+    mock_nrf_ota: MagicMock,
+) -> None:
+    """The app is told to enter DFU, then the bootloader at MAC+1 is flashed."""
+    await setup_seen()
+
+    await _install(hass)
+
+    mock_nrf_ota.trigger.assert_awaited_once()
+    mock_nrf_ota.assert_awaited_once()
+    assert mock_nrf_ota.await_args.args == (b"firmware", mock_nrf_ota.dfu_device)
+    assert hass.states.get(ENTITY).attributes[ATTR_INSTALLED_VERSION] == LATEST
+
+
+@pytest.mark.parametrize("device_config", [make_nrf_device_config()])
+async def test_nrf_install_resumes_a_device_already_in_dfu(
+    hass: HomeAssistant,
+    setup_seen: Callable[[], Awaitable[None]],
+    mock_nrf_ota: MagicMock,
+) -> None:
+    """A failed app-mode connect means it's already in DFU: flash it anyway."""
+    await setup_seen()
+    mock_nrf_ota.trigger.side_effect = BLEConnectionError("no app")
+
+    await _install(hass)
+
+    mock_nrf_ota.assert_awaited_once()
+
+
+@pytest.mark.parametrize("device_config", [make_nrf_device_config()])
+async def test_nrf_install_fails_when_the_dfu_device_never_appears(
+    hass: HomeAssistant,
+    setup_seen: Callable[[], Awaitable[None]],
+    mock_nrf_ota: MagicMock,
+) -> None:
+    """No DFU device within the lookup window is a clear error, not a flash."""
+    await setup_seen()
+
+    with (
+        patch(
+            "custom_components.opendisplay.update.find_nrf_dfu_device",
+            AsyncMock(return_value=None),
+        ),
+        pytest.raises(HomeAssistantError, match="DFU device not found"),
+    ):
+        await _install(hass)
+
+    mock_nrf_ota.assert_not_awaited()
+
+
+@pytest.mark.parametrize("device_config", [make_nrf_device_config()])
+async def test_a_specific_version_can_be_installed(
+    hass: HomeAssistant,
+    setup_seen: Callable[[], Awaitable[None]],
+    mock_nrf_ota: MagicMock,
+) -> None:
+    """The version passed to the install service is the one flashed."""
+    await setup_seen()
+
+    await hass.services.async_call(
+        UPDATE_DOMAIN,
+        SERVICE_INSTALL,
+        {ATTR_ENTITY_ID: ENTITY, "version": "v1.2.4"},
+        blocking=True,
+    )
+
+    assert hass.states.get(ENTITY).attributes[ATTR_INSTALLED_VERSION] == "v1.2.4"

@@ -386,6 +386,16 @@ def make_ota_device_config(sleepy: bool = False) -> GlobalConfig:
     )
 
 
+def make_nrf_device_config() -> GlobalConfig:
+    """Return a GlobalConfig for an nRF52840 (Nordic Legacy DFU over BLE)."""
+    return GlobalConfig(
+        system=replace(DEVICE_CONFIG.system, ic_type=ICType.NRF52840),
+        manufacturer=DEVICE_CONFIG.manufacturer,
+        power=DEVICE_CONFIG.power,
+        displays=DEVICE_CONFIG.displays,
+    )
+
+
 def make_notifier_device_config(
     leds: bool = True, buzzers: bool = True, sleepy: bool = False
 ) -> GlobalConfig:
