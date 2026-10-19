@@ -65,7 +65,8 @@
                     "queue_timeout_hours": "Queued content timeout (hours)",
                     "probe_before_queue": "Try connecting before queueing",
                     "blocks_per_ack": "Blocks sent per acknowledgment",
-                    "max_queue_size": "Maximum upload frames in flight"
+                    "max_queue_size": "Maximum upload frames in flight",
+                    "github_token": "GitHub token (optional)"
                 },
                 "data_description": {
                     "sleep_mode": "Automatic follows the device's own power configuration (battery power with deep sleep enabled). Force on or off to override.",
@@ -73,7 +74,8 @@
                     "queue_timeout_hours": "How long content queued for a sleeping device waits for a wake before it expires.",
                     "probe_before_queue": "Before queueing an image for a sleeping device, make one quick connection attempt in case it is actually awake (missed advertisements, always-on radios). Adds at most a few seconds when the device really is asleep.",
                     "blocks_per_ack": "How many image frames the device receives before it sends one acknowledgment during a fast (sliding-window) upload. Higher values reduce round trips; the effective value is capped by the device and the maximum frames in flight.",
-                    "max_queue_size": "Maximum number of image frames kept in flight at once during a fast (sliding-window) upload. Higher values raise throughput on slow (proxy) links. Set to 1 to disable fast transfer and use the classic one-frame-at-a-time upload."
+                    "max_queue_size": "Maximum number of image frames kept in flight at once during a fast (sliding-window) upload. Higher values raise throughput on slow (proxy) links. Set to 1 to disable fast transfer and use the classic one-frame-at-a-time upload.",
+                    "github_token": "Used only for the firmware update checks against the GitHub API, and applies to every OpenDisplay device. Without a token, all devices and other tools on the same network share GitHub's limit of 60 requests per hour. A fine-grained token with no extra permissions (public repositories, read-only) raises it to 5,000. Leave empty to stay anonymous."
                 }
             }
         }
@@ -149,6 +151,9 @@
         },
         "device_sleeping_ota": {
             "message": "The device is asleep and cannot be updated right now. Wake it (press its button or wait for its next scheduled check-in) and start the update again."
+        },
+        "github_rate_limited": {
+            "message": "GitHub's API rate limit has been reached ({limit} requests per hour), so the firmware release could not be fetched. It resets at {reset}. Adding a GitHub token in the options of any OpenDisplay device raises the limit."
         },
         "invalid_device_id": {
             "message": "Device `{device_id}` is not a valid OpenDisplay device."
