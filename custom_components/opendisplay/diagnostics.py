@@ -21,6 +21,7 @@ TO_REDACT = {
     "custom_string_2",
     "custom_string_3",
     "encryption_key",
+    "github_token",
     # Raw bytes of config packets the library does not recognise: unknown
     # content, so never expose it.
     "unparsed_tail",

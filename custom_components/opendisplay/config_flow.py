@@ -28,6 +28,9 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 import voluptuous as vol
@@ -46,6 +49,7 @@ from .ble_lock import ble_connection
 from .const import (
     CONF_BLOCKS_PER_ACK,
     CONF_ENCRYPTION_KEY,
+    CONF_GITHUB_TOKEN,
     CONF_HOST,
     CONF_MAX_QUEUE_SIZE,
     CONF_MISSED_CYCLES,
@@ -159,6 +163,9 @@ def _options_schema() -> vol.Schema:
                     )
                 ),
                 vol.Coerce(int),
+            ),
+            vol.Optional(CONF_GITHUB_TOKEN): TextSelector(
+                TextSelectorConfig(type=TextSelectorType.PASSWORD)
             ),
         }
     )
