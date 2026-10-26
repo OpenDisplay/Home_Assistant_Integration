@@ -75,6 +75,11 @@ upload_image:
           default: false
           selector:
             boolean:
+        refine_dithering:
+          required: false
+          default: false
+          selector:
+            boolean:
 
 activate_led:
   fields:
@@ -432,6 +437,13 @@ drawcustom:
     measured_palette:
       name: Use measured palette
       description: Use the panel's measured color palette when available. Turn off to dither against the theoretical color scheme. No effect on panels without measured data.
+      required: false
+      default: false
+      selector:
+        boolean:
+    refine_dithering:
+      name: Refine dithering
+      description: Refines the dithered image for how it is perceived at a normal viewing distance, which typically reproduces colors and tones more faithfully. Takes noticeably longer than plain dithering.
       required: false
       default: false
       selector:

@@ -20,6 +20,10 @@
       "out": "180ce08f4d8b",
       "src": "bfe164d57ef2"
     },
+    "config\u0000abort\u0000not_supported": {
+      "out": "b4bf4b3d6acc",
+      "src": "f680b816b10c"
+    },
     "config\u0000abort\u0000reauth_successful": {
       "out": "e0c7a53681ca",
       "src": "e5b83989735c"
@@ -235,6 +239,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "5e2456ad2a50",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "55e50ef57968",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "946a74a36d9a",
@@ -740,6 +748,14 @@
       "out": "0466eb8ca82b",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "04db1d7ee60e",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "3fecc95ef30b",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "b9e70315e14a",
       "src": "0fe957da240a"
@@ -833,6 +849,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "d06abaad2827",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "34e324616206",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "6abfbf86672f",
@@ -1049,6 +1069,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "1937c120929b",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "9d82175b2a78",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "a0d49d0ede2c",
@@ -1554,6 +1578,14 @@
       "out": "708f2b8f834d",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "e62dfb5e1e81",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "49495adc30fe",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "af677ca92e0c",
       "src": "0fe957da240a"
@@ -1647,6 +1679,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "91d43f75ad75",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "ac61561fb947",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "cb0be5c2d01f",
@@ -1863,6 +1899,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "6e6821bc84e0",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "27a498ee0cdb",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "d063ac6d2b60",
@@ -2368,6 +2408,14 @@
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "d6e8c7de8ffc",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "ae8b00406c9d",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "ed81e0545ff2",
       "src": "0fe957da240a"
@@ -2461,6 +2509,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "ec67215ec052",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "833d2e5c3164",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "66f6fc1dae36",
@@ -2677,6 +2729,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "1fb3bf9319c3",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "c2d024c8e864",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "e9e642fc50a4",
@@ -3182,6 +3238,14 @@
       "out": "07a336053344",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "901e961942e2",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "15599c60c0f3",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "25e346fc6cf0",
       "src": "0fe957da240a"
@@ -3275,6 +3339,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "bbd2bb4315c8",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "0b1c3a4264b6",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "619607b89bc8",
@@ -3491,6 +3559,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "458896e84018",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "cac0e73eaa21",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "431a9f4a0b8f",
@@ -3996,6 +4068,14 @@
       "out": "8fa251e7bc0b",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "767d55679060",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "7e04e24761cd",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "f7cae6b3137e",
       "src": "0fe957da240a"
@@ -4089,6 +4169,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "4c347b41ffc7",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "d33f16aac327",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "446ac0c8d0c8",
@@ -4305,6 +4389,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "ab7b84944fc6",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "168f922d24d9",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "a760962cc17d",
@@ -4810,6 +4898,14 @@
       "out": "cf0f0ae71e1c",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "c55e1669b4aa",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "c6a3b33b8e57",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "f79a2bbbc325",
       "src": "0fe957da240a"
@@ -4903,6 +4999,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "7ebe2a2aa666",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "038fa873fb57",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "4e97976f368e",
@@ -5119,6 +5219,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "9753955e1882",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "7c384e28b60a",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "781b6268b30d",
@@ -5624,6 +5728,14 @@
       "out": "0dc89a1bd99a",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "32653f109f04",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "b6fb1572bfda",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "2c1e87687bda",
       "src": "0fe957da240a"
@@ -5717,6 +5829,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "fac1c3b267e8",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "38e180a8a50d",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "c3a3779b59e8",
@@ -5933,6 +6049,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "82b619c1673b",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "8a5d15313b15",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "34ab7a45dc33",
@@ -6438,6 +6558,14 @@
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "60952a321f47",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "1b737f02bdf1",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "c95e6952e934",
       "src": "0fe957da240a"
@@ -6531,6 +6659,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "fd90f093459e",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "38e180a8a50d",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "c3a3779b59e8",
@@ -6747,6 +6879,10 @@
     "exceptions\u0000no_targets_specified\u0000message": {
       "out": "82b619c1673b",
       "src": "80c472afefe6"
+    },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "4e2275bf5f39",
+      "src": "7cd20d347119"
     },
     "exceptions\u0000upload_error\u0000message": {
       "out": "1462256b83ef",
@@ -7251,6 +7387,14 @@
     "services\u0000upload_image\u0000fields\u0000measured_palette\u0000name": {
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "4da85f2fccce",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "1b737f02bdf1",
+      "src": "82240fa39ccb"
     },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "2fb68afd6acf",
