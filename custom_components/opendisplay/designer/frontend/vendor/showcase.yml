@@ -1,0 +1,219 @@
+- type: debug_grid
+  spacing: 80
+  line_color: half_accent
+  dashed: true
+  dash_length: 2
+  space_length: 6
+- type: text
+  value: ODL/OEPL drawcustom Showcase
+  x: 40
+  y: 24
+  size: 26
+  font: ppb.ttf
+  color: black
+- type: text
+  value: >-
+    {%- set t = now() -%}
+    {{ t.strftime('%H:%M') }}
+  x: 776
+  y: 23
+  size: 43
+  font: rbm.ttf
+  color: black
+  anchor: rt
+- type: multiline
+  value: >-
+    Advanced Online Editor for OpenDisplay and OpenEPaperlink displays including basic support for Home
+    /Assistant template language: simulation of HA states and typed entity attributes (state_attr
+    /is_state_attr), within-field namespace() loops, and cross-field variables, plus custom fonts, image
+    /content and color mode preview. Supports ordering, layering, alignment, color mode, templating ...
+  delimiter: /
+  x: 40
+  # Line advance in absolute pixels (docs/spec/supported_types.md). 19 is the
+  # rbm.ttf line height at size 16 — a tight paragraph, which is how this has
+  # always looked in the designer. The old 122 was damage from the drag bug
+  # that added each drag's dy to offset_y; it was invisible here because the
+  # canvas ignored offset_y (issue #169), but on a real device it spread these
+  # four lines across the entire panel.
+  offset_y: 19
+  y: 70
+  size: 16
+  font: rbm.ttf
+  color: black
+- type: line
+  x_start: 11
+  x_end: 787
+  y_start: 147
+  y_end: 147
+  fill: black
+  width: 1
+- type: rectangle
+  x_start: 40
+  x_end: 190
+  y_start: 163
+  y_end: 235
+  fill: white
+  outline: black
+  width: 2
+- type: circle
+  x: 244
+  y: 199
+  radius: 34
+  fill: |-
+    {{ 'red' if alert else 'white' }}
+  outline: black
+  width: 2
+- type: ellipse
+  x_start: 300
+  x_end: 400
+  y_start: 163
+  y_end: 235
+  fill: half_accent
+  outline: black
+  width: 2
+- type: arc
+  x: 464
+  y: 199
+  radius: 42
+  start_angle: 30
+  end_angle: 330
+  fill: none
+  outline: black
+  width: 3
+- type: polygon
+  points:
+    - - 580
+      - 155
+    - - 640
+      - 187
+    - - 620
+      - 243
+    - - 540
+      - 243
+    - - 520
+      - 187
+  fill: white
+  outline: black
+  width: 2
+- type: rectangle_pattern
+  x_start: 660
+  x_size: 22
+  x_offset: 8
+  y_start: 161
+  y_size: 12
+  y_offset: 4
+  x_repeat: 4
+  y_repeat: 5
+  fill: black
+  outline: none
+  width: 1
+- type: line
+  x_start: 11
+  x_end: 787
+  y_start: 254
+  y_end: 254
+  fill: black
+  width: 1
+- type: icon_sequence
+  x: 40
+  y: 270
+  icons:
+    - mdi:home
+    - mdi:weather-sunny
+    - mdi:battery-80
+  size: 30
+  fill: black
+- type: text
+  value: I'm invisible
+  x: 40
+  y: 320
+  size: 20
+  font: rbm.ttf
+  color: black
+  visible: false
+- type: text
+  value: >-
+    {%- set ns = namespace(sum=0) -%}{%- for v in [21, 22, 23, 20] -%}{%- set ns.sum = ns.sum + v -%}{%- endfor -%}Avg
+    {{ (ns.sum / 4) | round(1) }}°C · Hum
+    {% set humidity = state_attr('weather.forecast_home', 'humidity') -%}
+    {{ humidity if humidity != None else '?' }}%
+  x: 40
+  y: 348
+  size: 15
+  font: rbm.ttf
+  color: black
+- type: icon
+  value: |-
+    {{ iif(is_state_attr('sensor.next_event', 'active', false), 'mdi:thermometer', 'mdi:calendar-alert') }}
+  x: 156
+  y: 270
+  size: 71
+  fill: |-
+    {{ accent_color }}
+- type: qrcode
+  data: https://github.com/schlomo/odl-drawcustom-designer/
+  x: 230
+  y: 260
+  boxsize: 3
+  border: 2
+  color: black
+  bgcolor: white
+- type: dlimg
+  url: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgAQAAAABbAUdZAAAALUlEQVR42mP4DwQMRBAHEiz+MzQoSIAIjv8MfcodJBJAbewgA9hBRrEzEGkvANy8XnMXKVANAAAAAElFTkSuQmCC
+  x: 330
+  y: 260
+  xsize: 100
+  ysize: 100
+  resize_method: contain
+- type: plot
+  data:
+    - entity: sensor.temperature
+      color: yellow
+      width: 2
+      smooth: true
+  yaxis:
+    tick_every: 4
+  xlegend:
+    interval: 14400
+  xaxis:
+    tick_every: 200
+  x_start: 430
+  y_start: 270
+  x_end: 770
+  y_end: 404
+  low: 15
+  high: 30
+  font: rbm.ttf
+  size: 10
+- type: progress_bar
+  x_start: 40
+  y_start: 370
+  x_end: 430
+  y_end: 410
+  progress: |-
+    {{ (now().second / 60 * 100) | round(0) }}
+  fill: red
+  outline: black
+  width: 1
+  show_percentage: true
+- type: text
+  value: Showcase of all element types
+  x: 400
+  y: 445
+  size: 52
+  font: rbm.ttf
+  color: |-
+    {{ accent_color }}
+  anchor: mm
+  spacing: 51
+  stroke_width: 20
+- type: text
+  value: |-
+    In [yellow]{{ states('sensor.temperature') }}[/yellow]°C · Out {{ state_attr('weather.forecast_home', 'temperature') }}°C
+  x: 500
+  y: 32
+  size: 17
+  font: ppb.ttf
+  color: |-
+    {{ 'red' if is_state('binary_sensor.door', 'on') else 'black' }}
+  parse_colors: true

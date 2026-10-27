@@ -104,6 +104,14 @@ DESIGNER = Package(
         ("LICENSE", "LICENSE"),
         ("NOTICE", "NOTICE"),
         ("THIRD_PARTY.md", "THIRD_PARTY.md"),
+        # The designer's Load Demo payload and State Simulator seed, shipped
+        # in the npm package since designer 3.5.0 so
+        # tests/test_designer_demo_render.py can render the demo through a
+        # real Home Assistant -- the designer previews templates with
+        # nunjucks, HA with Python Jinja, and only a Python render catches
+        # what the JS preview coerces silently. Not served by the panel.
+        ("showcase.yml", "showcase.yml"),
+        ("showcase.json", "showcase.json"),
     ),
 )
 

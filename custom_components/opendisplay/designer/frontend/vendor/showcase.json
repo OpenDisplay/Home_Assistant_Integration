@@ -1,0 +1,30 @@
+{
+  "canvas": {
+    "width": 800,
+    "height": 480,
+    "rotation": 0,
+    "colorMode": "four",
+    "previewDitherMode": 0
+  },
+  "simulator": {
+    "states": {
+      "sensor.temperature": "21.5",
+      "binary_sensor.door": "off",
+      "sensor.next_event": "No event",
+      "weather.forecast_home": "sunny"
+    },
+    "attributes": {
+      "sensor.next_event": {
+        "active": false
+      },
+      "weather.forecast_home": {
+        "temperature": 18,
+        "humidity": 64
+      }
+    },
+    "variables": {
+      "accent_color": "red",
+      "alert": "true"
+    }
+  }
+}
