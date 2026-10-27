@@ -8,42 +8,43 @@ see [`docs/THIRD_PARTY.md`](https://github.com/schlomo/odl-drawcustom-designer/b
 
 | Package | Version | License | Link |
 |---|---|---|---|
-| @codemirror/autocomplete | 6.20.3 | MIT | git+https://code.haverbeke.berlin/codemirror/autocomplete.git |
-| @codemirror/commands | 6.10.4 | MIT | git+https://code.haverbeke.berlin/codemirror/commands.git |
+| @codemirror/autocomplete | 6.20.4 | MIT | git+https://code.haverbeke.berlin/codemirror/autocomplete.git |
+| @codemirror/commands | 6.11.1 | MIT | git+https://code.haverbeke.berlin/codemirror/commands.git |
 | @codemirror/lang-css | 6.3.1 | MIT | https://github.com/codemirror/lang-css.git |
-| @codemirror/lang-html | 6.4.11 | MIT | https://github.com/codemirror/lang-html.git |
+| @codemirror/lang-html | 6.4.12 | MIT | git+https://code.haverbeke.berlin/codemirror/lang-html.git |
 | @codemirror/lang-javascript | 6.2.5 | MIT | git+https://github.com/codemirror/lang-javascript.git |
 | @codemirror/lang-jinja | 6.0.1 | MIT | git+https://code.haverbeke.berlin/codemirror/lang-jinja.git |
 | @codemirror/lang-yaml | 6.1.3 | MIT | git+https://github.com/codemirror/lang-yaml.git |
-| @codemirror/language | 6.12.4 | MIT | git+https://code.haverbeke.berlin/codemirror/language.git |
+| @codemirror/language | 6.13.1 | MIT | git+https://code.haverbeke.berlin/codemirror/language.git |
 | @codemirror/lint | 6.9.7 | MIT | git+https://code.haverbeke.berlin/codemirror/lint.git |
-| @codemirror/search | 6.7.1 | MIT | git+https://code.haverbeke.berlin/codemirror/search.git |
-| @codemirror/state | 6.7.1 | MIT | git+https://code.haverbeke.berlin/codemirror/state.git |
+| @codemirror/search | 6.7.2 | MIT | git+https://code.haverbeke.berlin/codemirror/search.git |
+| @codemirror/state | 6.7.6 | MIT | git+https://code.haverbeke.berlin/codemirror/state.git |
+| @codemirror/streamparser | 6.0.0 | MIT | git+https://code.haverbeke.berlin/codemirror/streamparser.git |
 | @codemirror/theme-one-dark | 6.1.3 | MIT | https://github.com/codemirror/theme-one-dark.git |
-| @codemirror/view | 6.43.8 | MIT | git+https://code.haverbeke.berlin/codemirror/view.git |
-| @lezer/common | 1.5.2 | MIT | https://github.com/lezer-parser/common.git |
-| @lezer/css | 1.3.3 | MIT | https://github.com/lezer-parser/css.git |
-| @lezer/highlight | 1.2.3 | MIT | https://github.com/lezer-parser/highlight.git |
+| @codemirror/view | 6.43.15 | MIT | git+https://code.haverbeke.berlin/codemirror/view.git |
+| @lezer/common | 1.5.4 | MIT | git+https://code.haverbeke.berlin/lezer/common.git |
+| @lezer/css | 1.3.9 | MIT | git+https://code.haverbeke.berlin/lezer/css.git |
+| @lezer/highlight | 1.2.5 | MIT | git+https://code.haverbeke.berlin/lezer/highlight.git |
 | @lezer/html | 1.3.13 | MIT | https://github.com/lezer-parser/html.git |
-| @lezer/javascript | 1.5.4 | MIT | https://github.com/lezer-parser/javascript.git |
-| @lezer/lr | 1.4.10 | MIT | git+https://code.haverbeke.berlin/lezer/lr.git |
+| @lezer/javascript | 1.5.6 | MIT | git+https://code.haverbeke.berlin/lezer/javascript.git |
+| @lezer/lr | 1.4.11 | MIT | git+https://code.haverbeke.berlin/lezer/lr.git |
 | @lezer/yaml | 1.0.4 | MIT | https://github.com/lezer-parser/yaml.git |
-| @marijn/find-cluster-break | 1.0.2 | MIT | https://github.com/marijnh/find-cluster-break#readme |
+| @marijn/find-cluster-break | 1.0.4 | MIT | https://code.haverbeke.berlin/marijn/find-cluster-break |
 | @mdi/js | 7.4.47 | Apache-2.0 | https://github.com/Templarian/MaterialDesign-JS#readme |
-| @uiw/codemirror-extensions-basic-setup | 4.25.11 | MIT | https://uiwjs.github.io/react-codemirror/#/extensions/basic-setup |
+| @uiw/codemirror-extensions-basic-setup | 4.25.12 | MIT | https://uiwjs.github.io/react-codemirror/#/extensions/basic-setup |
 | a-sync-waterfall | 1.0.1 | MIT | https://github.com/hydiak/a-sync-waterfall |
 | ansi-regex | 5.0.1 | MIT |  |
 | ansi-styles | 4.3.0 | MIT |  |
 | asap | 2.0.6 | MIT | https://github.com/kriskowal/asap.git |
-| bidi-js | 1.0.3 | MIT | https://github.com/lojjic/bidi-js.git |
+| bidi-js | 1.1.0 | MIT | https://github.com/lojjic/bidi-js.git |
 | camelcase | 5.3.1 | MIT |  |
 | cliui | 6.0.0 | ISC | http://github.com/yargs/cliui.git |
 | color-convert | 2.0.1 | MIT |  |
 | color-name | 1.1.4 | MIT | https://github.com/colorjs/color-name |
 | commander | 5.1.0 | MIT | https://github.com/tj/commander.js.git |
-| crelt | 1.0.6 | MIT | https://github.com/marijnh/crelt#readme |
+| crelt | 1.0.7 | MIT | https://code.haverbeke.berlin/marijn/crelt |
 | decamelize | 1.2.0 | MIT |  |
-| dexie | 4.4.5 | Apache-2.0 | https://dexie.org |
+| dexie | 4.4.7 | Apache-2.0 | https://dexie.org |
 | dijkstrajs | 1.0.3 | MIT | https://github.com/tcort/dijkstrajs |
 | emoji-regex | 8.0.0 | MIT | https://mths.be/emoji-regex |
 | find-up | 4.1.0 | MIT |  |
@@ -55,25 +56,25 @@ see [`docs/THIRD_PARTY.md`](https://github.com/schlomo/odl-drawcustom-designer/b
 | p-limit | 2.3.0 | MIT |  |
 | p-locate | 4.1.0 | MIT |  |
 | p-try | 2.2.0 | MIT |  |
-| pako | 3.0.1 | (MIT AND Zlib) |  |
+| pako | 3.0.3 | (MIT AND Zlib) |  |
 | path-exists | 4.0.0 | MIT |  |
 | pngjs | 5.0.0 | MIT | https://github.com/lukeapage/pngjs |
 | qrcode | 1.5.4 | MIT | http://github.com/soldair/node-qrcode |
-| react | 19.2.8 | MIT | https://react.dev/ |
-| react-dom | 19.2.8 | MIT | https://react.dev/ |
+| react | 19.3.1 | MIT | https://react.dev/ |
+| react-dom | 19.3.1 | MIT | https://react.dev/ |
 | require-directory | 2.1.1 | MIT | https://github.com/troygoode/node-require-directory/ |
 | require-from-string | 2.0.2 | MIT |  |
 | require-main-filename | 2.0.0 | ISC | https://github.com/yargs/require-main-filename#readme |
-| scheduler | 0.27.0 | MIT | https://react.dev/ |
+| scheduler | 0.28.0 | MIT | https://react.dev/ |
 | set-blocking | 2.0.0 | ISC | https://github.com/yargs/set-blocking#readme |
 | string-width | 4.2.3 | MIT |  |
 | strip-ansi | 6.0.1 | MIT |  |
-| style-mod | 4.1.3 | MIT | git+https://github.com/marijnh/style-mod.git |
+| style-mod | 4.1.4 | MIT | https://code.haverbeke.berlin/marijn/style-mod |
 | w3c-keyname | 2.2.8 | MIT | https://github.com/marijnh/w3c-keyname#readme |
 | which-module | 2.0.1 | ISC | https://github.com/nexdrew/which-module#readme |
 | wrap-ansi | 6.2.0 | MIT |  |
 | y18n | 4.0.3 | ISC | https://github.com/yargs/y18n |
-| yaml | 2.9.0 | ISC | https://eemeli.org/yaml/ |
+| yaml | 2.9.1 | ISC | https://eemeli.org/yaml/ |
 | yargs | 15.4.1 | MIT | https://yargs.js.org/ |
 | yargs-parser | 18.1.3 | ISC | https://github.com/yargs/yargs-parser.git |
-| zod | 4.4.3 | MIT | https://zod.dev |
+| zod | 4.6.7 | MIT | https://zod.dev |
