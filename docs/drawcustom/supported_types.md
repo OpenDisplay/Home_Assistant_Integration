@@ -204,7 +204,7 @@ at the matching tag.
 | `arc` | Arc / pie slice |
 | `icon` | Material Design Icon |
 | `icon_sequence` | Row of icons |
-| `dlimg` | Downloaded / embedded image |
+| `dlimg` | Downloaded / embedded image — `url` is `http(s)://`, a `data:` URI, an absolute path, or `/local/<name>` for `<config>/www/<name>` (as everywhere in Home Assistant) |
 | `qrcode` | QR code |
 | `plot` | Line plot of Home Assistant history (see [Plot](#plot-entity-backed)) |
 | `progress_bar` | Progress bar with optional percentage text |

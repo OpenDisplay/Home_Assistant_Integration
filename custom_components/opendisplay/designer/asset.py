@@ -22,7 +22,10 @@ itself treats them differently: `odl_renderer.media_loader.load_image`
 takes an ABSOLUTE PATH and opens it directly -- there is no bare-name
 search path for images the way `FontManager` has one for fonts. So
 `kind=image` resolves the caller's own absolute path, and the reference
-that reaches this view is whatever the payload carries.
+that reaches this view is whatever the payload carries -- with one alias:
+`/local/<name>` means `<config>/www/<name>`, as everywhere in Home
+Assistant, translated by the same `resolve_local_image_reference` the
+send/render preload uses.
 
 That difference is the whole reason the image half needs a path policy the
 font half does not. This view returns raw file bytes to ANY authenticated
@@ -72,7 +75,10 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 from PIL import Image as PILImage
 
-from custom_components.opendisplay.services import _font_search_dirs
+from custom_components.opendisplay.services import (
+    _font_search_dirs,
+    resolve_local_image_reference,
+)
 
 DESIGNER_ASSET_URL = "/api/opendisplay/designer/asset"
 
@@ -135,16 +141,24 @@ def _resolve_image_path(permitted_roots: list[str], name: str) -> Path | None:
 
 
 def _read_image_asset(
-    permitted_roots: list[str], name: str
+    permitted_roots: list[str], www_dir: str, name: str
 ) -> tuple[bytes, str] | None:
     """Return (bytes, content type) for a permitted image file, else None.
+
+    A `/local/<name>` reference is translated to `<www_dir>/<name>` first,
+    the same way the send/render preload translates it, so the canvas
+    preview and the device load the same file for the same reference; a
+    `/local/` reference that would leave `www` stays as written and falls
+    to the 404 below like any other unresolvable path.
 
     Identification is PIL's, not the file extension's: the endpoint serves
     what the renderer could actually decode, and refuses everything else so
     it cannot be used to read non-image files out of a media directory.
     Runs in an executor -- every file operation here is blocking.
     """
-    path = _resolve_image_path(permitted_roots, name)
+    path = _resolve_image_path(
+        permitted_roots, resolve_local_image_reference(www_dir, name)
+    )
     if path is None:
         return None
 
@@ -292,7 +306,7 @@ class OpenDisplayDesignerAssetView(HomeAssistantView):
             _permitted_image_roots, self.hass
         )
         resolved = await self.hass.async_add_executor_job(
-            _read_image_asset, roots, name
+            _read_image_asset, roots, self.hass.config.path("www"), name
         )
         if resolved is None:
             return web.Response(status=404, text=_NOT_FOUND)

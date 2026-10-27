@@ -445,7 +445,13 @@ candidate, then require it stay under the search directory it came from.
 them differently: `odl_renderer.media_loader.load_image` takes an
 **absolute path** and opens it directly — there is no bare-name image
 search path the way there is for fonts. So the reference reaching this
-endpoint is whatever path the payload carries, and the endpoint is
+endpoint is whatever path the payload carries, with one alias: `/local/<name>`
+means `<config>/www/<name>`, the same as everywhere in Home Assistant, read
+the way HA's own `/local/` handler reads it (query string and fragment
+ignored, path percent-decoded), and the send/render path applies the
+identical translation before opening the file (a `/local/` reference that
+would leave `www`, or that the filesystem cannot look at, is left as written
+and fails as the literal path it names). Beyond that alias the endpoint is
 deliberately **stricter than the renderer**:
 
 | | Rule |
@@ -464,8 +470,9 @@ The consequence, stated plainly: the renderer accepts absolute paths this
 endpoint refuses, so an image kept outside the permitted directories
 renders on Send but shows the designer's explicit missing-asset state in
 the canvas. That is the safe direction of the mismatch, and the fix is to
-move the image under `/media` or `/config/www` (or allowlist its
-directory), not to widen the endpoint.
+move the image under `/media` or `/config/www` (referenced as
+`/local/<name>`, or by its absolute path) or allowlist its directory, not
+to widen the endpoint.
 
 Authenticated (`requires_auth = True`) — this is the integration's second
 authenticated HTTP view, after the render endpoint. Any other `kind` is a

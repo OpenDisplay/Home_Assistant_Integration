@@ -10,8 +10,9 @@ import importlib
 import io
 import logging
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlsplit
 
 import aiohttp
 from homeassistant.components.bluetooth import (
@@ -1133,7 +1134,47 @@ def _font_search_dirs(hass: HomeAssistant) -> list[str]:
     return [p for p in candidates if os.path.isdir(p)]
 
 
-def _decode_local_image_sources(elements: list[Any]) -> list[Any]:
+LOCAL_URL_PREFIX = "/local/"
+
+
+def resolve_local_image_reference(www_dir: str, reference: str) -> str:
+    """Translate Home Assistant's `/local/<name>` to `<www_dir>/<name>`.
+
+    `/local/` is HA's HTTP-only alias for `<config>/www` -- the way every HA
+    user references a file they put there. odl-renderer's `load_image`
+    opens a leading `/` as a filesystem path and knows nothing of the
+    alias, so without this a payload's `url: /local/pic.png` failed every
+    send and render with ``Image file not found: /local/pic.png``.
+
+    The reference is a URL and is read the way HA's static handler for
+    `/local/` reads it: query string and fragment ignored
+    (`/local/pic.png?v=3` is the usual cache-buster form), path
+    percent-decoded (`/local/kitchen%20photo.png` is `www/kitchen photo.png`).
+
+    Anything that is not a `/local/` reference is returned unchanged. So is
+    a `/local/` reference that would leave `www` -- `..` segments (encoded
+    or not) or a symlink pointing out, checked after `resolve()` -- or one
+    the filesystem cannot look at at all (an embedded NUL byte makes
+    `resolve()` raise). Each then fails as the literal path it names, inside
+    the renderer's own error handling, never as a file outside `www` and
+    never as an exception out of the executor; HA's own static handler for
+    `/local/` serves nothing above `www` either. Does filesystem work
+    (`resolve()`), so call it off the event loop.
+    """
+    if not reference.startswith(LOCAL_URL_PREFIX):
+        return reference
+    name = unquote(urlsplit(reference).path.removeprefix(LOCAL_URL_PREFIX))
+    try:
+        root = Path(www_dir).resolve()
+        candidate = (root / name).resolve()
+    except OSError, ValueError:
+        return reference
+    if not candidate.is_relative_to(root):
+        return reference
+    return str(candidate)
+
+
+def _decode_local_image_sources(www_dir: str, elements: list[Any]) -> list[Any]:
     """Return `elements` with local-file image sources decoded to PIL images.
 
     Runs in an executor -- see `preload_local_image_sources` for why.
@@ -1153,15 +1194,18 @@ def _decode_local_image_sources(elements: list[Any]) -> list[Any]:
         ):
             decoded.append(element)
             continue
+        source = resolve_local_image_reference(www_dir, source)
         try:
             image = PILImage.open(source)
             image.load()
         except Exception:
-            # Transparent on failure: leave the element exactly as it was so
-            # `load_image` raises its own error, with its own message, at the
-            # point it always did. This preload changes WHERE the file is
-            # read, never WHETHER it is or what happens when it can't be.
-            decoded.append(element)
+            # Transparent on failure: leave the element as it was (with a
+            # `/local/` reference already translated, so the error names the
+            # `www` file that is missing) so `load_image` raises its own
+            # error, with its own message, at the point it always did. This
+            # preload changes WHERE the file is read, never WHETHER it is or
+            # what happens when it can't be.
+            decoded.append({**element, "url": source})
             continue
         decoded.append({**element, "url": image})
     return decoded
@@ -1193,13 +1237,17 @@ async def preload_local_image_sources(
 
     Remote (`http(s)://`) and `data:` sources are left alone: the first is
     already fetched asynchronously through the shared session, the second
-    never touches the filesystem.
+    never touches the filesystem. A `/local/<name>` reference -- HA's alias
+    for `<config>/www/<name>` -- is translated first
+    (`resolve_local_image_reference`).
 
     Called by both `generate_image` call sites -- the send path
     (`_drawcustom_for_device`) and the designer's render endpoint -- so
     neither can regain the violation while the other is fixed.
     """
-    return await hass.async_add_executor_job(_decode_local_image_sources, elements)
+    return await hass.async_add_executor_job(
+        _decode_local_image_sources, hass.config.path("www"), elements
+    )
 
 
 async def _drawcustom_for_device(
