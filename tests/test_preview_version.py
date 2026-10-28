@@ -249,6 +249,49 @@ def test_designer_v2_composition_is_unchanged_by_sanitization():
     )
 
 
+# --- Which previews may become the fork's "Latest" release ------------------
+#
+# HACS sorts releases by semver precedence, and semver compares prerelease
+# identifiers alphabetically: `v3.1.0-test-foo.26` outranks
+# `v3.1.0-designer-v2.29` because `t` > `d`, however old it is. Observed in
+# a live HACS "Redownload" picker (2026-10-28): every `test-*` and `feat-*`
+# preview listed above every `designer-v2.*` one, and the top entry is what
+# HACS installs by default. Previews from any branch but the fork's
+# PREVIEW_LATEST_BRANCH are therefore cut as GitHub prereleases, which HACS
+# hides unless "Show beta versions" is on for the repository, so "Latest"
+# tracks that one branch. The variable unset means no branch is special and
+# every preview is a prerelease.
+
+
+@pytest.mark.parametrize(
+    ("branch", "latest_branch", "expected"),
+    [
+        ("designer-v2", "designer-v2", ""),
+        ("test/designer-demo-ha-render", "designer-v2", "--prerelease"),
+        ("feat/local-www-image-mapping", "designer-v2", "--prerelease"),
+        # Exact branch match, never a prefix or a sanitized-token match.
+        ("designer-v2-rebased", "designer-v2", "--prerelease"),
+        ("designer_v2", "designer-v2", "--prerelease"),
+        # Variable unset: nothing is the fork's latest line.
+        ("designer-v2", "", "--prerelease"),
+        ("main", "", "--prerelease"),
+    ],
+)
+def test_release_flags_mark_every_other_branch_as_prerelease(
+    branch, latest_branch, expected
+):
+    """Exactly one branch may become Latest; an unset variable means none."""
+    assert preview_version.compose_release_flags(branch, latest_branch) == expected
+
+
+def test_release_flags_cli_prints_exactly_what_gh_release_create_consumes(capsys):
+    """The workflow splices the printed flags unquoted into `gh release create`."""
+    assert preview_version.main(["release-flags", "feat/x", "designer-v2"]) == 0
+    assert capsys.readouterr().out == "--prerelease\n"
+    assert preview_version.main(["release-flags", "designer-v2", "designer-v2"]) == 0
+    assert capsys.readouterr().out == "\n"
+
+
 # --- Fork identity (`name`) composition -------------------------------------
 
 

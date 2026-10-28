@@ -53,4 +53,9 @@ hardware-free Home Assistant against this checkout.
 ## CI
 
 `.github/workflows/preview-release.yml` cuts installable HACS builds from
-branches pushed to a **fork** only — inert on this repository itself.
+branches pushed to a **fork** only — inert on this repository itself. Only
+the branch named by the fork's `PREVIEW_LATEST_BRANCH` repository variable
+may become the fork's "Latest" release; every other branch is cut as a
+prerelease (HACS sorts by semver precedence, where a branch name starting
+with `t` outranks one starting with `d` regardless of age). Logic and tests:
+`scripts/preview_version.py`, `tests/test_preview_version.py`.

@@ -155,14 +155,32 @@ jobs:
       # not literally: that one used a shortened branch label by hand, this
       # uses the real (sanitized) branch name so two different branches'
       # tags can't collide.
+      #
+      # Only the branch named by the fork's PREVIEW_LATEST_BRANCH repository
+      # variable may become the fork's "Latest" release; every other branch
+      # is cut as a prerelease (`release_flags` below, decided and tested in
+      # scripts/preview_version.py). HACS sorts releases by semver
+      # precedence, where prerelease identifiers compare ALPHABETICALLY:
+      # `v3.1.0-test-foo.26` outranks `v3.1.0-designer-v2.29` because
+      # `t` > `d`, and the top entry is what HACS offers as the update and
+      # installs by default -- seen live on 2026-10-28, every `test-*` and
+      # `feat-*` preview sorted above every `designer-v2.*` one. HACS hides
+      # prereleases unless "Show beta versions" is on for the repository, so
+      # feature-branch previews stay installable on request without ever
+      # becoming the default pick. With the variable unset, every preview is
+      # a prerelease -- a fork opts a branch IN, nothing is special by name.
       - name: Create preview release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           branch="${{ github.ref_name }}"
+          latest_branch="${{ vars.PREVIEW_LATEST_BRANCH }}"
           sha="$(git rev-parse --short HEAD)"
           tag="v${PREVIEW_VERSION}"
-          gh release create "$tag" \
+          release_flags="$(python3 scripts/preview_version.py release-flags "$branch" "$latest_branch")"
+          # shellcheck disable=SC2086 -- $release_flags is a flag or empty, by contract
+          gh release create "$tag" $release_flags \
             --target "$branch" \
             --title "Preview build: ${branch}@${sha}" \
             --notes "Automated preview build of ${branch}@${sha} for HACS testing — not an upstream release." \

@@ -32,11 +32,24 @@ GitHub's API before install):
     validator -- `name` has no format constraint -- so no sanitization
     needed here.
 
+`release-flags` subcommand
+    Decides whether this preview may become the fork's "Latest" release.
+    HACS sorts releases by semver precedence, and semver compares
+    prerelease identifiers alphabetically -- `3.1.0-test-foo.26` outranks
+    `3.1.0-designer-v2.29` because `t` > `d`, however old it is -- and the
+    top entry is what HACS shows as the update and installs by default
+    (observed in a live "Redownload" picker, 2026-10-28). So previews from
+    every branch but the fork's `PREVIEW_LATEST_BRANCH` repository variable
+    are cut as GitHub prereleases, which HACS hides unless "Show beta
+    versions" is on for the repository; with the variable unset every
+    preview is a prerelease.
+
 Usage (this is what the workflow calls -- the tested procedure IS the
 shipped procedure):
 
     python3 scripts/preview_version.py version <base_version> <branch> <run_number>
     python3 scripts/preview_version.py name <base_name> <repository>
+    python3 scripts/preview_version.py release-flags <branch> <latest_branch>
 
 Each prints its composed value to stdout, nothing else. Deliberately has NO
 third-party imports: the preview-release workflow runs on a bare
@@ -144,10 +157,27 @@ def compose_preview_name(base_name: str, repository: str) -> str:
     return f"{base_name} (fork: {repository})"
 
 
+def compose_release_flags(branch: str, latest_branch: str) -> str:
+    """Extra `gh release create` flags: `--prerelease` unless `branch` IS `latest_branch`.
+
+    Exact match on the raw branch name, never on a prefix or on the
+    sanitized token (`designer-v2-rebased` and `designer_v2` are other
+    branches). An empty `latest_branch` -- the repository variable unset --
+    makes every preview a prerelease. The result is spliced unquoted into
+    the `gh` command line, so it is a flag or nothing, never a sentence.
+    """
+    if latest_branch and branch == latest_branch:
+        return ""
+    return "--prerelease"
+
+
+_USAGE = "usage: preview_version.py {version|name|release-flags} ..."
+
+
 def main(argv: list[str]) -> int:
     """CLI entry point: print the composed value for the workflow to capture."""
     if not argv:
-        print("usage: preview_version.py {version|name} ...", file=sys.stderr)
+        print(_USAGE, file=sys.stderr)
         return 2
     command, *rest = argv
     if command == "version":
@@ -156,8 +186,11 @@ def main(argv: list[str]) -> int:
     elif command == "name":
         base_name, repository = rest
         print(compose_preview_name(base_name, repository))
+    elif command == "release-flags":
+        branch, latest_branch = rest
+        print(compose_release_flags(branch, latest_branch))
     else:
-        print(f"usage: preview_version.py {{version|name}} ... (got {command!r})", file=sys.stderr)
+        print(f"{_USAGE} (got {command!r})", file=sys.stderr)
         return 2
     return 0
 
