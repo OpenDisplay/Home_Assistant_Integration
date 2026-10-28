@@ -16,12 +16,14 @@ from homeassistant.components.update import (
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_SUPPORTED_FEATURES, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.entity_component import async_update_entity
 from opendisplay import AuthenticationFailedError, BLEConnectionError
 from opendisplay.ota import OTAError
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
+from custom_components.opendisplay.const import CONF_GITHUB_TOKEN
 from custom_components.opendisplay.update import _format_firmware_version
 
 from . import (
@@ -35,6 +37,12 @@ from .bluetooth import inject_bluetooth_service_info
 
 ENTITY = "update.opendisplay_1234_firmware"
 LATEST = "v9.9.9"
+GITHUB_RELEASE = f"https://api.github.com/repos/{OTA_REPO}/releases/tags/{LATEST}"
+RATE_LIMITED_HEADERS = {
+    "x-ratelimit-limit": "60",
+    "x-ratelimit-remaining": "0",
+    "x-ratelimit-reset": "1700000000",
+}
 
 
 @pytest.fixture
@@ -183,6 +191,71 @@ async def test_a_rate_limited_github_leaves_the_version_unchanged(
     state = hass.states.get(ENTITY)
     assert state.attributes[ATTR_INSTALLED_VERSION] == "1.2.3"
     assert state.attributes[ATTR_LATEST_VERSION] is None
+
+
+async def test_github_requests_are_anonymous_without_a_token(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    setup_seen: Callable[[], Awaitable[None]],
+) -> None:
+    """Without a token configured, nothing changes: no Authorization header."""
+    await setup_seen()
+
+    _, url, _, headers = aioclient_mock.mock_calls[-1]
+    assert str(url) == GITHUB_LATEST
+    assert "Authorization" not in headers
+
+
+@pytest.mark.parametrize("config_entry_options", [{CONF_GITHUB_TOKEN: "ghp_test"}])
+async def test_github_requests_use_the_configured_token(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    setup_seen: Callable[[], Awaitable[None]],
+) -> None:
+    """A token in the options authenticates the API call (5,000/h, not 60/h)."""
+    await setup_seen()
+
+    _, url, _, headers = aioclient_mock.mock_calls[-1]
+    assert str(url) == GITHUB_LATEST
+    assert headers["Authorization"] == "Bearer ghp_test"
+    assert hass.states.get(ENTITY).attributes[ATTR_LATEST_VERSION] == LATEST
+
+
+async def test_github_responses_are_shared_between_scans(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    setup_seen: Callable[[], Awaitable[None]],
+) -> None:
+    """Devices on the same firmware repo share one request per cache window."""
+    await setup_seen()
+    calls = aioclient_mock.call_count
+
+    await async_update_entity(hass, ENTITY)
+
+    assert aioclient_mock.call_count == calls
+
+
+async def test_a_rate_limited_install_explains_the_limit(
+    hass: HomeAssistant,
+    aioclient_mock: AiohttpClientMocker,
+    setup_seen: Callable[[], Awaitable[None]],
+) -> None:
+    """An exhausted rate limit says so and when it resets, instead of a bare 403."""
+    aioclient_mock.get(GITHUB_RELEASE, status=403, headers=RATE_LIMITED_HEADERS)
+    await setup_seen()
+
+    with (
+        patch(
+            "custom_components.opendisplay.update.perform_silabs_ota", AsyncMock()
+        ) as ota,
+        pytest.raises(HomeAssistantError) as err,
+    ):
+        await _install(hass)
+
+    assert err.value.translation_key == "github_rate_limited"
+    assert err.value.translation_placeholders["limit"] == "60"
+    ota.assert_not_awaited()
+    assert hass.states.get(ENTITY).attributes[ATTR_IN_PROGRESS] is False
 
 
 # --- install ---------------------------------------------------------------

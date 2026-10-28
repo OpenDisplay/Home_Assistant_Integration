@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+from collections import defaultdict
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import timedelta
 import logging
+import time
 from typing import Any
 
 import aiohttp
@@ -19,6 +23,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+import homeassistant.util.dt as dt_util
+from homeassistant.util.hass_dict import HassKey
 
 from opendisplay.device import OpenDisplayDevice
 from opendisplay.exceptions import (
@@ -33,13 +39,14 @@ from opendisplay.ota import perform_silabs_ota
 
 from . import OpenDisplayConfigEntry, _get_encryption_key
 from .ble_lock import ble_connection
-from .const import DOMAIN
+from .const import CONF_GITHUB_TOKEN, DOMAIN
 from .entity import OpenDisplayEntity
 
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 1
-# GitHub unauthenticated API allows 60 requests/hour; 6h interval = 4 req/day per device
+# GitHub unauthenticated API allows 60 requests/hour per public IP (5,000 with a
+# token); 6h interval = 4 req/day per firmware repo, as responses are shared.
 SCAN_INTERVAL = timedelta(hours=6)
 
 # Wall-clock ceiling on the BLE portion of an OTA (DFU trigger + AppLoader flash).
@@ -52,6 +59,85 @@ OTA_INSTALL_DEADLINE_S = 600.0
 _GITHUB_LATEST = "https://api.github.com/repos/{repo}/releases/latest"
 _GITHUB_RELEASE = "https://api.github.com/repos/{repo}/releases/tags/{tag}"
 _GITHUB_HEADERS = {"Accept": "application/vnd.github+json"}
+
+# Every device on the same firmware repo asks GitHub the same question, so one
+# response serves them all for this long (well under SCAN_INTERVAL). Without
+# it, N devices cost N requests per scan and at startup.
+_GITHUB_CACHE_TTL_S = 3600.0
+
+
+@dataclass
+class _GitHubCache:
+    """GitHub API responses shared by all OpenDisplay entries, keyed by URL."""
+
+    responses: dict[str, tuple[float, dict[str, Any]]] = field(default_factory=dict)
+    locks: defaultdict[str, asyncio.Lock] = field(
+        default_factory=lambda: defaultdict(asyncio.Lock)
+    )
+
+
+_GITHUB_CACHE: HassKey[_GitHubCache] = HassKey(f"{DOMAIN}_github_cache")
+
+
+class GitHubRateLimitedError(HomeAssistantError):
+    """GitHub refused a request because the API rate limit is used up."""
+
+
+def _github_token(hass: HomeAssistant, entry: OpenDisplayConfigEntry) -> str | None:
+    """Return the GitHub token: this entry's, else any other OpenDisplay entry's.
+
+    The rate limit is per network, not per device, so a household with many
+    displays should not have to paste the same token into every entry.
+    """
+    for candidate in (entry, *hass.config_entries.async_entries(DOMAIN)):
+        if token := candidate.options.get(CONF_GITHUB_TOKEN):
+            return token
+    return None
+
+
+def _rate_limited_error(headers: Mapping[str, str]) -> GitHubRateLimitedError:
+    """Build the rate-limit error from GitHub's x-ratelimit-* headers."""
+    reset = headers.get("x-ratelimit-reset", "")
+    reset_at = (
+        dt_util.as_local(dt_util.utc_from_timestamp(int(reset))).strftime("%H:%M")
+        if reset.isdigit()
+        else "unknown"
+    )
+    return GitHubRateLimitedError(
+        translation_domain=DOMAIN,
+        translation_key="github_rate_limited",
+        translation_placeholders={
+            "limit": headers.get("x-ratelimit-limit", "?"),
+            "reset": reset_at,
+        },
+    )
+
+
+async def _async_github_json(
+    hass: HomeAssistant, entry: OpenDisplayConfigEntry, url: str
+) -> dict[str, Any]:
+    """GET a GitHub API URL, authenticated when a token is set, cached briefly."""
+    cache = hass.data.setdefault(_GITHUB_CACHE, _GitHubCache())
+    async with cache.locks[url]:
+        if (hit := cache.responses.get(url)) and hit[0] > time.monotonic():
+            return hit[1]
+        headers = dict(_GITHUB_HEADERS)
+        if token := _github_token(hass, entry):
+            headers["Authorization"] = f"Bearer {token}"
+        session = async_get_clientsession(hass)
+        async with session.get(
+            url, headers=headers, timeout=aiohttp.ClientTimeout(total=30)
+        ) as resp:
+            if (
+                resp.status in (403, 429)
+                and resp.headers.get("x-ratelimit-remaining") == "0"
+            ):
+                raise _rate_limited_error(resp.headers)
+            resp.raise_for_status()
+            data: dict[str, Any] = await resp.json()
+        cache.responses[url] = (time.monotonic() + _GITHUB_CACHE_TTL_S, data)
+        return data
+
 
 # BLE OTA install is only offered for ICs where it completes reliably over an
 # ESPHome Bluetooth proxy — the usual HA OS path. EFR32BG22 (Silabs AppLoader)
@@ -169,16 +255,18 @@ class OpenDisplayFirmwareUpdateEntity(
         if self._firmware_repo is None:
             return
         try:
-            session = async_get_clientsession(self.hass)
-            async with session.get(
+            data = await _async_github_json(
+                self.hass,
+                self._entry,
                 _GITHUB_LATEST.format(repo=self._firmware_repo),
-                headers=_GITHUB_HEADERS,
-                timeout=aiohttp.ClientTimeout(total=30),
-            ) as resp:
-                resp.raise_for_status()
-                data = await resp.json()
-                self._attr_latest_version = data.get("tag_name")
-                self._attr_release_notes = data.get("body") or None
+            )
+        except GitHubRateLimitedError as err:
+            _LOGGER.warning(
+                "GitHub API rate limit reached (resets at %s); latest firmware "
+                "version unchanged. A GitHub token in the OpenDisplay options "
+                "raises the limit",
+                (err.translation_placeholders or {}).get("reset"),
+            )
         except aiohttp.ClientResponseError as err:
             if err.status in (403, 429):
                 _LOGGER.warning(
@@ -188,6 +276,9 @@ class OpenDisplayFirmwareUpdateEntity(
                 _LOGGER.debug("Failed to fetch latest firmware version: %s", err)
         except aiohttp.ClientError as err:
             _LOGGER.debug("Failed to fetch latest firmware version: %s", err)
+        else:
+            self._attr_latest_version = data.get("tag_name")
+            self._attr_release_notes = data.get("body") or None
 
     async def async_install(
         self, version: str | None, backup: bool, **kwargs: Any
@@ -352,15 +443,14 @@ class OpenDisplayFirmwareUpdateEntity(
 
     async def _download_asset(self, tag: str, asset_name: str) -> bytes:
         """Fetch the named asset from a GitHub release."""
-        session = async_get_clientsession(self.hass)
         try:
-            async with session.get(
+            # A rate-limited request raises GitHubRateLimitedError, which is
+            # already a HomeAssistantError with a translated, actionable message.
+            release = await _async_github_json(
+                self.hass,
+                self._entry,
                 _GITHUB_RELEASE.format(repo=self._firmware_repo, tag=tag),
-                headers=_GITHUB_HEADERS,
-                timeout=aiohttp.ClientTimeout(total=30),
-            ) as resp:
-                resp.raise_for_status()
-                release = await resp.json()
+            )
         except aiohttp.ClientError as err:
             raise HomeAssistantError(
                 f"Could not fetch release metadata: {err}"
@@ -376,7 +466,10 @@ class OpenDisplayFirmwareUpdateEntity(
                 f"available: {[a['name'] for a in release.get('assets', [])]}"
             )
 
+        # browser_download_url is served from github.com/CDN, not the API, so it
+        # does not count against the API rate limit and needs no token.
         _LOGGER.debug("Downloading %s from %s", asset_name, download_url)
+        session = async_get_clientsession(self.hass)
         try:
             async with session.get(
                 download_url, timeout=aiohttp.ClientTimeout(total=120)
