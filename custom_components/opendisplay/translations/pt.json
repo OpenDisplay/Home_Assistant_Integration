@@ -128,6 +128,9 @@
     "device_sleeping_ota": {
       "message": "O dispositivo está em modo de repouso e não pode ser atualizado agora. Acordar (pressionar o botão ou aguardar a próxima verificação agendada) e iniciar a atualização novamente."
     },
+    "github_rate_limited": {
+      "message": "O limite de taxa da API do GitHub foi atingido ({limit} pedidos por hora), pelo que a versão do firmware não pôde ser obtida. O limite reinicia às {reset}. Adicionar um token do GitHub nas opções de qualquer dispositivo OpenDisplay aumenta o limite."
+    },
     "invalid_device_id": {
       "message": "O dispositivo `{device_id}` não é um dispositivo OpenDisplay válido."
     },
@@ -185,6 +188,7 @@
       "init": {
         "data": {
           "blocks_per_ack": "Blocos enviados por confirmação",
+          "github_token": "Token do GitHub (opcional)",
           "max_queue_size": "Máximo de frames de upload em voo",
           "missed_cycles": "Ciclos de ativação perdidos antes de indisponível",
           "probe_before_queue": "Tentar ligar antes de enfileirar",
@@ -193,6 +197,7 @@
         },
         "data_description": {
           "blocks_per_ack": "Número de frames de imagem que o dispositivo recebe antes de enviar uma confirmação durante um upload rápido (janela deslizante). Valores mais altos reduzem viagens de ida e volta; o valor efetivo é limitado pelo dispositivo e pelo máximo de frames em voo.",
+          "github_token": "Usado apenas para as verificações de atualização do firmware contra a API do GitHub, e aplica-se a todos os dispositivos OpenDisplay. Sem um token, todos os dispositivos e outras ferramentas na mesma rede partilham o limite do GitHub de 60 pedidos por hora. Um token específico sem permissões adicionais (repositórios públicos, só leitura) aumenta-o para 5.000. Deixar vazio para permanecer anónimo.",
           "max_queue_size": "Número máximo de frames de imagem mantidos em voo simultaneamente durante um upload rápido (janela deslizante). Valores mais altos aumentam a taxa em ligações lentas (proxy). Definir para 1 para desativar a transferência rápida e usar o upload clássico de um frame de cada vez.",
           "missed_cycles": "Número de ativações esperadas que o dispositivo pode perder antes de as suas entidades serem marcadas como indisponíveis.",
           "probe_before_queue": "Antes de enfileirar uma imagem para um dispositivo em repouso, fazer uma tentativa rápida de ligação caso esteja acordado (anúncios perdidos, rádios sempre ligados). Acrescenta no máximo alguns segundos quando o dispositivo está realmente em repouso.",

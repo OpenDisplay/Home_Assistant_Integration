@@ -128,6 +128,9 @@
     "device_sleeping_ota": {
       "message": "El dispositivo está en reposo y no puede actualizarse ahora. Despertarlo (presionar su botón o esperar su próxima conexión programada) y comenzar la actualización de nuevo."
     },
+    "github_rate_limited": {
+      "message": "Se ha alcanzado el límite de solicitudes de la API de GitHub ({limit} solicitudes por hora), por lo que no se pudo obtener la versión del firmware. Se restablece a las {reset}. Agregar un token de GitHub en las opciones de cualquier dispositivo OpenDisplay aumenta el límite."
+    },
     "invalid_device_id": {
       "message": "El dispositivo `{device_id}` no es un dispositivo OpenDisplay válido."
     },
@@ -185,6 +188,7 @@
       "init": {
         "data": {
           "blocks_per_ack": "Bloques enviados por acuse de recibo",
+          "github_token": "Token de GitHub (opcional)",
           "max_queue_size": "Máximo de cuadros de carga en vuelo",
           "missed_cycles": "Ciclos de activación perdidos antes de marcar como no disponible",
           "probe_before_queue": "Intentar conectar antes de encolar",
@@ -193,6 +197,7 @@
         },
         "data_description": {
           "blocks_per_ack": "Cantidad de cuadros de imagen que el dispositivo recibe antes de enviar un acuse durante una carga rápida (ventana deslizante). Valores más altos reducen viajes de ida y vuelta; el valor efectivo está limitado por el dispositivo y el máximo de cuadros en vuelo.",
+          "github_token": "Se usa solo para las comprobaciones de actualización de firmware contra la API de GitHub, y se aplica a todos los dispositivos OpenDisplay. Sin un token, todos los dispositivos y otras herramientas en la misma red comparten el límite de GitHub de 60 solicitudes por hora. Un token detallado sin permisos adicionales (repositorios públicos, solo lectura) lo aumenta a 5,000. Dejar vacío para permanecer anónimo.",
           "max_queue_size": "Número máximo de cuadros de imagen mantenidos en vuelo a la vez durante una carga rápida (ventana deslizante). Valores más altos aumentan el rendimiento en enlaces lentos (proxy). Establecer en 1 para desactivar la transferencia rápida y usar la carga clásica cuadro por cuadro.",
           "missed_cycles": "Cantidad de activaciones esperadas que el dispositivo puede perder antes de que sus entidades se marquen como no disponibles.",
           "probe_before_queue": "Antes de encolar una imagen para un dispositivo en reposo, hacer un intento rápido de conexión por si está despierto (publicidad perdida, radios siempre activas). Añade como máximo unos segundos cuando el dispositivo realmente está dormido.",

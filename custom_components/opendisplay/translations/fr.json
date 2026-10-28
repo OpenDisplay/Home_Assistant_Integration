@@ -128,6 +128,9 @@
     "device_sleeping_ota": {
       "message": "L’appareil est en veille et ne peut pas être mis à jour pour le moment. Le réveiller (appuyer sur son bouton ou attendre son prochain check-in programmé) et relancer la mise à jour."
     },
+    "github_rate_limited": {
+      "message": "La limite de requêtes de l'API GitHub a été atteinte ({limit} requêtes par heure), le téléchargement de la version du firmware a échoué. La limite sera réinitialisée à {reset}. Ajouter un token GitHub dans les options de n'importe quel appareil OpenDisplay augmente cette limite."
+    },
     "invalid_device_id": {
       "message": "L’appareil `{device_id}` n’est pas un appareil OpenDisplay valide."
     },
@@ -185,6 +188,7 @@
       "init": {
         "data": {
           "blocks_per_ack": "Blocs envoyés par accusé de réception",
+          "github_token": "Token GitHub (optionnel)",
           "max_queue_size": "Nombre maximum de trames en cours de téléversement",
           "missed_cycles": "Cycles de réveil manqués avant indisponibilité",
           "probe_before_queue": "Essayer de se connecter avant de mettre en file d’attente",
@@ -193,6 +197,7 @@
         },
         "data_description": {
           "blocks_per_ack": "Nombre de trames d’image reçues par l’appareil avant qu’il n’envoie un accusé de réception lors d’un téléversement rapide (fenêtre glissante). Des valeurs plus élevées réduisent les allers-retours ; la valeur effective est limitée par l’appareil et le nombre maximum de trames en cours.",
+          "github_token": "Utilisé uniquement pour vérifier les mises à jour du firmware via l'API GitHub, et s'applique à tous les appareils OpenDisplay. Sans token, tous les appareils et autres outils sur le même réseau partagent la limite GitHub de 60 requêtes par heure. Un token précis sans permissions supplémentaires (dépôts publics, lecture seule) augmente cette limite à 5 000. Laisser vide pour rester anonyme.",
           "max_queue_size": "Nombre maximum de trames d’image maintenues en cours lors d’un téléversement rapide (fenêtre glissante). Des valeurs plus élevées augmentent le débit sur les liaisons lentes (proxy). Mettre à 1 pour désactiver le transfert rapide et utiliser le téléversement classique une trame à la fois.",
           "missed_cycles": "Nombre de réveils attendus que l’appareil peut manquer avant que ses entités soient marquées comme indisponibles.",
           "probe_before_queue": "Avant de mettre une image en file d’attente pour un appareil en veille, effectuer une tentative rapide de connexion au cas où il serait en fait réveillé (publicités manquées, radios toujours actives). Ajoute au maximum quelques secondes lorsque l’appareil est vraiment en veille.",
