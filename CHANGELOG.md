@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.2.0](https://github.com/OpenDisplay/Home_Assistant_Integration/compare/3.1.0...3.2.0) (2026-10-28)
+
+
+### Features
+
+* **update:** optional GitHub token for firmware update checks ([2c13eb8](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/2c13eb8c5fbf61322b9277ed74bc385c10452ef7))
+
+
+### Bug Fixes
+
+* keep Home Assistant responsive while drawcustom renders ([f6941c9](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/f6941c9b456a04cfd3608be367c1091f021847a6))
+
 ## [3.1.0](https://github.com/OpenDisplay/Home_Assistant_Integration/compare/3.0.2...3.1.0) (2026-10-12)
 
 
