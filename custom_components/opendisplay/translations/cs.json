@@ -128,6 +128,9 @@
     "device_sleeping_ota": {
       "message": "Zařízení je v režimu spánku a nelze jej nyní aktualizovat. Probudit (stisknout tlačítko nebo počkat na další plánovanou kontrolu) a znovu spustit aktualizaci."
     },
+    "github_rate_limited": {
+      "message": "Byl dosažen limit počtu požadavků na GitHub API ({limit} požadavků za hodinu), proto nebylo možné načíst vydání firmwaru. Limit se obnoví v {reset}. Přidání GitHub tokenu v nastavení jakéhokoli zařízení OpenDisplay zvyšuje tento limit."
+    },
     "invalid_device_id": {
       "message": "Zařízení `{device_id}` není platné OpenDisplay zařízení."
     },
@@ -185,6 +188,7 @@
       "init": {
         "data": {
           "blocks_per_ack": "Bloky odeslané na jedno potvrzení",
+          "github_token": "GitHub token (volitelný)",
           "max_queue_size": "Maximální počet snímků v přenosu",
           "missed_cycles": "Počet vynechaných probuzení před označením za nedostupné",
           "probe_before_queue": "Zkusit připojení před zařazením do fronty",
@@ -193,6 +197,7 @@
         },
         "data_description": {
           "blocks_per_ack": "Kolik obrazových snímků zařízení přijme, než pošle jedno potvrzení během rychlého (posuvného) přenosu. Vyšší hodnoty snižují počet zpětných cest; efektivní hodnota je omezena zařízením a maximálním počtem snímků v přenosu.",
+          "github_token": "Používá se pouze pro kontrolu aktualizací firmwaru přes GitHub API a platí pro všechna zařízení OpenDisplay. Bez tokenu sdílejí všechna zařízení a další nástroje v síti limit GitHubu 60 požadavků za hodinu. Jemně nastavený token bez dalších oprávnění (veřejné repozitáře, pouze pro čtení) zvyšuje limit na 5 000. Nechat prázdné pro anonymní přístup.",
           "max_queue_size": "Maximální počet obrazových snímků současně v přenosu během rychlého (posuvného) uploadu. Vyšší hodnoty zvyšují propustnost na pomalých (proxy) spojích. Nastavit na 1 pro vypnutí rychlého přenosu a použití klasického uploadu po jednom snímku.",
           "missed_cycles": "Kolik očekávaných probuzení může zařízení vynechat, než jsou jeho entity označeny jako nedostupné.",
           "probe_before_queue": "Před zařazením obrázku do fronty pro spící zařízení provést rychlý pokus o připojení, pokud je zařízení ve skutečnosti vzhůru (vynechané reklamy, stále zapnuté rádio). Přidává maximálně několik sekund, pokud je zařízení opravdu v režimu spánku.",

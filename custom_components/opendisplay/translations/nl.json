@@ -128,6 +128,9 @@
     "device_sleeping_ota": {
       "message": "Het apparaat slaapt en kan nu niet worden bijgewerkt. Wek het (druk op de knop of wacht op de volgende geplande check-in) en start de update opnieuw."
     },
+    "github_rate_limited": {
+      "message": "De API-limiet van GitHub is bereikt ({limit} verzoeken per uur), waardoor de firmware-release niet kon worden opgehaald. De limiet wordt gereset om {reset}. Het toevoegen van een GitHub-token in de opties van een OpenDisplay-apparaat verhoogt de limiet."
+    },
     "invalid_device_id": {
       "message": "Apparaat `{device_id}` is geen geldig OpenDisplay-apparaat."
     },
@@ -185,6 +188,7 @@
       "init": {
         "data": {
           "blocks_per_ack": "Blokken verzonden per bevestiging",
+          "github_token": "GitHub-token (optioneel)",
           "max_queue_size": "Maximaal aantal uploadframes in behandeling",
           "missed_cycles": "Gemiste wake-cycli voordat onbeschikbaar",
           "probe_before_queue": "Proberen te verbinden vóór in de wachtrij plaatsen",
@@ -193,6 +197,7 @@
         },
         "data_description": {
           "blocks_per_ack": "Aantal beeldframes dat het apparaat ontvangt voordat het één bevestiging stuurt tijdens een snelle (sliding-window) upload. Hogere waarden verminderen rondreizen; de effectieve waarde wordt begrensd door het apparaat en het maximum aantal frames in behandeling.",
+          "github_token": "Alleen gebruikt voor firmware-updatecontroles via de GitHub API, en geldt voor elk OpenDisplay-apparaat. Zonder token delen alle apparaten en andere tools op hetzelfde netwerk de GitHub-limiet van 60 verzoeken per uur. Een fijnmazig token zonder extra rechten (openbare repositories, alleen-lezen) verhoogt dit tot 5.000. Leeg laten om anoniem te blijven.",
           "max_queue_size": "Maximaal aantal beeldframes dat tegelijk in behandeling wordt gehouden tijdens een snelle (sliding-window) upload. Hogere waarden verhogen de doorvoer op trage (proxy) verbindingen. Instellen op 1 schakelt snelle overdracht uit en gebruikt de klassieke upload één frame per keer.",
           "missed_cycles": "Hoeveel verwachte wake-ups het apparaat mag missen voordat zijn entiteiten als onbeschikbaar worden gemarkeerd.",
           "probe_before_queue": "Voor het in de wachtrij plaatsen van een afbeelding voor een slapend apparaat, één snelle verbindingspoging doen voor het geval het toch wakker is (gemiste advertenties, altijd-aan radio's). Voegt maximaal enkele seconden toe als het apparaat echt slaapt.",

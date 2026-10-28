@@ -128,6 +128,9 @@
     "device_sleeping_ota": {
       "message": "Das Gerät schläft und kann derzeit nicht aktualisiert werden. Aufwecken (Taste drücken oder auf nächsten geplanten Check-in warten) und Update erneut starten."
     },
+    "github_rate_limited": {
+      "message": "Das API-Limit von GitHub wurde erreicht ({limit} Anfragen pro Stunde), daher konnte die Firmware-Version nicht abgerufen werden. Es wird um {reset} zurückgesetzt. Das Hinzufügen eines GitHub-Tokens in den Optionen eines beliebigen OpenDisplay-Geräts erhöht das Limit."
+    },
     "invalid_device_id": {
       "message": "Gerät `{device_id}` ist kein gültiges OpenDisplay-Gerät."
     },
@@ -185,6 +188,7 @@
       "init": {
         "data": {
           "blocks_per_ack": "Blöcke pro Bestätigung gesendet",
+          "github_token": "GitHub-Token (optional)",
           "max_queue_size": "Maximale Anzahl an Upload-Frames in der Warteschlange",
           "missed_cycles": "Verpasste Weckzyklen bis zur Markierung als nicht verfügbar",
           "probe_before_queue": "Vor dem Einreihen Verbindung versuchen",
@@ -193,6 +197,7 @@
         },
         "data_description": {
           "blocks_per_ack": "Anzahl der Bildframes, die das Gerät empfängt, bevor es während eines schnellen (Sliding-Window) Uploads eine Bestätigung sendet. Höhere Werte reduzieren Rundreisen; der effektive Wert wird vom Gerät und der maximalen Anzahl an Frames in der Übertragung begrenzt.",
+          "github_token": "Wird nur für die Firmware-Update-Prüfungen über die GitHub-API verwendet und gilt für jedes OpenDisplay-Gerät. Ohne Token teilen sich alle Geräte und andere Tools im selben Netzwerk das GitHub-Limit von 60 Anfragen pro Stunde. Ein fein granuliertes Token ohne zusätzliche Berechtigungen (öffentliche Repositories, nur Lesen) erhöht es auf 5.000. Leer lassen, um anonym zu bleiben.",
           "max_queue_size": "Maximale Anzahl an Bildframes, die gleichzeitig während eines schnellen (Sliding-Window) Uploads in der Übertragung gehalten werden. Höhere Werte erhöhen den Durchsatz bei langsamen (Proxy-)Verbindungen. Auf 1 setzen, um schnellen Transfer zu deaktivieren und den klassischen Upload mit einem Frame gleichzeitig zu verwenden.",
           "missed_cycles": "Anzahl erwarteter Weckvorgänge, die das Gerät verpassen darf, bevor seine Entitäten als nicht verfügbar markiert werden.",
           "probe_before_queue": "Vor dem Einreihen eines Bildes für ein schlafendes Gerät eine schnelle Verbindungsprobe durchführen, falls es tatsächlich wach ist (verpasste Werbungen, immer aktive Radios). Fügt höchstens einige Sekunden hinzu, wenn das Gerät wirklich schläft.",
