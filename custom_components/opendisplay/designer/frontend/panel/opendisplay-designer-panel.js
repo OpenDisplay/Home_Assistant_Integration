@@ -25,6 +25,7 @@ import { containKeyEvents } from './key-containment.js';
 import { installUnsavedWorkWarning } from './unsaved-work.js';
 import { renderRequestBody, sendCallData } from './drawcustom-request.js';
 import { assetRequestUrl } from './asset-request.js';
+import { haTemplateRenderer, prerenderElements } from './template-prerender.js';
 
 const TAG = 'opendisplay-designer-panel';
 const RENDER_URL = '/api/opendisplay/designer/render';
@@ -496,10 +497,14 @@ class OpenDisplayDesignerPanel extends HTMLElement {
     this._sending = true;
     this._pushActions();
     try {
+      // Same pre-render step `_renderPreview` runs, so the service receives
+      // the literals the preview was rendered from (see _prerender below);
+      // a failure here lands in the catch below, as "Send failed: ...".
+      const rendered = await this._prerender(elements, context);
       await hass.callService(
         'opendisplay',
         'drawcustom',
-        sendCallData(elements, this._targetDisplaySpecs.get(targetId), context),
+        sendCallData(rendered, this._targetDisplaySpecs.get(targetId), context),
         // HA's separate service-call "target" (attributes the call to a
         // device in the logbook/trace UI), independent of the `device_id`
         // the service schema itself requires inside the data above.
@@ -512,6 +517,32 @@ class OpenDisplayDesignerPanel extends HTMLElement {
       this._sending = false;
       this._pushActions();
     }
+  }
+
+  /**
+   * Render every templated field with the designer's Variables before the
+   * payload leaves the browser (template-prerender.js has the full
+   * writeup). `context.variables` (`Readonly<Record<string,
+   * HostVariableValue>>`: JSON natives as the designer's own preview
+   * coerces them -- `false`, `5`, `null`, lists, objects, `""` for a
+   * referenced-but-unset name; always present, frozen) is on both
+   * `HostActionContext` and `HostPreviewContext` since designer 3.7.0; the
+   * vendored 3.8.0 sends it on every action and preview. The map goes to
+   * HA as-is, so `alert: false` is falsy in Jinja. A designer build older
+   * than 3.7.0 hands over NO field at all -- then nothing is pre-rendered
+   * and the payload goes out exactly as it did before this step existed,
+   * templates included, for HA to render server-side
+   * (`render_payload_templates`): rendering strictly with an empty variable
+   * set would instead fail every field that references a variable. A
+   * failing template rejects with the element index, type and field named,
+   * and reaches the user through the caller's own error path (the send
+   * notification, the designer's preview error state).
+   */
+  _prerender(elements, context) {
+    if (context.variables === undefined) return elements;
+    const connection = this._hass?.connection;
+    if (!connection?.subscribeMessage) throw new Error('Home Assistant connection unavailable');
+    return prerenderElements(elements, context.variables, haTemplateRenderer(connection));
   }
 
   /**
@@ -536,11 +567,13 @@ class OpenDisplayDesignerPanel extends HTMLElement {
       throw new Error(`Cannot preview invalid YAML: ${errMsg(err)}`);
     }
 
-    // Same builder module the `send` action uses, so preview and send derive
-    // `dither`/`rotate` from the designer's live context identically instead
-    // of two lookalike expressions that can drift.
+    // Same pre-render step and builder module the `send` action uses, so
+    // preview and send derive the payload's literals and `dither`/`rotate`
+    // from the designer's live context identically instead of two lookalike
+    // expressions that can drift.
+    const rendered = await this._prerender(elements, context);
     const requestBody = renderRequestBody(
-      elements,
+      rendered,
       this._targetDisplaySpecs.get(context.targetId),
       context
     );

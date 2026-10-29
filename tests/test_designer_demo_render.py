@@ -17,11 +17,13 @@ module runs that payload through the panel's shipped send procedure
 are the analog of an automation's script-level ``variables:``, so the panel
 pre-renders every templated field with those variables as Jinja context --
 what HA's script engine does with ``template.render_complex(data,
-variables)`` before a service handler runs -- and then calls the untouched
+variables)`` before a service handler runs, except strict, so an undefined
+variable is an error -- and then calls the untouched
 ``opendisplay.drawcustom`` service with literal YAML. ``_prerender`` below
-is that first step, using HA's own ``render_complex``; the render endpoint
-and a ``dry-run`` service call are the second, at the three fabricated
-display geometries ``dev/inject-displays.py`` seeds. That is a real send
+is that first step, using HA's own ``Template.async_render(strict=True)``
+per field; the render endpoint and a ``dry-run`` service call are the
+second, at the three fabricated display geometries ``dev/inject-displays.py``
+seeds. That is a real send
 minus BLE delivery; what a physical panel's dither/palette makes of the PNG
 is outside its reach.
 
@@ -42,12 +44,7 @@ from pathlib import Path
 from typing import Any
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.template import (
-    Template,
-    TemplateError,
-    is_template_string,
-    render_complex,
-)
+from homeassistant.helpers.template import Template, TemplateError, is_template_string
 from odl_renderer.colors import WHITE, ColorResolver
 from opendisplay import ColorScheme
 from PIL import Image as PILImage
@@ -157,18 +154,23 @@ def device_id(hass, mock_config_entry: MockConfigEntry) -> str:
     return devices[0].id
 
 
-def _as_templates(hass: HomeAssistant, value: Any) -> Any:
-    """Turn every template string in a field value into a ``Template`` leaf.
+def _render_strict(hass: HomeAssistant, value: Any, variables: dict[str, Any]) -> Any:
+    """Render every template string in a field value, strictly, with ``variables``.
 
-    ``cv.template`` does this at config load for an automation's service
-    data; ``render_complex`` renders only ``Template`` leaves.
+    The walk is ``render_complex``'s (lists and dict values); the render is
+    ``Template.async_render(strict=True)``, which ``render_complex`` cannot
+    ask for, so an undefined variable raises instead of degrading to ''.
     """
     if isinstance(value, str):
-        return Template(value, hass) if is_template_string(value) else value
+        if is_template_string(value):
+            return Template(value, hass).async_render(variables, strict=True)
+        return value
     if isinstance(value, list):
-        return [_as_templates(hass, item) for item in value]
+        return [_render_strict(hass, item, variables) for item in value]
     if isinstance(value, dict):
-        return {key: _as_templates(hass, item) for key, item in value.items()}
+        return {
+            key: _render_strict(hass, item, variables) for key, item in value.items()
+        }
     return value
 
 
@@ -177,18 +179,19 @@ def _prerender(
 ) -> list[dict[str, Any]]:
     """Render the payload's templates with the designer's variables, field by field.
 
-    The panel's shipped send procedure, step one: HA's own
-    ``render_complex`` -- what the script engine runs on an automation's
-    service data -- with the State Simulator variables as Jinja context. A
-    field whose template raises fails the test naming element index, type
-    and field, mirroring the live send's error text.
+    The panel's shipped send procedure, step one: what the script engine
+    runs on an automation's service data, with the State Simulator
+    variables as Jinja context, strict like the panel (``render_template``
+    with ``strict: true``). A field whose template raises fails the test
+    naming element index, type and field, as the panel's own error does
+    (the service's error names element and type only).
     """
     rendered = []
     for index, element in enumerate(payload):
         out = {}
         for key, value in element.items():
             try:
-                out[key] = render_complex(_as_templates(hass, value), variables)
+                out[key] = _render_strict(hass, value, variables)
             except TemplateError as err:
                 pytest.fail(
                     f"payload element {index} (type '{element.get('type', '?')}')"
@@ -222,9 +225,10 @@ async def test_demo_prerenders_through_ha_jinja_with_its_variables(
     field 'progress' has an invalid template: TypeError: unsupported
     operand type(s) for /: 'str' and 'int'`` (designer 3.4.9's showcase).
 
-    The panel renders strict, so a variable the demo references but does
-    not define is a failure here too: HA's non-strict ``render_complex``
-    degrades it to '' with a template warning, which this test forbids.
+    The panel renders strict and so does ``_prerender``: a variable the
+    demo references but does not define raises here. The template-warning
+    check below is belt and braces -- it is what a non-strict render would
+    have logged instead of raising.
     """
     caplog.set_level(logging.WARNING, logger=_TEMPLATE_LOGGER)
     variables = demo_simulator["variables"]
