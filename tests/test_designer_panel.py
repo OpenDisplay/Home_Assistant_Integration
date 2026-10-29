@@ -58,6 +58,26 @@ async def test_panel_js_vendor_imports_carry_a_cache_busting_token(
     assert "from '../vendor/js-yaml.mjs?v=" in body
 
 
+async def test_demo_files_are_served_unauthenticated(hass, hass_client_no_auth):
+    """The Load Demo payload and variables reach the panel through the static view.
+
+    frontend/panel/host-demo.js fetches both with a plain, unauthenticated
+    `fetch` next to the panel module; this is the one copy of the demo
+    tests/test_designer_demo_render.py renders too.
+    """
+    from custom_components.opendisplay.designer.panel import FRONTEND_DIR
+
+    client = await hass_client_no_auth()
+    for name in ("demo.yml", "demo.json"):
+        resp = await client.get(f"{DESIGNER_STATIC_URL}/demo/{name}")
+        assert resp.status == 200, name
+        assert await resp.read() == (FRONTEND_DIR / "demo" / name).read_bytes()
+        # A bare path (no `?v=` token) is answered with the no-store headers
+        # (see OpenDisplayDesignerStaticView.get), so a demo edit is picked
+        # up on the next mount without a panel JS change.
+        assert "no-store" in resp.headers["Cache-Control"], name
+
+
 async def test_unknown_static_file_is_404(hass, hass_client_no_auth):
     """A path with no matching file is a 404, not a 500."""
     client = await hass_client_no_auth()

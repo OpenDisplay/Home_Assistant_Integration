@@ -12,6 +12,7 @@ itself never talks to Home Assistant directly.
 - [Variables](#variables)
 - [The render endpoint](#the-render-endpoint)
 - [The asset endpoint](#the-asset-endpoint)
+- [Load Demo](#load-demo)
 - [Access and exposure](#access-and-exposure)
 - [Updating the vendored library](#updating-the-vendored-library)
 - [Known gaps](#known-gaps)
@@ -533,6 +534,64 @@ search directories can change without this integration knowing) — served
 with `Cache-Control: no-cache, must-revalidate` instead, acceptable since
 the designer resolves and caches an asset once per session rather than
 re-requesting it on every render.
+
+## Load Demo
+
+**Home Assistant ships its own Load Demo.** The designer's bundled showcase
+references entities a real Home Assistant does not have
+(`sensor.temperature`, `weather.forecast_home`, …) and a `plot` element that
+needs recorder history for a numeric sensor, so on a live install its fields
+rendered "unknown" and Send failed. The panel instead hands the designer
+`custom_components/opendisplay/designer/frontend/demo/demo.yml` (the
+payload) and `demo.json` (its variables) through the `demo` mount option
+(`frontend/panel/host-demo.js`), a payload written for Home Assistant:
+
+- **Only entities every `default_config` install has**: `sun.sun` and its
+  attributes (`elevation`, `azimuth`, `next_rising`, `next_setting`,
+  `rising`), `zone.home`, the `person` domain, and template globals such as
+  `now()`. `person` and `zone` are part of Home Assistant's core bootstrap;
+  `sun` comes from `default_config`, which every onboarded install has
+  unless its `configuration.yaml` deliberately drops it. On such a minimal
+  install the sun fields degrade instead of failing -- the state reads
+  "unknown", the times and angles "?" -- because the demo passes a default
+  to `round`, `as_timestamp` and `timestamp_custom`; the send still goes
+  through. Nothing in the Referenced states list should read "not
+  supplied" on a `default_config` install.
+- **No plot element.** No entity every install has carries recorder
+  history. The plot element is still available from the editor's insert
+  menu; it needs a sensor with recorded history.
+- **Variables `alert` and `accent_color`** (Variables tab) drive the
+  circle (red while `alert` is set, white otherwise) and the accent colour
+  of the big icon and the title.
+
+The same two files are what `tests/test_designer_demo_render.py` renders
+through a real Home Assistant -- with the `sun`, `zone` and `person`
+integrations set up and **no seeded state** -- at the three fabricated
+display geometries, so a demo edit that references an entity a stock
+install lacks fails the suite. The demo's element types are every
+`odl_renderer.types.ElementType` but `plot` (dropped, above) and `diagram`
+(the designer has no such element; its bundle does not contain the word).
+
+If a demo file cannot be fetched within ten seconds, or does not parse, the
+panel mounts the designer without the option -- Load Demo then shows the
+designer's bundled showcase -- and says so once, on the console and as a
+notification toast.
+
+The vendored designer (3.8.0) honours the option (`MountOptions.demo`, a
+`HostDemo`); nothing gates the demo itself any more. The panel parses the
+payload with its own js-yaml before handing it over, because a `HostDemo`
+payload is validated like `MountOptions.payload` and malformed YAML throws
+out of `mount()`; a demo that does not parse therefore falls back like a
+fetch failure instead of blanking the panel.
+
+The variables reach a Send and a preview because the panel pre-renders
+every templated field with them first ("Variables" above): the circle is
+red while `alert` is set, the big icon and the title take `accent_color`.
+Without that step a Send would expand `{{ accent_color }}` with no
+variables, HA would render it as '' and odl-renderer paint '' white;
+`tests/test_designer_demo_render.py`'s
+`test_raw_send_renders_designer_variables_empty` keeps that failure mode
+on record.
 
 ## Access and exposure
 

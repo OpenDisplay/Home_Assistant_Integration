@@ -1,39 +1,57 @@
-"""Render the designer's Load Demo payload through a real Home Assistant.
+"""Render this integration's Load Demo payload through a real Home Assistant.
 
 The designer previews templates with nunjucks (JavaScript); Home Assistant
 renders them with Python Jinja. The two disagree on more than syntax: a
-real send of the Load Demo payload failed on a live Home Assistant because
-its ``progress_bar`` divided ``now().strftime('%S')`` -- a string -- by 60.
-nunjucks coerced silently; HA raised ``TypeError: unsupported operand
-type(s) for /: 'str' and 'int'``. Nothing in either repository rendered the
-demo through Python, so the bug reached a display before anyone saw it
-(fixed designer-side in odl-drawcustom-designer#196).
+real send of the designer's bundled Load Demo failed on a live Home
+Assistant because its ``progress_bar`` divided ``now().strftime('%S')`` --
+a string -- by 60. nunjucks coerced silently; HA raised ``TypeError:
+unsupported operand type(s) for /: 'str' and 'int'``. Nothing in either
+repository rendered the demo through Python, so the bug reached a display
+before anyone saw it (fixed designer-side in odl-drawcustom-designer#196).
 
-The vendored designer package ships its demo payload (``showcase.yml``) and
-State Simulator seed (``showcase.json``) since designer 3.5.0
-(``scripts/update-designer-vendor.py`` copies both into ``vendor/``). This
-module runs that payload through the panel's shipped send procedure
-(maintainer decision 2026-10-27): the designer's State Simulator variables
-are the analog of an automation's script-level ``variables:``, so the panel
-pre-renders every templated field with those variables as Jinja context --
-what HA's script engine does with ``template.render_complex(data,
-variables)`` before a service handler runs, except strict, so an undefined
-variable is an error -- and then calls the untouched
-``opendisplay.drawcustom`` service with literal YAML. ``_prerender`` below
-is that first step, using HA's own ``Template.async_render(strict=True)``
-per field; the render endpoint and a ``dry-run`` service call are the
-second, at the three fabricated display geometries ``dev/inject-displays.py``
-seeds. That is a real send
-minus BLE delivery; what a physical panel's dither/palette makes of the PNG
-is outside its reach.
+**This integration ships its own Load Demo** (maintainer decision
+2026-10-28): ``designer/frontend/demo/demo.yml`` (the drawcustom payload)
+and ``demo.json`` (its variables), which the panel hands the designer as the
+``demo`` mount option so Load Demo in Home Assistant loads *this* payload,
+not the designer's bundled showcase. Two things about the bundled showcase
+made it the wrong demo for Home Assistant:
 
-The demo's ``dlimg`` once referenced ``/local/showcase.png``, which the
-designer served from its own bundle but odl-renderer opened as a filesystem
-path that exists on no Home Assistant install (``Image file not found:
-/local/showcase.png``). Since designer 3.6.0 the image travels inside the
-payload as a ``data:`` URI (odl-drawcustom-designer#198), so the whole demo
--- image included -- renders here; ``test_demo_bundled_image_is_self_contained``
-keeps it that way.
+- It references fabricated entities (``sensor.temperature``,
+  ``weather.forecast_home``, ``binary_sensor.door``, ``sensor.next_event``)
+  that the designer's State Simulator seeds and a real Home Assistant does
+  not have, so fields rendered "unknown" on a real install.
+- Its ``plot`` element needs recorder history for a numeric sensor, which
+  no entity on every install has -- the live send failed with ``Element 19:
+  no data returned for entity: sensor.temperature``. The plot is dropped
+  from the demo (the element stays available from the editor's insert
+  menu).
+
+The HA demo references only entities every Home Assistant install has
+(``sun.sun``, ``zone.home``, the ``person`` domain) plus template globals
+such as ``now()``. This module renders it through the panel's shipped send
+procedure (maintainer decision 2026-10-27; ``template-prerender.js``,
+modelled here with HA's own template engine, not imported from the panel
+JS): the designer's variables are the analog of an automation's script-level
+``variables:``,
+so the panel pre-renders every templated field with those variables as
+Jinja context -- what HA's script engine does with
+``template.render_complex(data, variables)`` before a service handler runs
+-- and then calls the untouched ``opendisplay.drawcustom`` service with
+literal YAML. ``_prerender`` below is that first step, strict (an undefined
+variable fails instead of degrading to ''); the render endpoint and a
+``dry-run`` service call are the second, at the three fabricated display
+geometries ``dev/inject-displays.py`` seeds. That is a real send minus BLE
+delivery; what a physical panel's dither/palette makes of the PNG is
+outside its reach.
+
+The harness Home Assistant seeds **no states**: it sets up the ``sun``,
+``zone`` and ``person`` integrations exactly as every install does and
+nothing else, so ``test_demo_references_only_entities_every_install_has``
+fails the moment a demo edit reintroduces a fabricated sensor. The demo's
+``dlimg`` travels inside the payload as a ``data:`` URI (the designer's
+showcase once referenced ``/local/showcase.png``, which exists on no Home
+Assistant host); ``test_demo_bundled_image_is_self_contained`` keeps it
+that way.
 """
 
 from dataclasses import replace
@@ -41,11 +59,14 @@ import io
 import json
 import logging
 from pathlib import Path
+import re
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.template import Template, TemplateError, is_template_string
+from homeassistant.setup import async_setup_component
 from odl_renderer.colors import WHITE, ColorResolver
+from odl_renderer.types import ElementType
 from opendisplay import ColorScheme
 from PIL import Image as PILImage
 import pytest
@@ -58,14 +79,31 @@ from custom_components.opendisplay.services import render_payload_templates
 
 from . import DEVICE_CONFIG
 
-VENDOR_DIR = (
+# The one copy of the demo: the panel fetches these two files from the
+# designer static view (frontend/panel/host-demo.js), this module reads
+# them from disk.
+DEMO_DIR = (
     Path(__file__).resolve().parent.parent
     / "custom_components"
     / "opendisplay"
     / "designer"
     / "frontend"
-    / "vendor"
+    / "demo"
 )
+
+# The integrations the demo's entities come from. ``person`` and ``zone``
+# are in Home Assistant's core bootstrap (``bootstrap.DEFAULT_INTEGRATIONS``);
+# ``sun`` is a ``default_config`` dependency, so every onboarded install has
+# it unless its configuration.yaml drops ``default_config:``. Setting them up
+# is the whole of the harness's entity population.
+_STOCK_INTEGRATIONS = ("sun", "zone", "person")
+# What a configuration.yaml without ``default_config:`` still has.
+_CORE_BOOTSTRAP_INTEGRATIONS = ("zone", "person")
+
+# Element types odl-renderer knows that the demo deliberately lacks: the
+# plot (needs recorder history no stock entity has) and the diagram (the
+# designer has no such element -- its bundle does not contain the word).
+_ELEMENT_TYPES_NOT_IN_DEMO = {"plot", "diagram"}
 
 # The geometries dev/inject-displays.py seeds into a disposable HA, so the
 # demo renders at every size and colour scheme a developer can see live.
@@ -82,6 +120,14 @@ _ALL_GEOMETRIES = pytest.mark.parametrize(
 
 _TEMPLATE_LOGGER = "homeassistant.helpers.template"
 
+# A quoted entity id inside a template: 'sun.sun', "zone.home". Font names
+# (rbm.ttf) and icons (mdi:home) are never quoted that way in the demo.
+_QUOTED_ENTITY_ID = re.compile(r"""['"]([a-z_]+\.[a-z0-9_]+)['"]""")
+# An unquoted entity access: states.sun.sun, states.zone.home.state.
+_UNQUOTED_ENTITY_ID = re.compile(r"\bstates\.([a-z_]+\.[a-z0-9_]+)\b")
+# A domain iteration: states.person, states.sensor (no object id after it).
+_DOMAIN_ITERATION = re.compile(r"\bstates\.([a-z_]+)\b(?!\.[a-z0-9_])")
+
 
 @pytest.fixture
 def device_config(request):
@@ -96,42 +142,55 @@ def device_config(request):
     return replace(DEVICE_CONFIG, displays=[display])
 
 
-def _vendored(name: str) -> str:
-    path = VENDOR_DIR / name
-    assert path.is_file(), (
-        f"{path} is missing -- the vendored designer predates the demo bundle; "
-        "run scripts/update-designer-vendor.py --pin <version >= 3.5.0>"
-    )
+def _demo_file(name: str) -> str:
+    path = DEMO_DIR / name
+    assert path.is_file(), f"{path} is missing -- the integration's Load Demo"
     return path.read_text("utf-8")
 
 
 @pytest.fixture
 def demo_payload() -> list[dict[str, Any]]:
-    """Return the vendored Load Demo payload, exactly as the designer ships it."""
-    payload = yaml.safe_load(_vendored("showcase.yml"))
+    """Return the Load Demo payload, exactly as the panel hands it to the designer."""
+    payload = yaml.safe_load(_demo_file("demo.yml"))
     assert isinstance(payload, list)
     assert payload
     return payload
 
 
 @pytest.fixture
-def demo_simulator() -> dict[str, Any]:
-    """Return the vendored State Simulator seed (states, attributes, variables)."""
-    return json.loads(_vendored("showcase.json"))["simulator"]
+def demo_variables() -> dict[str, str]:
+    """Return the Load Demo's variables (the designer's Variables tab seed)."""
+    variables = json.loads(_demo_file("demo.json"))["variables"]
+    assert isinstance(variables, dict)
+    assert all(isinstance(value, str) for value in variables.values()), (
+        "MountOptions.demo.variables is Record<string, string>"
+    )
+    return variables
 
 
 @pytest.fixture
-async def seeded_hass(hass, demo_simulator):
-    """Seed hass with the demo's simulator states and attributes.
+async def stock_hass(hass):
+    """Return hass with only the integrations every install has, and no seeded state.
 
-    This is the state the designer's own preview renders against. The
-    seed's ``variables`` are not HA state; ``_prerender`` applies them the
-    way the panel does.
+    ``sun``, ``zone`` and ``person`` create ``sun.sun`` and ``zone.home``
+    from the harness's own config (latitude/longitude, home name) the way a
+    fresh install does. Nothing here calls ``hass.states.async_set``: a
+    state the demo needs that a real install would not have is a demo bug,
+    and seeding it would hide that.
     """
-    attributes = demo_simulator.get("attributes", {})
-    for entity_id, state in demo_simulator["states"].items():
-        hass.states.async_set(entity_id, state, attributes.get(entity_id))
+    for domain in _STOCK_INTEGRATIONS:
+        assert await async_setup_component(hass, domain, {domain: {}})
     await hass.async_block_till_done()
+    return hass
+
+
+@pytest.fixture
+async def core_only_hass(hass):
+    """Return hass as a configuration.yaml without ``default_config:`` leaves it: no ``sun``."""
+    for domain in _CORE_BOOTSTRAP_INTEGRATIONS:
+        assert await async_setup_component(hass, domain, {domain: {}})
+    await hass.async_block_till_done()
+    assert hass.states.get("sun.sun") is None
     return hass
 
 
@@ -155,16 +214,17 @@ def device_id(hass, mock_config_entry: MockConfigEntry) -> str:
 
 
 def _render_strict(hass: HomeAssistant, value: Any, variables: dict[str, Any]) -> Any:
-    """Render every template string in a field value, strictly, with ``variables``.
+    """Render every template string in a field value, strictly.
 
-    The walk is ``render_complex``'s (lists and dict values); the render is
-    ``Template.async_render(strict=True)``, which ``render_complex`` cannot
-    ask for, so an undefined variable raises instead of degrading to ''.
+    The structural walk is ``render_complex``'s (a ``Template`` leaf per
+    template string, lists and dicts recursed); the leaf render is
+    ``strict=True``, which the panel's pre-render is too: an undefined
+    variable raises instead of degrading to '' with a warning.
     """
     if isinstance(value, str):
-        if is_template_string(value):
-            return Template(value, hass).async_render(variables, strict=True)
-        return value
+        if not is_template_string(value):
+            return value
+        return Template(value, hass).async_render(variables, strict=True)
     if isinstance(value, list):
         return [_render_strict(hass, item, variables) for item in value]
     if isinstance(value, dict):
@@ -177,14 +237,13 @@ def _render_strict(hass: HomeAssistant, value: Any, variables: dict[str, Any]) -
 def _prerender(
     hass: HomeAssistant, payload: list[dict[str, Any]], variables: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Render the payload's templates with the designer's variables, field by field.
+    """Render the payload's templates with the demo's variables, field by field.
 
-    The panel's shipped send procedure, step one: what the script engine
-    runs on an automation's service data, with the State Simulator
-    variables as Jinja context, strict like the panel (``render_template``
-    with ``strict: true``). A field whose template raises fails the test
-    naming element index, type and field, as the panel's own error does
-    (the service's error names element and type only).
+    Step one of the panel's shipped send procedure, modelled with HA's own
+    template engine: the demo's variables as Jinja context, strict like the
+    panel (``render_template`` with ``strict: true``).
+    A field whose template raises fails the test naming element index, type
+    and field, mirroring the live send's error text.
     """
     rendered = []
     for index, element in enumerate(payload):
@@ -202,9 +261,37 @@ def _prerender(
 
 
 @pytest.fixture
-def prerendered_demo(seeded_hass, demo_payload, demo_simulator):
+def prerendered_demo(stock_hass, demo_payload, demo_variables):
     """Return the demo as the panel hands it to the service: templates already literal."""
-    return _prerender(seeded_hass, demo_payload, demo_simulator["variables"])
+    return _prerender(stock_hass, demo_payload, demo_variables)
+
+
+def _only(
+    payload: list[dict[str, Any]], element_type: str, field: str, needle: str
+) -> int:
+    """Return the index of the one element of a type whose field mentions a needle."""
+    hits = [
+        index
+        for index, element in enumerate(payload)
+        if element["type"] == element_type and needle in str(element.get(field, ""))
+    ]
+    assert len(hits) == 1, (element_type, field, needle, hits)
+    return hits[0]
+
+
+def _variable_driven_fields(payload: list[dict[str, Any]]) -> dict[str, int]:
+    """Return the indices of the demo elements whose colour the variables drive.
+
+    The accent icon's fill and the title's colour are ``{{ accent_color }}``;
+    the circle's fill is gated on ``alert``. Found by template text rather
+    than by position so a demo edit that moves elements does not silently
+    retarget these assertions.
+    """
+    return {
+        "icon": _only(payload, "icon", "fill", "accent_color"),
+        "title": _only(payload, "text", "color", "accent_color"),
+        "circle": _only(payload, "circle", "fill", "alert"),
+    }
 
 
 async def _render(hass_client, device_id: str, payload: list[dict[str, Any]]):
@@ -215,8 +302,88 @@ async def _render(hass_client, device_id: str, payload: list[dict[str, Any]]):
     )
 
 
+def _template_strings(value: Any):
+    """Yield every template string in a field value, nested lists and dicts included.
+
+    The same walk ``_render_strict`` (and HA's ``render_complex``) does, so
+    a template hidden in a list or a nested mapping is scanned too.
+    """
+    if isinstance(value, str):
+        if is_template_string(value):
+            yield value
+    elif isinstance(value, list):
+        for item in value:
+            yield from _template_strings(item)
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _template_strings(item)
+
+
+def _referenced_entities(payload: list[dict[str, Any]]) -> tuple[set[str], set[str]]:
+    """Return every (entity id, iterated domain) the demo's templates name.
+
+    Entity ids are matched both quoted (``states('sun.sun')``,
+    ``is_state("zone.home", ...)``) and unquoted (``states.sun.sun``); a
+    bare ``states.person`` is a domain iteration.
+    """
+    entity_ids: set[str] = set()
+    domains: set[str] = set()
+    for template in _template_strings(payload):
+        entity_ids.update(_QUOTED_ENTITY_ID.findall(template))
+        entity_ids.update(_UNQUOTED_ENTITY_ID.findall(template))
+        domains.update(_DOMAIN_ITERATION.findall(template))
+    return entity_ids, domains
+
+
+def test_referenced_entities_scans_nested_fields_and_unquoted_access():
+    """The scanner sees what the renderer renders: nested fields, both reference styles."""
+    payload = [
+        {
+            "type": "text",
+            "value": "{{ states('sun.sun') }}",
+            "nested": {"deep": ["{{ states.zone.home.state }}", "literal"]},
+            "points": [[1, 2], [3, 4]],
+        },
+        {
+            "type": "icon",
+            "value": "{{ states.person | list | count }} {{ states.sensor }}",
+        },
+        {
+            "type": "text",
+            "value": "{{ is_state_attr(\"binary_sensor.door\", 'on', true) }}",
+        },
+    ]
+
+    entity_ids, domains = _referenced_entities(payload)
+
+    assert entity_ids == {"sun.sun", "zone.home", "binary_sensor.door"}
+    assert domains == {"person", "sensor"}
+
+
+async def test_demo_references_only_entities_every_install_has(
+    stock_hass, demo_payload
+):
+    """Every entity the demo names exists in a Home Assistant with no seeded state.
+
+    The harness sets up ``sun``, ``zone`` and ``person`` and seeds nothing
+    else (``stock_hass``), so a fabricated sensor cannot creep back into
+    the demo: the designer's bundled showcase referenced four of them and
+    every one rendered "unknown" on a real install.
+    """
+    entity_ids, domains = _referenced_entities(demo_payload)
+
+    assert entity_ids, (
+        "the demo stopped referencing any entity; drop this guard knowingly"
+    )
+    missing = sorted(eid for eid in entity_ids if stock_hass.states.get(eid) is None)
+    assert missing == [], f"demo references entities a stock install lacks: {missing}"
+    assert domains <= set(_STOCK_INTEGRATIONS), (
+        f"demo iterates a domain not every install has: {sorted(domains)}"
+    )
+
+
 async def test_demo_prerenders_through_ha_jinja_with_its_variables(
-    seeded_hass, demo_payload, demo_simulator, caplog
+    stock_hass, demo_payload, demo_variables, caplog
 ):
     """Every demo template evaluates in HA's Python Jinja with the demo's variables.
 
@@ -225,39 +392,88 @@ async def test_demo_prerenders_through_ha_jinja_with_its_variables(
     field 'progress' has an invalid template: TypeError: unsupported
     operand type(s) for /: 'str' and 'int'`` (designer 3.4.9's showcase).
 
-    The panel renders strict and so does ``_prerender``: a variable the
-    demo references but does not define raises here. The template-warning
-    check below is belt and braces -- it is what a non-strict render would
-    have logged instead of raising.
+    The render is strict, as the panel's pre-render is, so
+    a variable the demo references but does not define raises here too; a
+    template that merely warns (a missing attribute, an unknown filter
+    argument) fails as well, because a demo that logs warnings on every
+    Load Demo is not a clean demo.
     """
     caplog.set_level(logging.WARNING, logger=_TEMPLATE_LOGGER)
-    variables = demo_simulator["variables"]
-    assert variables == {"accent_color": "red", "alert": "true"}, (
+    assert demo_variables == {"accent_color": "red", "alert": "true"}, (
         "the demo's variables changed -- re-derive the expectations below"
     )
 
-    rendered = _prerender(seeded_hass, demo_payload, variables)
+    rendered = _prerender(stock_hass, demo_payload, demo_variables)
 
     assert len(rendered) == len(demo_payload)
-    undefined = [
-        r.getMessage()
-        for r in caplog.records
-        if r.name == _TEMPLATE_LOGGER and "is undefined" in r.getMessage()
-    ]
-    assert undefined == []
+    warnings = [r.getMessage() for r in caplog.records if r.name == _TEMPLATE_LOGGER]
+    assert warnings == []
     # The variables actually took effect: the accent icon fill and the
-    # title colour are the designer's red, and the alert-gated circle fill
-    # took its truthy branch.
-    assert rendered[15]["type"] == "icon"
-    assert rendered[15]["fill"] == "red"
-    assert rendered[20]["type"] == "text"
-    assert rendered[20]["color"] == "red"
-    assert rendered[6]["type"] == "circle"
-    assert rendered[6]["fill"] == "red"
-    # No template syntax survives into what the service will receive.
+    # title colour are the demo's red, and the alert-gated circle fill took
+    # its truthy branch.
+    at = _variable_driven_fields(demo_payload)
+    assert rendered[at["icon"]]["fill"] == "red"
+    assert rendered[at["title"]]["color"] == "red"
+    assert rendered[at["circle"]]["fill"] == "red"
+    # No template syntax survives into what the service will receive, and
+    # no state-backed field degraded to HA's "unknown"/"unavailable".
     for element in rendered:
         for value in element.values():
             assert not (isinstance(value, str) and is_template_string(value))
+            if isinstance(value, str):
+                for missing in ("unknown", "unavailable", "None"):
+                    assert missing not in value, element
+
+
+async def test_demo_degrades_without_default_config_instead_of_failing(
+    core_only_hass, demo_payload, demo_variables
+):
+    """On an install without ``default_config:`` (no ``sun``) the demo still sends.
+
+    ``state_attr('sun.sun', ...)`` is ``None`` there, and ``round``/
+    ``as_timestamp`` raise on ``None`` -- a first cut of this demo failed
+    such a send with ``round got invalid input 'None'``. The demo passes
+    each of them a default, so the sun fields read "?"/"unknown" and the
+    send goes through. Strict, as the real pre-render is.
+    """
+    rendered = _prerender(core_only_hass, demo_payload, demo_variables)
+
+    sun_fields = [
+        element["value"]
+        for element in rendered
+        if element["type"] == "text" and "Sun" in str(element.get("value", ""))
+    ]
+    assert sun_fields, "the demo stopped showing the sun; re-derive this test"
+    assert any("?" in value or "unknown" in value for value in sun_fields), sun_fields
+
+
+def test_demo_has_no_plot_element(demo_payload):
+    """The demo ships without a plot: no entity every install has carries history.
+
+    A ``plot`` reads recorder history for a numeric sensor; the bundled
+    showcase's one failed the live send with ``no data returned for
+    entity: sensor.temperature``. The element itself stays available from
+    the editor's insert menu -- it is only not in the demo.
+    """
+    assert [e["type"] for e in demo_payload if e["type"] == "plot"] == []
+
+
+def test_demo_shows_every_other_element_type(demo_payload):
+    """The demo demonstrates every element type odl-renderer knows, bar plot and diagram.
+
+    Derived from the pinned odl-renderer's ``ElementType`` rather than a
+    hand-kept list, so a renderer release that adds an element type fails
+    this test until the demo shows it (or the exclusion set says why not).
+    ``plot`` is excluded by design (no stock entity has recorder history);
+    ``diagram`` because the designer has no such element -- verified against
+    the vendored bundle, which does not contain the word.
+    """
+    renderer_types = {member.value for member in ElementType}
+    assert renderer_types >= _ELEMENT_TYPES_NOT_IN_DEMO
+
+    assert {
+        e["type"] for e in demo_payload
+    } == renderer_types - _ELEMENT_TYPES_NOT_IN_DEMO
 
 
 @_ALL_GEOMETRIES
@@ -282,7 +498,7 @@ async def test_prerendered_demo_renders_to_png_at_every_fabricated_geometry(
 
 @_ALL_GEOMETRIES
 async def test_prerendered_demo_dry_run_sends_at_every_fabricated_geometry(
-    seeded_hass, device_id, prerendered_demo, device_config
+    stock_hass, device_id, prerendered_demo, device_config
 ):
     """The untouched drawcustom service accepts the pre-rendered demo (dry run).
 
@@ -290,7 +506,7 @@ async def test_prerendered_demo_dry_run_sends_at_every_fabricated_geometry(
     handler: schema validation, template expansion (a no-op on literal
     YAML), render and prepare for the device -- everything but the upload.
     """
-    response = await seeded_hass.services.async_call(
+    response = await stock_hass.services.async_call(
         DOMAIN,
         "drawcustom",
         {
@@ -309,8 +525,8 @@ def test_demo_bundled_image_is_self_contained(demo_payload):
     """The demo's image travels inside the payload, not as a path on the HA host.
 
     odl-renderer resolves a ``dlimg`` url with a leading ``/`` on the Home
-    Assistant host's filesystem, and the designer's bundle lives nowhere
-    there: designer 3.4.9 shipped ``/local/showcase.png`` and the demo
+    Assistant host's filesystem, and nothing of the designer's lives there:
+    designer 3.4.9's showcase shipped ``/local/showcase.png`` and the demo
     failed with ``Image file not found``. A ``data:`` URI needs no file.
     The geometry tests above prove it decodes; this guards the shape so a
     future demo edit cannot reintroduce a host path unnoticed.
@@ -323,7 +539,7 @@ def test_demo_bundled_image_is_self_contained(demo_payload):
 
 
 async def test_raw_send_renders_designer_variables_empty(
-    seeded_hass, demo_payload, caplog
+    stock_hass, demo_payload, caplog
 ):
     """Why the panel pre-renders: a raw send knows nothing of designer variables.
 
@@ -336,11 +552,12 @@ async def test_raw_send_renders_designer_variables_empty(
     """
     caplog.set_level(logging.WARNING, logger=_TEMPLATE_LOGGER)
 
-    rendered = render_payload_templates(seeded_hass, demo_payload)
+    rendered = render_payload_templates(stock_hass, demo_payload)
 
-    assert rendered[15]["fill"] == ""
-    assert rendered[20]["color"] == ""
-    assert rendered[6]["fill"] == "white"
+    at = _variable_driven_fields(demo_payload)
+    assert rendered[at["icon"]]["fill"] == ""
+    assert rendered[at["title"]]["color"] == ""
+    assert rendered[at["circle"]]["fill"] == "white"
     warnings = [r.getMessage() for r in caplog.records if r.name == _TEMPLATE_LOGGER]
     assert any("'accent_color' is undefined" in w for w in warnings)
     assert any("'alert' is undefined" in w for w in warnings)

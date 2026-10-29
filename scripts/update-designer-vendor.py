@@ -104,15 +104,24 @@ DESIGNER = Package(
         ("LICENSE", "LICENSE"),
         ("NOTICE", "NOTICE"),
         ("THIRD_PARTY.md", "THIRD_PARTY.md"),
-        # The designer's Load Demo payload and State Simulator seed, shipped
-        # in the npm package since designer 3.5.0 so
-        # tests/test_designer_demo_render.py can render the demo through a
-        # real Home Assistant -- the designer previews templates with
-        # nunjucks, HA with Python Jinja, and only a Python render catches
-        # what the JS preview coerces silently. Not served by the panel.
-        ("showcase.yml", "showcase.yml"),
-        ("showcase.json", "showcase.json"),
+        # Not vendored: the designer's own Load Demo (showcase.yml /
+        # showcase.json, in the npm package since 3.5.0). Home Assistant
+        # ships its own demo instead (frontend/demo/, handed to the designer
+        # as the `demo` mount option), which is what
+        # tests/test_designer_demo_render.py renders.
     ),
+)
+
+# Files an earlier vendoring procedure wrote into vendor/ that no current
+# Package lists -- removed on every run so vendor/ carries nothing but what
+# designer.lock.json derives.
+STALE_VENDOR_FILES = (
+    # the v1.0.2 blob era's license file name (replaced by LICENSE/NOTICE)
+    "LICENSE.odl-drawcustom-designer",
+    # the designer's bundled demo, vendored for the harness until Home
+    # Assistant shipped its own (frontend/demo/)
+    "showcase.yml",
+    "showcase.json",
 )
 
 JS_YAML = Package(
@@ -244,12 +253,11 @@ def install_vendor_files(pkg: Package, tarball_path: Path, extract_dir: Path) ->
         die(f"tarball is missing expected file(s): {', '.join(missing)}")
 
     VENDOR_DIR.mkdir(parents=True, exist_ok=True)
-    # The designer library's own LICENSE/NOTICE replace the old
-    # LICENSE.odl-drawcustom-designer file from the v1.0.2 blob era — remove
-    # that stale name so vendor/ never carries both. Once, not per file.
-    stale = VENDOR_DIR / "LICENSE.odl-drawcustom-designer"
-    if stale.is_file():
-        stale.unlink()
+    for name in STALE_VENDOR_FILES:
+        stale = VENDOR_DIR / name
+        if stale.is_file():
+            stale.unlink()
+            print(f"removed stale {name}")
     for src, dest in pkg.files:
         shutil.copy2(package_dir / src, VENDOR_DIR / dest)
         print(f"vendored {dest}")
