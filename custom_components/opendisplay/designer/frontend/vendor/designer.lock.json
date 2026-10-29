@@ -1,0 +1,10 @@
+{
+  "designer": {
+    "version": "3.8.0",
+    "integrity": "sha512-T4VZE99oSEQTL1Wu/qNMtb5zTJXvdrcFYQlKgHxREIXe76TtKLcVUAN+FEOKeisx2Ww/lM6Bx1ncSKR0P92PXg=="
+  },
+  "js_yaml": {
+    "version": "4.1.0",
+    "integrity": "sha512-wpxZs9NoxZaJESJGIZTyDEaYpl0FKSA+FB9aJiyemKhMwkxQg63h4T1KJgUGHpTqPDNRcmmYLugrRjJlBtWvRA=="
+  }
+}

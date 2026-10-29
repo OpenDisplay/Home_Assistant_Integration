@@ -1,0 +1,6 @@
+# snapshot.sh output: real device state (MAC address, BLE encryption key,
+# entity registry) captured from the maintainer's one-time hardware bootstrap.
+# Instance-specific and sensitive-ish (BLE key) — never checked in, even on a
+# local-only branch.
+*.json
+!fixtures/*.json

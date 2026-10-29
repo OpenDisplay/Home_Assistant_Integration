@@ -41,6 +41,15 @@ jobs:
       - name: Install
         run: uv sync --no-default-groups --group ${{ matrix.group }}
 
+      # tests/js/ (plain node --test, no npm/package.json anywhere in this
+      # repo) is the ONLY coverage for the designer panel's keyboard-
+      # containment fix -- runs nowhere else. Once per matrix run (not
+      # HA-version-dependent) is enough, same rationale as "Upload
+      # coverage" below only running on one leg.
+      - name: Run JS tests
+        if: matrix.leg == 'latest'
+        run: scripts/test-js
+
       - name: Run tests
         run: >
           uv run --no-default-groups --group ${{ matrix.group }}

@@ -34,12 +34,54 @@ against `pyproject.toml`.
 
 ### Running the integration
 
-To try changes against a real device, symlink the component into a Home
-Assistant checkout and start it from there:
+Three ways to try changes against a real, running Home Assistant, picked by
+what you already have available — the first two put
+`custom_components/opendisplay` in front of a real `hass` process, so a
+debugger attaches directly either way, same as any other native Python
+program.
+
+**You already have a Home Assistant checkout and real OpenDisplay
+hardware**: symlink the component in and start Home Assistant from there:
 
 ```bash
 ln -s "$PWD/custom_components/opendisplay" /path/to/core/config/custom_components/
 ```
+
+**You don't have either** (no live HA, no OpenDisplay hardware): `dev/ha`
+is this repo's own disposable-Home-Assistant harness — one entry point,
+`dev/ha <subcommand>`, native Python (`uv run hass` under the hood, no
+Docker, no container runtime; you never type the `uv run` yourself).
+`dev/ha inject` fabricates config entries for a few realistic panels
+(small mono / medium BWR / large BWRY) that set up entirely from cache —
+no BLE connection, no pairing needed.
+
+```bash
+dev/ha run      # bring up HA, onboard
+dev/ha stop     # stop (storage can't be rewritten under a live process)
+dev/ha inject   # fabricate 3 devices
+dev/ha run      # bring HA back up
+```
+
+See [`dev/README.md`](dev/README.md) for the full workflow (including
+`dev/ha`'s other subcommands — `logs`, `token`, `snapshot`/`restore` for
+carrying a real device's state between instances), why no BLE discovery
+ever happens (the harness's `configuration.yaml` never loads the
+`bluetooth` integration — no `default_config`, no explicit `bluetooth:`
+key), and the real-hardware snapshot/restore path (`dev/ha snapshot`/
+`dev/ha restore`) if you do have a device but want to capture its state
+for a teammate who doesn't.
+
+**You want someone else (or a fresh, un-instrumented Home Assistant) to try
+your change without building anything**: push your branch to your fork.
+`.github/workflows/preview-release.yml` cuts an installable HACS build from
+it automatically — add your fork as a HACS custom repository once, and
+every push after that is a new pickable release, self-identifying as your
+fork's build (`OpenDisplay (fork: <owner>/<repo>)`, visible on Home
+Assistant's Devices & Services page) so it's never confused with the real
+release or another fork's. See the "Preview releases" section of [`dev/README.md`](dev/README.md) for
+exactly what gets stamped, how a branch name is made version-safe, and what
+this can't do (it never touches your fork's default branch, and it never
+affects HACS's own repository list card).
 
 ## Translations
 

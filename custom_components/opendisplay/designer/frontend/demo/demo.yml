@@ -1,0 +1,234 @@
+# OpenDisplay demo: every drawcustom element type on one canvas.
+# Templates read only entities every Home Assistant has (sun.sun, zone.home,
+# person). The Variables tab sets `alert` and `accent_color`.
+- type: debug_grid
+  spacing: 80
+  line_color: half_accent
+  dashed: true
+  dash_length: 2
+  space_length: 6
+- type: text
+  value: OpenDisplay demo
+  x: 40
+  y: 24
+  size: 26
+  font: ppb.ttf
+  color: black
+- type: text
+  value: >-
+    {%- set t = now() -%}
+    {{ t.strftime('%H:%M') }}
+  x: 776
+  y: 23
+  size: 43
+  font: rbm.ttf
+  color: black
+  anchor: rt
+- type: multiline
+  value: >-
+    Every drawcustom element type on one canvas, with Home Assistant templates that read
+    /only entities every install has: sun.sun, zone.home and your person entities. Edit any
+    /field, watch the preview, then Send to a display. The Variables tab sets alert and
+    /accent_color. The plot element is in the insert menu; it needs a sensor with recorded history.
+  delimiter: /
+  x: 40
+  # Line advance in pixels: 19 is rbm.ttf's line height at size 16.
+  offset_y: 19
+  y: 70
+  size: 16
+  font: rbm.ttf
+  color: black
+- type: line
+  x_start: 11
+  x_end: 787
+  y_start: 147
+  y_end: 147
+  fill: black
+  width: 1
+- type: rectangle
+  x_start: 40
+  x_end: 190
+  y_start: 163
+  y_end: 235
+  fill: white
+  outline: black
+  width: 2
+- type: circle
+  x: 244
+  y: 199
+  radius: 34
+  # Red while the `alert` variable is set, white otherwise.
+  fill: |-
+    {{ 'red' if alert else 'white' }}
+  outline: black
+  width: 2
+- type: ellipse
+  x_start: 300
+  x_end: 400
+  y_start: 163
+  y_end: 235
+  fill: half_accent
+  outline: black
+  width: 2
+- type: arc
+  x: 464
+  y: 199
+  radius: 42
+  start_angle: 30
+  end_angle: 330
+  fill: none
+  outline: black
+  width: 3
+- type: polygon
+  points:
+    - - 580
+      - 155
+    - - 640
+      - 187
+    - - 620
+      - 243
+    - - 540
+      - 243
+    - - 520
+      - 187
+  fill: white
+  outline: black
+  width: 2
+- type: rectangle_pattern
+  x_start: 660
+  x_size: 22
+  x_offset: 8
+  y_start: 161
+  y_size: 12
+  y_offset: 4
+  x_repeat: 4
+  y_repeat: 5
+  fill: black
+  outline: none
+  width: 1
+- type: line
+  x_start: 11
+  x_end: 787
+  y_start: 254
+  y_end: 254
+  fill: black
+  width: 1
+- type: icon_sequence
+  x: 40
+  y: 270
+  icons:
+    - mdi:home
+    - mdi:weather-sunny
+    - mdi:battery-80
+  size: 30
+  fill: black
+- type: text
+  value: I'm invisible
+  x: 40
+  y: 320
+  size: 20
+  font: rbm.ttf
+  color: black
+  visible: false
+- type: text
+  # A namespace() loop, then a sun.sun attribute.
+  value: >-
+    {%- set ns = namespace(sum=0) -%}{%- for v in [21, 22, 23, 20] -%}{%- set ns.sum = ns.sum + v -%}{%- endfor -%}Avg
+    {{ (ns.sum / 4) | round(1) }}°C · Sun {{ state_attr('sun.sun', 'elevation') | round(0, default='?') }}° high
+  x: 40
+  y: 348
+  size: 15
+  font: rbm.ttf
+  color: black
+- type: icon
+  # Sun by day, moon by night; coloured by the `accent_color` variable.
+  value: |-
+    {{ iif(is_state('sun.sun', 'above_horizon'), 'mdi:white-balance-sunny', 'mdi:weather-night') }}
+  x: 156
+  y: 270
+  size: 71
+  fill: |-
+    {{ accent_color }}
+- type: qrcode
+  data: https://github.com/OpenDisplay/Home_Assistant_Integration
+  x: 230
+  y: 260
+  boxsize: 3
+  border: 2
+  color: black
+  bgcolor: white
+- type: dlimg
+  url: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgAQAAAABbAUdZAAAALUlEQVR42mP4DwQMRBAHEiz+MzQoSIAIjv8MfcodJBJAbewgA9hBRrEzEGkvANy8XnMXKVANAAAAAElFTkSuQmCC
+  x: 330
+  y: 260
+  xsize: 100
+  ysize: 100
+  resize_method: contain
+- type: text
+  value: >-
+    Sunrise {{ as_timestamp(state_attr('sun.sun', 'next_rising'), none) | timestamp_custom('%H:%M', true, '?') }}
+    · Sunset {{ as_timestamp(state_attr('sun.sun', 'next_setting'), none) | timestamp_custom('%H:%M', true, '?') }}
+  x: 440
+  y: 272
+  size: 17
+  font: ppb.ttf
+  color: black
+- type: text
+  value: >-
+    {{ state_attr('zone.home', 'friendly_name') }}: {{ states('zone.home') }} present,
+    {{ states.person | list | count }} person entities
+  x: 440
+  y: 304
+  size: 17
+  font: ppb.ttf
+  color: black
+- type: text
+  value: >-
+    Sun azimuth {{ state_attr('sun.sun', 'azimuth') | round(0, default='?') }}°,
+    {{ 'rising' if state_attr('sun.sun', 'rising') else 'setting' }}
+  x: 440
+  y: 336
+  size: 17
+  font: ppb.ttf
+  color: black
+- type: text
+  value: >-
+    {{ now().strftime('%A, %d %B %Y') }}
+  x: 440
+  y: 368
+  size: 17
+  font: ppb.ttf
+  color: black
+- type: progress_bar
+  x_start: 40
+  y_start: 370
+  x_end: 430
+  y_end: 410
+  progress: |-
+    {{ (now().second / 60 * 100) | round(0) }}
+  fill: red
+  outline: black
+  width: 1
+  show_percentage: true
+- type: text
+  value: All element types
+  x: 400
+  y: 445
+  size: 52
+  font: rbm.ttf
+  color: |-
+    {{ accent_color }}
+  anchor: mm
+  spacing: 51
+  stroke_width: 20
+- type: text
+  # Inline colour markup via parse_colors; the text colour is itself templated.
+  value: |-
+    Sun is [yellow]{{ states('sun.sun') | replace('_', ' ') }}[/yellow]
+  x: 380
+  y: 32
+  size: 17
+  font: ppb.ttf
+  color: |-
+    {{ 'red' if is_state('sun.sun', 'below_horizon') else 'black' }}
+  parse_colors: true
