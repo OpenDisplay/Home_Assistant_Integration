@@ -161,6 +161,28 @@ export declare interface HostActionContext {
      * (background, ttl, …) is the rest of issue #105.
      */
     readonly render: HostRenderOptions;
+    /**
+     * The designer's shared variables at the instant the action fired — the
+     * same map {@link HostPreviewContext} carries, built by the same builder, and
+     * exactly what the designer's own template preview substitutes. Reported
+     * **out** for rendering only (maintainer ruling 2026-10-27): the designer's
+     * preview resolved `{{ 'red' if alert else 'white' }}` with the user's
+     * variables while the host, rendering the same payload without them, drew
+     * the circle white. A host pre-renders every templated field with this map
+     * before calling its service. Variables are still not a host channel —
+     * nothing supplies them from outside, and they carry no save semantics.
+     *
+     * Values are the typed {@link HostVariableValue}s the preview injects, not
+     * the stored text; a name the preview refuses to register (a reserved
+     * global such as `now`) is not reported either. A name the payload
+     * references but holds no stored value is reported as `""` (the empty row
+     * the Variables editor shows); a stored variable the payload does not
+     * reference is reported too, since a host may render templates the
+     * designer's scanner does not see. Always present, like `display` and
+     * `render` — an empty map when there is nothing to report, never
+     * `undefined`. Frozen, like the rest of the context.
+     */
+    readonly variables: Readonly<Record<string, HostVariableValue>>;
 }
 
 /**
@@ -211,6 +233,29 @@ export declare type HostActionSeverity = 'normal' | 'caution' | 'danger';
  * never a plausible-looking wrong render (issue #10).
  */
 export declare type HostAssetResolver = (kind: AssetKind, name: string) => Promise<Blob | string | null>;
+
+/**
+ * A host's own Load Demo (maintainer decision 2026-10-28): what the designer's
+ * **Load Demo** button loads instead of the bundled showcase. The showcase
+ * names states no real host has, so inside a host it rendered as "unknown" and
+ * failed on a real send; a host knows which states every install of it can
+ * supply and ships a demo written against those.
+ */
+export declare interface HostDemo {
+    /**
+     * The demo's drawcustom YAML — the same string format as
+     * {@link MountOptions.payload}, held to the same import treatment and
+     * validated the same way: malformed YAML throws out of `mount()`.
+     */
+    payload: string;
+    /**
+     * Shared variables the demo seeds when loaded (`{{ name }}` substitutions),
+     * replacing the current ones exactly as the bundled showcase's variables do.
+     * Absent means the demo seeds none. States are never part of a demo: under a
+     * host-fed adapter they remain the host's.
+     */
+    variables?: Record<string, string>;
+}
 
 /**
  * The **logical drawing surface** the payload is authored against — the
@@ -293,6 +338,17 @@ export declare interface HostPreviewContext {
      * for it.
      */
     render: HostRenderOptions;
+    /**
+     * The designer's shared variables this render must substitute — exactly the
+     * map {@link HostActionContext.variables} reports in the same state, with
+     * the same rules (typed {@link HostVariableValue}s as the preview injects
+     * them; a referenced-but-unset name is `""`; stored-but-unreferenced names
+     * are included; reserved globals are not). Always present and frozen. A
+     * variable edit while the preview shows re-requests the render, so a
+     * provider that ignores the map answers a changed request with an unchanged
+     * image.
+     */
+    readonly variables: Readonly<Record<string, HostVariableValue>>;
 }
 
 /**
@@ -316,7 +372,8 @@ export declare interface HostPreviewContext {
  *   image at all: a stated error beats a stale or wrong render.
  * - Called again (debounced) whenever anything it was given changes while the
  *   preview shows: a `setPayload()` push, the display config (resolution,
- *   orientation), the selected target, the dither option. Responses are matched
+ *   orientation), the selected target, the dither option, a shared-variable
+ *   edit (`context.variables`). Responses are matched
  *   to their request, so a slow answer that a newer request has already
  *   superseded is discarded rather than painted.
  * - Must be a function when supplied — anything else throws out of `mount()`,
@@ -470,6 +527,16 @@ export declare interface HostTarget {
  * A stable closure fixed at mount: ADR-018 pushes data, never functions.
  */
 export declare type HostTargetSelectedHandler = (targetId: string | null) => void;
+
+/**
+ * One shared variable's value as the designer's own template preview injects
+ * it (ADR-004 typed variables): the stored text coerced exactly as a mock
+ * attribute value is — `"false"` is the boolean `false`, `"5"` the number 5,
+ * `"[1, 2]"` a list, `"none"`/empty `null`, anything else the string itself.
+ * JSON-native throughout, so a host passes the map straight into its own
+ * template engine and agrees with the preview on `{{ 'red' if alert else 'white' }}`.
+ */
+export declare type HostVariableValue = VariableValue;
 
 /**
  * Mount the designer into an arbitrary host container (issue #20, ADR-010).
@@ -634,6 +701,13 @@ export declare interface MountOptions {
     /** Initial drawcustom YAML payload (list of draw elements). */
     payload?: string;
     /**
+     * The host's own Load Demo, replacing the bundled showcase for this mount.
+     * Fixed at mount — a stable value, not a push channel (ADR-018 pushes data
+     * the shell paints, and a demo is loaded on a click, not painted). Absent
+     * leaves Load Demo exactly as it is without a host.
+     */
+    demo?: HostDemo;
+    /**
      * Initial states for template preview. A mount option *is* an initial push
      * (ADR-018 seam grammar): identical to calling {@link MountHandle.setStates}
      * before the first painted frame, validated the same way — a malformed map
@@ -779,6 +853,16 @@ export declare interface MountOptions {
      */
     onStatusChange?: HostStatusChangeHandler;
 }
+
+/**
+ * A shared variable's typed value as the preview injects it: what
+ * {@link coerceAttributeValue} produces from the stored text — JSON-native
+ * scalars, or a parsed JSON array/object. Nothing else can appear, so a host
+ * can hand the map straight to its own template engine.
+ */
+declare type VariableValue = string | number | boolean | null | readonly VariableValue[] | {
+    readonly [key: string]: VariableValue;
+};
 
 /**
  * Runtime version (issue #23, reworked 2026-07-29: git tags are the sole
