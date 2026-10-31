@@ -131,6 +131,9 @@
       },
       "last_seen": {
         "name": "Last seen"
+      },
+      "resolution": {
+        "name": "Resolution"
       }
     },
     "update": {
