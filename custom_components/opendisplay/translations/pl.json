@@ -6,6 +6,7 @@
       "cannot_connect": "Nie udało się połączyć",
       "no_devices_found": "Nie znaleziono urządzeń w sieci",
       "no_mac": "Wykryte urządzenie nie reklamowało adresu MAC i nie można go skonfigurować.",
+      "not_supported": "Urządzenie nieobsługiwane",
       "reauth_successful": "Ponowna autoryzacja zakończona sukcesem",
       "unknown": "Nieoczekiwany błąd"
     },
@@ -127,6 +128,9 @@
     "device_sleeping_ota": {
       "message": "Urządzenie jest uśpione i nie można go teraz zaktualizować. Obudź je (naciśnij przycisk lub poczekaj na kolejne zaplanowane sprawdzenie) i rozpocznij aktualizację ponownie."
     },
+    "github_rate_limited": {
+      "message": "Osiągnięto limit zapytań do API GitHub ({limit} zapytań na godzinę), więc nie można pobrać wersji firmware. Limit resetuje się o {reset}. Dodanie tokenu GitHub w opcjach dowolnego urządzenia OpenDisplay zwiększa limit."
+    },
     "invalid_device_id": {
       "message": "Urządzenie `{device_id}` nie jest prawidłowym urządzeniem OpenDisplay."
     },
@@ -169,6 +173,9 @@
     "no_targets_specified": {
       "message": "Nie określono docelowych urządzeń."
     },
+    "setup_connection_error": {
+      "message": "Nie udało się połączyć z urządzeniem OpenDisplay: {error}"
+    },
     "upload_error": {
       "message": "Nie udało się przesłać na wyświetlacz: {error}"
     },
@@ -181,6 +188,7 @@
       "init": {
         "data": {
           "blocks_per_ack": "Bloki wysyłane na jedno potwierdzenie",
+          "github_token": "Token GitHub (opcjonalny)",
           "max_queue_size": "Maksymalna liczba ramek przesyłanych jednocześnie",
           "missed_cycles": "Przegapione cykle wybudzania przed oznaczeniem jako niedostępne",
           "probe_before_queue": "Spróbuj połączyć się przed dodaniem do kolejki",
@@ -189,6 +197,7 @@
         },
         "data_description": {
           "blocks_per_ack": "Ile ramek obrazu urządzenie otrzymuje przed wysłaniem jednego potwierdzenia podczas szybkiego przesyłania (sliding-window). Wyższe wartości zmniejszają liczbę rund; wartość efektywna jest ograniczona przez urządzenie i maksymalną liczbę ramek w locie.",
+          "github_token": "Używany tylko do sprawdzania aktualizacji firmware przez API GitHub i dotyczy każdego urządzenia OpenDisplay. Bez tokenu wszystkie urządzenia i inne narzędzia w tej samej sieci dzielą limit GitHub wynoszący 60 zapytań na godzinę. Token o ograniczonych uprawnieniach (publiczne repozytoria, tylko do odczytu) zwiększa limit do 5 000. Pozostawić puste, aby pozostać anonimowym.",
           "max_queue_size": "Maksymalna liczba ramek obrazu utrzymywanych jednocześnie podczas szybkiego przesyłania (sliding-window). Wyższe wartości zwiększają przepustowość na wolnych (proxy) łączach. Ustaw na 1, aby wyłączyć szybki transfer i użyć klasycznego przesyłania po jednej ramce.",
           "missed_cycles": "Ile oczekiwanych wybudzeń urządzenie może przegapić, zanim jego encje zostaną oznaczone jako niedostępne.",
           "probe_before_queue": "Przed dodaniem obrazu do kolejki dla uśpionego urządzenia wykonaj jedną szybką próbę połączenia, na wypadek gdyby było faktycznie aktywne (przegapione reklamy, zawsze włączone radio). Dodaje maksymalnie kilka sekund, gdy urządzenie jest naprawdę uśpione.",
@@ -430,6 +439,10 @@
         "measured_palette": {
           "description": "Użyć zmierzonej palety kolorów panelu, jeśli dostępna. Wyłącz, aby stosować dithering względem teoretycznej palety kolorów. Brak efektu na panelach bez danych pomiarowych.",
           "name": "Użyj zmierzonej palety"
+        },
+        "refine_dithering": {
+          "description": "Udoskonala obraz z ditheringiem pod kątem postrzegania z normalnej odległości, co zwykle wierniej odwzorowuje kolory i tony. Zajmuje zauważalnie więcej czasu niż zwykły dithering.",
+          "name": "Udoskonal dithering"
         },
         "refresh_mode": {
           "description": "Tryb odświeżania wyświetlacza. Pełne odświeżanie usuwa efekt duchów, ale jest wolniejsze. Szybkie odświeżanie nie jest obsługiwane na wszystkich wyświetlaczach. Częściowe aktualizuje tylko zmieniony obszar bez migotania (panele B/W z częściowym wsparciem; automatycznie przełącza na pełne odświeżanie, gdy nie jest możliwe).",

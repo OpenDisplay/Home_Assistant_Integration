@@ -6,6 +6,7 @@
       "cannot_connect": "Falha ao conectar",
       "no_devices_found": "Nenhum dispositivo encontrado na rede",
       "no_mac": "O dispositivo descoberto não anunciou um endereço MAC e não pode ser configurado.",
+      "not_supported": "Dispositivo não suportado",
       "reauth_successful": "Reautenticação bem-sucedida",
       "unknown": "Erro inesperado"
     },
@@ -127,6 +128,9 @@
     "device_sleeping_ota": {
       "message": "O dispositivo está em modo de espera e não pode ser atualizado agora. Desperte-o (pressione seu botão ou aguarde a próxima verificação agendada) e inicie a atualização novamente."
     },
+    "github_rate_limited": {
+      "message": "O limite de requisições da API do GitHub foi atingido ({limit} requisições por hora), então a versão do firmware não pôde ser obtida. O limite será resetado em {reset}. Adicionar um token do GitHub nas opções de qualquer dispositivo OpenDisplay aumenta o limite."
+    },
     "invalid_device_id": {
       "message": "O dispositivo `{device_id}` não é um dispositivo OpenDisplay válido."
     },
@@ -169,6 +173,9 @@
     "no_targets_specified": {
       "message": "Nenhum dispositivo alvo especificado."
     },
+    "setup_connection_error": {
+      "message": "Falha ao conectar ao dispositivo OpenDisplay: {error}"
+    },
     "upload_error": {
       "message": "Falha ao enviar para o display: {error}"
     },
@@ -181,6 +188,7 @@
       "init": {
         "data": {
           "blocks_per_ack": "Blocos enviados por reconhecimento",
+          "github_token": "Token do GitHub (opcional)",
           "max_queue_size": "Máximo de quadros de upload em voo",
           "missed_cycles": "Ciclos de ativação perdidos antes de indisponível",
           "probe_before_queue": "Tentar conectar antes de enfileirar",
@@ -189,6 +197,7 @@
         },
         "data_description": {
           "blocks_per_ack": "Quantos quadros de imagem o dispositivo recebe antes de enviar um reconhecimento durante um upload rápido (janela deslizante). Valores maiores reduzem viagens de ida e volta; o valor efetivo é limitado pelo dispositivo e pelo máximo de quadros em voo.",
+          "github_token": "Usado apenas para verificar atualizações de firmware na API do GitHub, e se aplica a todos os dispositivos OpenDisplay. Sem um token, todos os dispositivos e outras ferramentas na mesma rede compartilham o limite do GitHub de 60 requisições por hora. Um token específico, sem permissões extras (repositórios públicos, somente leitura), aumenta para 5.000. Deixe vazio para permanecer anônimo.",
           "max_queue_size": "Número máximo de quadros de imagem mantidos em voo simultaneamente durante um upload rápido (janela deslizante). Valores maiores aumentam a taxa em conexões lentas (proxy). Defina como 1 para desativar a transferência rápida e usar o upload clássico quadro a quadro.",
           "missed_cycles": "Quantas ativações esperadas o dispositivo pode perder antes que suas entidades sejam marcadas como indisponíveis.",
           "probe_before_queue": "Antes de enfileirar uma imagem para um dispositivo em sono, faça uma tentativa rápida de conexão caso ele esteja acordado (anúncios perdidos, rádios sempre ligados). Adiciona no máximo alguns segundos quando o dispositivo realmente está dormindo.",
@@ -430,6 +439,10 @@
         "measured_palette": {
           "description": "Usar a paleta de cores medida do painel quando disponível. Desative para aplicar dithering contra o esquema de cores teórico. Sem efeito em painéis sem dados medidos.",
           "name": "Usar paleta medida"
+        },
+        "refine_dithering": {
+          "description": "Refina a imagem ditherizada para como ela é percebida a uma distância normal de visualização, o que normalmente reproduz cores e tons com mais fidelidade. Leva significativamente mais tempo que o dithering simples.",
+          "name": "Refinar dithering"
         },
         "refresh_mode": {
           "description": "Modo de atualização do display. Atualização completa elimina ghosting, mas é mais lenta. Atualização rápida não é suportada em todos os displays. Atualização parcial atualiza apenas a região alterada sem piscar (painéis P/B com suporte parcial; reverte para atualização completa automaticamente quando não possível).",

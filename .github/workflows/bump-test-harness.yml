@@ -65,7 +65,10 @@ jobs:
           path.write_text(text[:dev_start] + block + text[dev_end:])
           PY
 
-          uv lock
+          # A plain `uv lock` keeps the unpinned component requirements at
+          # their locked versions, so they would never follow the new HA.
+          uv lock --upgrade-package aiousbwatcher --upgrade-package serialx \
+            --upgrade-package dbus-fast
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Report the Home Assistant version this pulls in

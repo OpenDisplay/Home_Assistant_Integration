@@ -110,6 +110,10 @@ async def test_setup_connection_error(
         await hass.async_block_till_done()
 
     assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert mock_config_entry.error_reason_translation_key == "setup_connection_error"
+    assert mock_config_entry.error_reason_translation_placeholders == {
+        "error": str(exception)
+    }
 
 
 async def test_setup_device_registered(
@@ -204,6 +208,7 @@ async def test_setup_authentication_error(
         await hass.async_block_till_done()
 
     assert mock_config_entry.state is ConfigEntryState.SETUP_ERROR
+    assert mock_config_entry.error_reason_translation_key == "authentication_error"
 
 
 async def test_setup_invalid_encryption_key_format(
@@ -222,6 +227,7 @@ async def test_setup_invalid_encryption_key_format(
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.SETUP_ERROR
+    assert entry.error_reason_translation_key == "authentication_error"
 
 
 # --- deep-sleep setup paths ------------------------------------------------

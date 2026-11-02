@@ -6,6 +6,7 @@
       "cannot_connect": "Connessione fallita",
       "no_devices_found": "Nessun dispositivo trovato sulla rete",
       "no_mac": "Il dispositivo rilevato non ha pubblicizzato un indirizzo MAC e non può essere configurato.",
+      "not_supported": "Dispositivo non supportato",
       "reauth_successful": "Ri-autenticazione riuscita",
       "unknown": "Errore imprevisto"
     },
@@ -127,6 +128,9 @@
     "device_sleeping_ota": {
       "message": "Il dispositivo è in stato di sospensione e non può essere aggiornato ora. Riattivarlo (premere il pulsante o attendere il prossimo check-in programmato) e avviare nuovamente l'aggiornamento."
     },
+    "github_rate_limited": {
+      "message": "È stato raggiunto il limite di richieste all'API di GitHub ({limit} richieste all'ora), quindi non è stato possibile recuperare la versione del firmware. Il limite si resetta alle {reset}. Aggiungere un token GitHub nelle opzioni di qualsiasi dispositivo OpenDisplay aumenta il limite."
+    },
     "invalid_device_id": {
       "message": "Il dispositivo `{device_id}` non è un dispositivo OpenDisplay valido."
     },
@@ -169,6 +173,9 @@
     "no_targets_specified": {
       "message": "Nessun dispositivo target specificato."
     },
+    "setup_connection_error": {
+      "message": "Connessione al dispositivo OpenDisplay fallita: {error}"
+    },
     "upload_error": {
       "message": "Caricamento sul display fallito: {error}"
     },
@@ -181,6 +188,7 @@
       "init": {
         "data": {
           "blocks_per_ack": "Blocchi inviati per ogni conferma",
+          "github_token": "Token GitHub (opzionale)",
           "max_queue_size": "Numero massimo di frame di upload in volo",
           "missed_cycles": "Cicli di risveglio mancati prima di considerare non disponibile",
           "probe_before_queue": "Provare a connettersi prima di mettere in coda",
@@ -189,6 +197,7 @@
         },
         "data_description": {
           "blocks_per_ack": "Numero di frame immagine che il dispositivo riceve prima di inviare una conferma durante un upload veloce (sliding-window). Valori più alti riducono i round trip; il valore effettivo è limitato dal dispositivo e dal massimo numero di frame in volo.",
+          "github_token": "Usato solo per i controlli di aggiornamento firmware tramite l'API di GitHub, e si applica a ogni dispositivo OpenDisplay. Senza token, tutti i dispositivi e altri strumenti sulla stessa rete condividono il limite di 60 richieste all'ora di GitHub. Un token granulare senza permessi extra (repository pubblici, sola lettura) lo aumenta a 5.000. Lasciare vuoto per rimanere anonimi.",
           "max_queue_size": "Numero massimo di frame immagine mantenuti in volo contemporaneamente durante un upload veloce (sliding-window). Valori più alti aumentano la velocità su connessioni lente (proxy). Impostare a 1 per disabilitare il trasferimento veloce e usare il caricamento classico frame per frame.",
           "missed_cycles": "Numero di risvegli attesi che il dispositivo può mancare prima che le sue entità vengano marcate come non disponibili.",
           "probe_before_queue": "Prima di mettere in coda un'immagine per un dispositivo in sospensione, effettuare un tentativo rapido di connessione nel caso sia effettivamente sveglio (advertisement mancati, radio sempre attive). Aggiunge al massimo pochi secondi se il dispositivo è davvero in sospensione.",
@@ -430,6 +439,10 @@
         "measured_palette": {
           "description": "Usare la tavolozza colori misurata del pannello quando disponibile. Disattivare per applicare dithering sullo schema colori teorico. Nessun effetto sui pannelli senza dati misurati.",
           "name": "Usa tavolozza misurata"
+        },
+        "refine_dithering": {
+          "description": "Affina l'immagine dithering per come viene percepita a una distanza di visione normale, riproducendo tipicamente colori e toni in modo più fedele. Richiede più tempo rispetto al semplice dithering.",
+          "name": "Affina dithering"
         },
         "refresh_mode": {
           "description": "Modalità di aggiornamento del display. L'aggiornamento completo elimina il ghosting ma è più lento. L'aggiornamento rapido non è supportato da tutti i display. L'aggiornamento parziale modifica solo la regione cambiata senza lampeggiamenti (pannelli B/N con supporto parziale; torna automaticamente all'aggiornamento completo se non possibile).",

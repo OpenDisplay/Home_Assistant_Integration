@@ -20,6 +20,10 @@
       "out": "180ce08f4d8b",
       "src": "bfe164d57ef2"
     },
+    "config\u0000abort\u0000not_supported": {
+      "out": "b4bf4b3d6acc",
+      "src": "f680b816b10c"
+    },
     "config\u0000abort\u0000reauth_successful": {
       "out": "e0c7a53681ca",
       "src": "e5b83989735c"
@@ -180,6 +184,10 @@
       "out": "2aab933151b7",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000github_rate_limited\u0000message": {
+      "out": "c3c1c6f06cac",
+      "src": "0fdb00e65f7b"
+    },
     "exceptions\u0000invalid_device_id\u0000message": {
       "out": "2ede118246db",
       "src": "cc64cc29ceeb"
@@ -236,6 +244,10 @@
       "out": "5e2456ad2a50",
       "src": "80c472afefe6"
     },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "55e50ef57968",
+      "src": "7cd20d347119"
+    },
     "exceptions\u0000upload_error\u0000message": {
       "out": "946a74a36d9a",
       "src": "75561a03be6e"
@@ -247,6 +259,10 @@
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "f4064970f630",
       "src": "3e2a554e69a4"
+    },
+    "options\u0000step\u0000init\u0000data\u0000github_token": {
+      "out": "f804aa6c0db3",
+      "src": "17dc75738b8e"
     },
     "options\u0000step\u0000init\u0000data\u0000max_queue_size": {
       "out": "9984405cecb9",
@@ -271,6 +287,10 @@
     "options\u0000step\u0000init\u0000data_description\u0000blocks_per_ack": {
       "out": "cfffaab8d04a",
       "src": "3a693b19d3c6"
+    },
+    "options\u0000step\u0000init\u0000data_description\u0000github_token": {
+      "out": "2b8e1a941c3d",
+      "src": "2ad92ead16f7"
     },
     "options\u0000step\u0000init\u0000data_description\u0000max_queue_size": {
       "out": "25377f83bfe4",
@@ -740,6 +760,14 @@
       "out": "0466eb8ca82b",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "04db1d7ee60e",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "3fecc95ef30b",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "b9e70315e14a",
       "src": "0fe957da240a"
@@ -833,6 +861,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "d06abaad2827",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "34e324616206",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "6abfbf86672f",
@@ -994,6 +1026,10 @@
       "out": "5b60bade6dcc",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000github_rate_limited\u0000message": {
+      "out": "7763578e2692",
+      "src": "0fdb00e65f7b"
+    },
     "exceptions\u0000invalid_device_id\u0000message": {
       "out": "9c06ec0618e4",
       "src": "cc64cc29ceeb"
@@ -1050,6 +1086,10 @@
       "out": "1937c120929b",
       "src": "80c472afefe6"
     },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "9d82175b2a78",
+      "src": "7cd20d347119"
+    },
     "exceptions\u0000upload_error\u0000message": {
       "out": "a0d49d0ede2c",
       "src": "75561a03be6e"
@@ -1061,6 +1101,10 @@
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "f407ac69b8bd",
       "src": "3e2a554e69a4"
+    },
+    "options\u0000step\u0000init\u0000data\u0000github_token": {
+      "out": "ecc8b5ac7f02",
+      "src": "17dc75738b8e"
     },
     "options\u0000step\u0000init\u0000data\u0000max_queue_size": {
       "out": "5d89bbe0c4ff",
@@ -1085,6 +1129,10 @@
     "options\u0000step\u0000init\u0000data_description\u0000blocks_per_ack": {
       "out": "88a9bf326be4",
       "src": "3a693b19d3c6"
+    },
+    "options\u0000step\u0000init\u0000data_description\u0000github_token": {
+      "out": "e444af8ca892",
+      "src": "2ad92ead16f7"
     },
     "options\u0000step\u0000init\u0000data_description\u0000max_queue_size": {
       "out": "3ab2a26606e1",
@@ -1554,6 +1602,14 @@
       "out": "708f2b8f834d",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "e62dfb5e1e81",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "49495adc30fe",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "af677ca92e0c",
       "src": "0fe957da240a"
@@ -1647,6 +1703,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "91d43f75ad75",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "ac61561fb947",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "cb0be5c2d01f",
@@ -1808,6 +1868,10 @@
       "out": "7e66b9304d9a",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000github_rate_limited\u0000message": {
+      "out": "0220d3cc111d",
+      "src": "0fdb00e65f7b"
+    },
     "exceptions\u0000invalid_device_id\u0000message": {
       "out": "bd59236488fd",
       "src": "cc64cc29ceeb"
@@ -1864,6 +1928,10 @@
       "out": "6e6821bc84e0",
       "src": "80c472afefe6"
     },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "27a498ee0cdb",
+      "src": "7cd20d347119"
+    },
     "exceptions\u0000upload_error\u0000message": {
       "out": "d063ac6d2b60",
       "src": "75561a03be6e"
@@ -1875,6 +1943,10 @@
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "b91e673e4faf",
       "src": "3e2a554e69a4"
+    },
+    "options\u0000step\u0000init\u0000data\u0000github_token": {
+      "out": "b575d3dde0e0",
+      "src": "17dc75738b8e"
     },
     "options\u0000step\u0000init\u0000data\u0000max_queue_size": {
       "out": "1671be9585ae",
@@ -1899,6 +1971,10 @@
     "options\u0000step\u0000init\u0000data_description\u0000blocks_per_ack": {
       "out": "6889f1dbf50f",
       "src": "3a693b19d3c6"
+    },
+    "options\u0000step\u0000init\u0000data_description\u0000github_token": {
+      "out": "9caf28480a82",
+      "src": "2ad92ead16f7"
     },
     "options\u0000step\u0000init\u0000data_description\u0000max_queue_size": {
       "out": "f881059664b0",
@@ -2368,6 +2444,14 @@
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "d6e8c7de8ffc",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "ae8b00406c9d",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "ed81e0545ff2",
       "src": "0fe957da240a"
@@ -2461,6 +2545,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "ec67215ec052",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "833d2e5c3164",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "66f6fc1dae36",
@@ -2622,6 +2710,10 @@
       "out": "05d2ec6a3e74",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000github_rate_limited\u0000message": {
+      "out": "83373fbda522",
+      "src": "0fdb00e65f7b"
+    },
     "exceptions\u0000invalid_device_id\u0000message": {
       "out": "4bf835acb87c",
       "src": "cc64cc29ceeb"
@@ -2678,6 +2770,10 @@
       "out": "1fb3bf9319c3",
       "src": "80c472afefe6"
     },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "c2d024c8e864",
+      "src": "7cd20d347119"
+    },
     "exceptions\u0000upload_error\u0000message": {
       "out": "e9e642fc50a4",
       "src": "75561a03be6e"
@@ -2689,6 +2785,10 @@
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "3300b9e0cebf",
       "src": "3e2a554e69a4"
+    },
+    "options\u0000step\u0000init\u0000data\u0000github_token": {
+      "out": "12f2e346373d",
+      "src": "17dc75738b8e"
     },
     "options\u0000step\u0000init\u0000data\u0000max_queue_size": {
       "out": "1672db0ce89a",
@@ -2713,6 +2813,10 @@
     "options\u0000step\u0000init\u0000data_description\u0000blocks_per_ack": {
       "out": "ccf6e5c8e365",
       "src": "3a693b19d3c6"
+    },
+    "options\u0000step\u0000init\u0000data_description\u0000github_token": {
+      "out": "5b25acac1387",
+      "src": "2ad92ead16f7"
     },
     "options\u0000step\u0000init\u0000data_description\u0000max_queue_size": {
       "out": "f1ed4a0e52a1",
@@ -3182,6 +3286,14 @@
       "out": "07a336053344",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "901e961942e2",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "15599c60c0f3",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "25e346fc6cf0",
       "src": "0fe957da240a"
@@ -3275,6 +3387,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "bbd2bb4315c8",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "0b1c3a4264b6",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "619607b89bc8",
@@ -3436,6 +3552,10 @@
       "out": "c945b1b2513e",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000github_rate_limited\u0000message": {
+      "out": "b1d18f774c2f",
+      "src": "0fdb00e65f7b"
+    },
     "exceptions\u0000invalid_device_id\u0000message": {
       "out": "9605015e8c92",
       "src": "cc64cc29ceeb"
@@ -3492,6 +3612,10 @@
       "out": "458896e84018",
       "src": "80c472afefe6"
     },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "cac0e73eaa21",
+      "src": "7cd20d347119"
+    },
     "exceptions\u0000upload_error\u0000message": {
       "out": "431a9f4a0b8f",
       "src": "75561a03be6e"
@@ -3503,6 +3627,10 @@
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "179c008aff1b",
       "src": "3e2a554e69a4"
+    },
+    "options\u0000step\u0000init\u0000data\u0000github_token": {
+      "out": "a68ca0586c99",
+      "src": "17dc75738b8e"
     },
     "options\u0000step\u0000init\u0000data\u0000max_queue_size": {
       "out": "4ca717893020",
@@ -3527,6 +3655,10 @@
     "options\u0000step\u0000init\u0000data_description\u0000blocks_per_ack": {
       "out": "ae8f8d587584",
       "src": "3a693b19d3c6"
+    },
+    "options\u0000step\u0000init\u0000data_description\u0000github_token": {
+      "out": "5dd76f53bd41",
+      "src": "2ad92ead16f7"
     },
     "options\u0000step\u0000init\u0000data_description\u0000max_queue_size": {
       "out": "8fcbf102cad8",
@@ -3996,6 +4128,14 @@
       "out": "8fa251e7bc0b",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "767d55679060",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "7e04e24761cd",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "f7cae6b3137e",
       "src": "0fe957da240a"
@@ -4089,6 +4229,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "4c347b41ffc7",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "d33f16aac327",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "446ac0c8d0c8",
@@ -4250,6 +4394,10 @@
       "out": "9b4f8a1e1050",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000github_rate_limited\u0000message": {
+      "out": "a115eeddc3ed",
+      "src": "0fdb00e65f7b"
+    },
     "exceptions\u0000invalid_device_id\u0000message": {
       "out": "f590c38ce79e",
       "src": "cc64cc29ceeb"
@@ -4306,6 +4454,10 @@
       "out": "ab7b84944fc6",
       "src": "80c472afefe6"
     },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "168f922d24d9",
+      "src": "7cd20d347119"
+    },
     "exceptions\u0000upload_error\u0000message": {
       "out": "a760962cc17d",
       "src": "75561a03be6e"
@@ -4317,6 +4469,10 @@
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "43e2e40d805c",
       "src": "3e2a554e69a4"
+    },
+    "options\u0000step\u0000init\u0000data\u0000github_token": {
+      "out": "4772b46f76ef",
+      "src": "17dc75738b8e"
     },
     "options\u0000step\u0000init\u0000data\u0000max_queue_size": {
       "out": "42ea708451c3",
@@ -4341,6 +4497,10 @@
     "options\u0000step\u0000init\u0000data_description\u0000blocks_per_ack": {
       "out": "c5927e4cfb54",
       "src": "3a693b19d3c6"
+    },
+    "options\u0000step\u0000init\u0000data_description\u0000github_token": {
+      "out": "49dde19ad03d",
+      "src": "2ad92ead16f7"
     },
     "options\u0000step\u0000init\u0000data_description\u0000max_queue_size": {
       "out": "31b81d274785",
@@ -4810,6 +4970,14 @@
       "out": "cf0f0ae71e1c",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "c55e1669b4aa",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "c6a3b33b8e57",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "f79a2bbbc325",
       "src": "0fe957da240a"
@@ -4903,6 +5071,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "7ebe2a2aa666",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "038fa873fb57",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "4e97976f368e",
@@ -5064,6 +5236,10 @@
       "out": "0192d49a67dd",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000github_rate_limited\u0000message": {
+      "out": "1d8b99db6a16",
+      "src": "0fdb00e65f7b"
+    },
     "exceptions\u0000invalid_device_id\u0000message": {
       "out": "8aa03e853d19",
       "src": "cc64cc29ceeb"
@@ -5120,6 +5296,10 @@
       "out": "9753955e1882",
       "src": "80c472afefe6"
     },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "7c384e28b60a",
+      "src": "7cd20d347119"
+    },
     "exceptions\u0000upload_error\u0000message": {
       "out": "781b6268b30d",
       "src": "75561a03be6e"
@@ -5131,6 +5311,10 @@
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "c908f1878f2b",
       "src": "3e2a554e69a4"
+    },
+    "options\u0000step\u0000init\u0000data\u0000github_token": {
+      "out": "62279095460d",
+      "src": "17dc75738b8e"
     },
     "options\u0000step\u0000init\u0000data\u0000max_queue_size": {
       "out": "c4c1a87f69e5",
@@ -5155,6 +5339,10 @@
     "options\u0000step\u0000init\u0000data_description\u0000blocks_per_ack": {
       "out": "238540d4d0e0",
       "src": "3a693b19d3c6"
+    },
+    "options\u0000step\u0000init\u0000data_description\u0000github_token": {
+      "out": "24f2c058c5ab",
+      "src": "2ad92ead16f7"
     },
     "options\u0000step\u0000init\u0000data_description\u0000max_queue_size": {
       "out": "086aafdfcfef",
@@ -5624,6 +5812,14 @@
       "out": "0dc89a1bd99a",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "32653f109f04",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "b6fb1572bfda",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "2c1e87687bda",
       "src": "0fe957da240a"
@@ -5717,6 +5913,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "fac1c3b267e8",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "38e180a8a50d",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "c3a3779b59e8",
@@ -5878,6 +6078,10 @@
       "out": "55a286024f3c",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000github_rate_limited\u0000message": {
+      "out": "c669ee731682",
+      "src": "0fdb00e65f7b"
+    },
     "exceptions\u0000invalid_device_id\u0000message": {
       "out": "f001b2f55b3b",
       "src": "cc64cc29ceeb"
@@ -5934,6 +6138,10 @@
       "out": "82b619c1673b",
       "src": "80c472afefe6"
     },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "8a5d15313b15",
+      "src": "7cd20d347119"
+    },
     "exceptions\u0000upload_error\u0000message": {
       "out": "34ab7a45dc33",
       "src": "75561a03be6e"
@@ -5945,6 +6153,10 @@
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "ae0e734c291f",
       "src": "3e2a554e69a4"
+    },
+    "options\u0000step\u0000init\u0000data\u0000github_token": {
+      "out": "ac62098533c9",
+      "src": "17dc75738b8e"
     },
     "options\u0000step\u0000init\u0000data\u0000max_queue_size": {
       "out": "9d9b7e034092",
@@ -5969,6 +6181,10 @@
     "options\u0000step\u0000init\u0000data_description\u0000blocks_per_ack": {
       "out": "4c255e9a4fe1",
       "src": "3a693b19d3c6"
+    },
+    "options\u0000step\u0000init\u0000data_description\u0000github_token": {
+      "out": "f8cc41eb4e97",
+      "src": "2ad92ead16f7"
     },
     "options\u0000step\u0000init\u0000data_description\u0000max_queue_size": {
       "out": "1f37a740bb93",
@@ -6438,6 +6654,14 @@
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
     },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "60952a321f47",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "1b737f02bdf1",
+      "src": "82240fa39ccb"
+    },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "c95e6952e934",
       "src": "0fe957da240a"
@@ -6531,6 +6755,10 @@
     "config\u0000abort\u0000no_mac": {
       "out": "fd90f093459e",
       "src": "bfe164d57ef2"
+    },
+    "config\u0000abort\u0000not_supported": {
+      "out": "38e180a8a50d",
+      "src": "f680b816b10c"
     },
     "config\u0000abort\u0000reauth_successful": {
       "out": "c3a3779b59e8",
@@ -6692,6 +6920,10 @@
       "out": "b0d5ab4a0e7e",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000github_rate_limited\u0000message": {
+      "out": "c650e3fcf250",
+      "src": "0fdb00e65f7b"
+    },
     "exceptions\u0000invalid_device_id\u0000message": {
       "out": "f001b2f55b3b",
       "src": "cc64cc29ceeb"
@@ -6748,6 +6980,10 @@
       "out": "82b619c1673b",
       "src": "80c472afefe6"
     },
+    "exceptions\u0000setup_connection_error\u0000message": {
+      "out": "4e2275bf5f39",
+      "src": "7cd20d347119"
+    },
     "exceptions\u0000upload_error\u0000message": {
       "out": "1462256b83ef",
       "src": "75561a03be6e"
@@ -6759,6 +6995,10 @@
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "b3fa9ef0928e",
       "src": "3e2a554e69a4"
+    },
+    "options\u0000step\u0000init\u0000data\u0000github_token": {
+      "out": "ac62098533c9",
+      "src": "17dc75738b8e"
     },
     "options\u0000step\u0000init\u0000data\u0000max_queue_size": {
       "out": "8a1bef728edd",
@@ -6783,6 +7023,10 @@
     "options\u0000step\u0000init\u0000data_description\u0000blocks_per_ack": {
       "out": "d4310ef82bb5",
       "src": "3a693b19d3c6"
+    },
+    "options\u0000step\u0000init\u0000data_description\u0000github_token": {
+      "out": "475b8ca71fc2",
+      "src": "2ad92ead16f7"
     },
     "options\u0000step\u0000init\u0000data_description\u0000max_queue_size": {
       "out": "f154752824d5",
@@ -7251,6 +7495,14 @@
     "services\u0000upload_image\u0000fields\u0000measured_palette\u0000name": {
       "out": "2e8f0e046ee9",
       "src": "672d38bdeb19"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000description": {
+      "out": "4da85f2fccce",
+      "src": "2686be5580d7"
+    },
+    "services\u0000upload_image\u0000fields\u0000refine_dithering\u0000name": {
+      "out": "1b737f02bdf1",
+      "src": "82240fa39ccb"
     },
     "services\u0000upload_image\u0000fields\u0000refresh_mode\u0000description": {
       "out": "2fb68afd6acf",

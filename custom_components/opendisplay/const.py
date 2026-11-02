@@ -82,6 +82,11 @@ DEFAULT_BLOCKS_PER_ACK = 4
 CONF_MAX_QUEUE_SIZE = "max_queue_size"
 DEFAULT_MAX_QUEUE_SIZE = 16
 
+# Optional GitHub token for the firmware update checks. Anonymous GitHub API
+# calls share a 60 requests/hour budget per public IP; a token raises that to
+# 5,000/hour. A token set on any OpenDisplay entry is used for all of them.
+CONF_GITHUB_TOKEN = "github_token"
+
 # --- Cache ------------------------------------------------------------------
 # entry.data key holding the serialized device state used to set up the entry
 # without connecting when a sleepy device is dark at startup.

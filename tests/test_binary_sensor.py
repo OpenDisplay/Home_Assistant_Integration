@@ -3,7 +3,7 @@
 from collections.abc import Awaitable, Callable
 from unittest.mock import MagicMock
 
-from homeassistant.const import STATE_OFF, STATE_ON, Platform
+from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 import pytest
@@ -11,18 +11,55 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.opendisplay.const import DEFAULT_LAN_PORT
 
-from . import DEVICE_CONFIG, make_wifi_device_config
+from . import DEVICE_CONFIG, VALID_SERVICE_INFO, make_wifi_device_config
+from .bluetooth import inject_bluetooth_service_info
 
 pytestmark = pytest.mark.usefixtures("entity_registry_enabled_by_default")
 
 UPDATE_PENDING = "binary_sensor.opendisplay_1234_update_pending"
 WIFI = "binary_sensor.opendisplay_1234_wifi"
+CONNECTIVITY = "binary_sensor.opendisplay_1234_connectivity"
 
 
 @pytest.fixture
 def platforms() -> list[Platform]:
     """Only set up the binary sensor platform."""
     return [Platform.BINARY_SENSOR]
+
+
+@pytest.mark.parametrize("is_flex", [True, False])
+async def test_connectivity_created_for_all_device_types(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    setup_entry: Callable[[], Awaitable[None]],
+) -> None:
+    """The connectivity sensor exists for Flex and non-Flex devices alike."""
+    await setup_entry()
+
+    entry = entity_registry.async_get(CONNECTIVITY)
+    assert entry is not None
+    assert entry.unique_id == "AA:BB:CC:DD:EE:FF-connectivity"
+    assert entry.entity_category is EntityCategory.DIAGNOSTIC
+    assert hass.states.get(CONNECTIVITY).attributes["device_class"] == "connectivity"
+
+
+async def test_connectivity_follows_advertisements(
+    hass: HomeAssistant,
+    setup_entry: Callable[[], Awaitable[None]],
+) -> None:
+    """The sensor is off until an advertisement arrives, then on.
+
+    It stays available while off: the point is to report a dark device, not to
+    go unavailable with it.
+    """
+    await setup_entry()
+
+    assert hass.states.get(CONNECTIVITY).state == STATE_OFF
+
+    inject_bluetooth_service_info(hass, VALID_SERVICE_INFO)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(CONNECTIVITY).state == STATE_ON
 
 
 async def test_update_pending_created_and_off_when_nothing_queued(

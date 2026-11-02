@@ -3,7 +3,11 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
+)
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, DeviceInfo
@@ -19,8 +23,15 @@ from .const import (
     SIGNAL_PENDING_STATE,
 )
 from .delivery import DeliveryManager, DeliverySnapshot
+from .entity import OpenDisplayEntity
 
 PARALLEL_UPDATES = 0
+
+_CONNECTIVITY_DESCRIPTION = BinarySensorEntityDescription(
+    key="connectivity",
+    device_class=BinarySensorDeviceClass.CONNECTIVITY,
+    entity_category=EntityCategory.DIAGNOSTIC,
+)
 
 
 async def async_setup_entry(
@@ -29,7 +40,11 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the OpenDisplay binary sensors."""
-    entities: list[BinarySensorEntity] = []
+    entities: list[BinarySensorEntity] = [
+        OpenDisplayConnectivityBinarySensor(
+            entry.runtime_data.coordinator, _CONNECTIVITY_DESCRIPTION
+        )
+    ]
 
     manager = entry.runtime_data.delivery
     if manager is not None:
@@ -51,6 +66,27 @@ def _to_iso(epoch: float | None) -> str | None:
     if epoch is None:
         return None
     return datetime.fromtimestamp(epoch, tz=UTC).isoformat()
+
+
+class OpenDisplayConnectivityBinarySensor(
+    OpenDisplayEntity[BinarySensorEntityDescription], BinarySensorEntity
+):
+    """Reports whether the OpenDisplay device is currently advertising over BLE.
+
+    For a deep-sleeping tag this follows the coordinator's availability, which
+    the fallback availability interval keeps up across expected sleep cycles,
+    so it only turns off once the tag has missed its wakes.
+    """
+
+    @property
+    def available(self) -> bool:
+        """Connectivity is reported regardless of the device's availability."""
+        return True
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if the device is currently reachable via BLE."""
+        return self.coordinator.available
 
 
 class OpenDisplayUpdatePendingSensor(BinarySensorEntity):
