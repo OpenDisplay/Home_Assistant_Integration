@@ -19,8 +19,8 @@ dependencies = [
 # per release, so never re-pin those here -- picking the PHCC version *is*
 # picking the HA version being tested against.
 #
-#   0.13.356 -> homeassistant 2026.8.2  (latest)
-#   0.13.344 -> homeassistant 2026.7.0  (the hacs.json floor)
+#   0.13.372 -> homeassistant 2026.10.1  (latest)
+#   0.13.371 -> homeassistant 2026.10.0  (the hacs.json floor)
 #
 # The three extras below are Home Assistant *component* requirements. HA
 # installs those at runtime from each component's own manifest.json, so they
@@ -48,18 +48,12 @@ dev = [
     "dbus-fast",
 ]
 min-ha = [
-    "pytest-homeassistant-custom-component==0.13.344",
+    "pytest-homeassistant-custom-component==0.13.371",
     "ruff==0.15.17",
     "mypy==1.18.2",
     "aiousbwatcher",
-    # Pinned to what 2026.7.0's usb manifest asks for. The latest leg needs a
-    # newer serialx whose esphome transport no longer imports against the
-    # aioesphomeapi this leg resolves, so the two legs cannot share a version.
-    "serialx==1.8.2",
+    "serialx",
     "dbus-fast",
-    # 2026.7.0 only: components/usb imports serialx's esphome transport
-    # eagerly (2026.8.x defers it), which drags in aioesphomeapi.
-    "aioesphomeapi",
 ]
 
 [tool.uv]
