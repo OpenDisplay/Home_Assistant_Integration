@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from . import TEST_ADDRESS, make_service_info, make_v1_service_info
 from .bluetooth import inject_bluetooth_service_info

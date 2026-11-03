@@ -7,8 +7,8 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
+from pytest_homeassistant.common import MockConfigEntry
+from pytest_homeassistant.typing import ClientSessionGenerator
 
 from custom_components.opendisplay.const import (
     SIGNAL_IMAGE_UPDATED,

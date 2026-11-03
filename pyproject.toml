@@ -40,11 +40,10 @@ dependencies = [
 # If a future HA bump adds another such import, `scripts/ha-component-reqs`
 # prints the full component requirement set to compare against.
 dev = [
-    "pytest-homeassistant-custom-component==0.13.372",
+    "pytest-homeassistant[bluetooth]==2026.11.0b4",
+    "pytest-cov",
     "ruff==0.15.17",
     "mypy==1.18.2",
-    "aiousbwatcher",
-    "serialx",
     "dbus-fast",
 ]
 min-ha = [
@@ -67,12 +66,14 @@ package = false
 # The two legs pin conflicting homeassistant versions; declaring them as
 # mutually exclusive lets `uv lock` resolve both into a single uv.lock.
 conflicts = [[{ group = "dev" }, { group = "min-ha" }]]
+prerelease = "allow"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 norecursedirs = [".git", ".venv", "config"]
-addopts = "--cov=custom_components.opendisplay --cov-report=term-missing"
+addopts = "-p no:respx --cov=custom_components.opendisplay --cov-report=term-missing"
+pythonpath = ["."]
 
 [tool.coverage.run]
 source = ["custom_components/opendisplay"]

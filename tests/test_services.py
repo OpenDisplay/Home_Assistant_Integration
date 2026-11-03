@@ -21,8 +21,8 @@ from opendisplay import (
 )
 from PIL import Image as PILImage
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+from pytest_homeassistant.common import MockConfigEntry
+from pytest_homeassistant.test_util.aiohttp import AiohttpClientMocker
 import voluptuous as vol
 
 from custom_components.opendisplay import services
