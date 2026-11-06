@@ -2132,6 +2132,7 @@ name = "opendisplay-homeassistant"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "epaper-dithering" },
     { name = "odl-renderer" },
     { name = "py-opendisplay", extra = ["silabs-ota"] },
 ]
@@ -2157,6 +2158,7 @@ min-ha = [
 
 [package.metadata]
 requires-dist = [
+    { name = "epaper-dithering", specifier = ">=6.1.1" },
     { name = "odl-renderer", specifier = "==0.5.14" },
     { name = "py-opendisplay", extras = ["silabs-ota"], specifier = "==7.18.1" },
 ]
