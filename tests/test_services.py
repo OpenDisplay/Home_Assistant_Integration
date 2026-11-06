@@ -1112,3 +1112,63 @@ async def test_drawcustom_transposes_the_canvas_for_a_rotated_panel(
 
     assert mock_render.await_args.kwargs["width"] == 128
     assert mock_render.await_args.kwargs["height"] == 296
+
+
+@pytest.mark.parametrize(
+    ("element", "expected_y"),
+    [
+        ({"type": "text", "value": "a", "x": 1, True: 10}, 10),
+        ({"type": "text", "value": "a", "x": 1, "true": 20}, 20),
+        ({"type": "text", "value": "a", "x": 1, "True": 30}, 30),
+        ({"type": "text", "value": "a", "x": 1, "y": 40}, 40),
+        ({"type": "text", "value": "a", "x": 1, "y": 50, "true": 99}, 50),
+    ],
+    ids=["bool_key", "lowercase_key", "capitalized_key", "plain_y", "explicit_y_wins"],
+)
+async def test_drawcustom_restores_a_y_key_parsed_as_a_boolean(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_render: MagicMock,
+    element: dict,
+    expected_y: int,
+) -> None:
+    """An unquoted `y:` that YAML read as true still positions the element."""
+    await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [_device_id(hass, mock_config_entry)],
+            "payload": [element],
+        },
+        blocking=True,
+    )
+
+    rendered = mock_render.await_args.kwargs["elements"][0]
+    assert rendered["y"] == expected_y
+    assert rendered["x"] == 1
+    assert not {True, "true", "True"} & rendered.keys()
+
+
+async def test_drawcustom_payload_keeps_a_true_value_under_other_keys(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_render: MagicMock,
+) -> None:
+    """Only the key is restored; a value of true is left alone."""
+    await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [_device_id(hass, mock_config_entry)],
+            "payload": [{"type": "text", "visible": True, "y": 5}],
+        },
+        blocking=True,
+    )
+
+    assert mock_render.await_args.kwargs["elements"][0] == {
+        "type": "text",
+        "visible": True,
+        "y": 5,
+    }
