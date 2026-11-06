@@ -54,6 +54,41 @@ away and marks it as pending until it lands.
 **WiFi-capable tags deliver over the LAN** when the device has recently
 announced itself over mDNS, falling back to Bluetooth otherwise.
 
+## This integration and the one built into Home Assistant
+
+Home Assistant ships its own
+[OpenDisplay integration](https://www.home-assistant.io/integrations/opendisplay),
+which works out of the box. This repository is a separate custom integration,
+installed through HACS, that covers more of what the devices can do. Both use the
+domain `opendisplay`, so installing this one replaces the built-in one, and Home
+Assistant logs its usual warning about a custom integration that it has not tested.
+That warning is expected.
+
+| | Built into Home Assistant | This integration (HACS) |
+|---|---|---|
+| `upload_image` action | ✅ | ✅ |
+| Temperature, battery and other sensors | Flex boards only | ✅ |
+| Button and touch events | Flex boards only | Flex boards only |
+| `drawcustom` action | ❌ | ✅ |
+| LED, buzzer, melody and NFC actions | ❌ | ✅ |
+| Image entity showing the last frame sent | ❌ | ✅ |
+| Firmware update entity | ❌ | Flex boards only |
+| Installing firmware from Home Assistant | ❌ | Silicon Labs (EFR32BG22) boards only |
+| Queued delivery to deep-sleeping tags | ❌ | ✅ |
+| Delivery over WiFi | ❌ | ✅ |
+| When library updates arrive | With Home Assistant releases | With this integration's releases |
+
+Compared against Home Assistant's `dev` branch in November 2026. The built-in
+integration changes with each Home Assistant release, so check its documentation
+for the current state.
+
+**Use this integration** if you want to compose frames with `drawcustom`, have
+battery-powered tags that sleep, or want firmware updates from Home Assistant on a
+supported board.
+
+**Stay with the built-in integration** if sending images with `upload_image` is all
+you need and you would rather not manage a custom integration.
+
 ## Installation
 
 ### Option 1: HACS (recommended)
