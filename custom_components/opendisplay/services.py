@@ -656,7 +656,10 @@ async def _async_send_image(
     runtime = entry.runtime_data
     if refresh_mode is not RefreshMode.PARTIAL:
         runtime.partial_state = PartialState()
-    state = runtime.partial_state
+    # The library sends FULL whenever it is handed a state, so a fast refresh must
+    # go without one. Nothing seeds the fresh state then, and the next partial
+    # refresh falls back to a full one, which is what re-baselines the panel.
+    state = None if refresh_mode is RefreshMode.FAST else runtime.partial_state
 
     # The preview JPEG is built up-front so a queued frame can be shown on the
     # image entity immediately (D6), not only after a successful delivery.
