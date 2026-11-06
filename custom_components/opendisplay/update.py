@@ -31,6 +31,7 @@ from opendisplay.exceptions import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
     BLEConnectionError,
+    BLETimeoutError,
     OTAError,
 )
 from opendisplay.models.enums import ICType
@@ -372,10 +373,16 @@ class OpenDisplayFirmwareUpdateEntity(
                         # Clear the (now fresh) app-mode GATT from the proxy cache so
                         # the post-reboot AppLoader connection re-discovers the OTA
                         # service instead of these app-firmware handles.
-                        cleared = await device.clear_gatt_cache()
-                        _on_log(f"Proxy GATT cache clear requested: {cleared}")
+                        # Best effort: a proxy that is slow to answer must not
+                        # abort a flash that may well succeed without the clear.
+                        try:
+                            cleared = await device.clear_gatt_cache()
+                        except TimeoutError as err:
+                            _on_log(f"Proxy GATT cache clear timed out: {err}")
+                        else:
+                            _on_log(f"Proxy GATT cache clear requested: {cleared}")
                         await device.trigger_dfu_bootloader()
-                except BLEConnectionError as err:
+                except (BLEConnectionError, BLETimeoutError) as err:
                     _on_log(
                         f"App-mode connect failed ({err}); device is likely already "
                         "in the AppLoader — attempting OTA directly."
@@ -434,7 +441,7 @@ class OpenDisplayFirmwareUpdateEntity(
                 translation_domain=DOMAIN,
                 translation_key="authentication_error",
             ) from err
-        except (OTAError, BLEConnectionError) as err:
+        except (OTAError, BLEConnectionError, BLETimeoutError) as err:
             raise HomeAssistantError(f"Firmware update failed: {err}") from err
         finally:
             self._installing = False

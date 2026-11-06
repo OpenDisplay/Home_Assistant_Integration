@@ -18,6 +18,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_component import async_update_entity
 from opendisplay import AuthenticationFailedError, BLEConnectionError
+from opendisplay.exceptions import BLETimeoutError
 from opendisplay.ota import OTAError
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -385,3 +386,56 @@ async def test_install_refused_while_the_device_sleeps(
 
     assert err.value.translation_key == "device_sleeping_ota"
     mock_ota.assert_not_awaited()
+
+
+async def test_install_continues_when_the_proxy_cache_clear_times_out(
+    hass: HomeAssistant,
+    setup_seen: Callable[[], Awaitable[None]],
+    mock_ota: MagicMock,
+    mock_opendisplay_device: MagicMock,
+) -> None:
+    """Clearing the proxy cache is best effort, so a slow proxy cannot abort the flash."""
+    mock_opendisplay_device.clear_gatt_cache = AsyncMock(
+        side_effect=TimeoutError(
+            "Timeout waiting for BluetoothDeviceClearCacheResponse"
+        )
+    )
+    await setup_seen()
+
+    await _install(hass)
+
+    mock_opendisplay_device.trigger_dfu_bootloader.assert_awaited_once()
+    mock_ota.assert_awaited_once()
+    assert hass.states.get(ENTITY).attributes[ATTR_INSTALLED_VERSION] == LATEST
+
+
+async def test_install_flashes_directly_when_app_mode_stops_responding(
+    hass: HomeAssistant,
+    setup_seen: Callable[[], Awaitable[None]],
+    mock_ota: MagicMock,
+    mock_opendisplay_device: MagicMock,
+) -> None:
+    """No response in app mode is handled like a failed connect: try the AppLoader."""
+    mock_opendisplay_device.trigger_dfu_bootloader = AsyncMock(
+        side_effect=BLETimeoutError("No response received within 10.0s")
+    )
+    await setup_seen()
+
+    await _install(hass)
+
+    mock_ota.assert_awaited_once()
+
+
+async def test_install_reports_a_flash_timeout_as_an_update_failure(
+    hass: HomeAssistant,
+    setup_seen: Callable[[], Awaitable[None]],
+    mock_ota: MagicMock,
+) -> None:
+    """A device going silent mid-flash is a failed update, not an unexpected error."""
+    mock_ota.side_effect = BLETimeoutError("No response received within 10.0s")
+    await setup_seen()
+
+    with pytest.raises(HomeAssistantError, match="Firmware update failed"):
+        await _install(hass)
+
+    assert hass.states.get(ENTITY).attributes[ATTR_IN_PROGRESS] is False
