@@ -353,25 +353,76 @@ def _get_entry_for_device(call: ServiceCall) -> OpenDisplayConfigEntry:
     return entry
 
 
+def _flatten_on_white(image: PILImage.Image) -> PILImage.Image:
+    """Resolve transparency to white, which is what a bare e-paper panel shows."""
+    if not image.has_transparency_data:
+        return image
+    rgba = image.convert("RGBA")
+    background = PILImage.new("RGBA", rgba.size, (255, 255, 255, 255))
+    return PILImage.alpha_composite(background, rgba).convert("RGB")
+
+
+def _convert_to_srgb(image: PILImage.Image, icc_profile: bytes) -> PILImage.Image:
+    """Convert an image from its embedded colour profile to sRGB.
+
+    Palettes and dithering are defined in sRGB, so a wide-gamut source would
+    otherwise have its raw values reinterpreted. A profile that cannot be applied
+    only costs colour accuracy, so it is logged rather than failing the image.
+    """
+    # Imported here because Pillow can be built without LittleCMS, and that must
+    # not stop the whole integration from importing.
+    try:
+        from PIL import ImageCms
+    except ImportError:
+        _LOGGER.warning("Pillow has no colour management; colour profile ignored")
+        return image
+
+    try:
+        profile = ImageCms.ImageCmsProfile(io.BytesIO(icc_profile))
+        if "srgb" in ImageCms.getProfileDescription(profile).lower():
+            return image
+        converted = ImageCms.profileToProfile(
+            image if image.mode in ("RGB", "L", "CMYK") else image.convert("RGB"),
+            profile,
+            ImageCms.createProfile("sRGB"),
+            outputMode="RGB",
+        )
+    except (ImageCms.PyCMSError, OSError, ValueError) as err:
+        _LOGGER.warning("Could not apply the image colour profile: %s", err)
+        return image
+    # Only an in-place conversion returns None, and this one is not in place.
+    assert converted is not None
+    converted.info.pop("icc_profile", None)
+    return converted
+
+
+def _normalize_source_image(image: PILImage.Image) -> PILImage.Image:
+    """Apply EXIF orientation, resolve transparency and convert to sRGB."""
+    oriented = ImageOps.exif_transpose(image)
+    icc_profile = oriented.info.get("icc_profile")
+    flattened = _flatten_on_white(oriented)
+    return _convert_to_srgb(flattened, icc_profile) if icc_profile else flattened
+
+
 def _pil_to_jpeg(img: PILImage.Image) -> bytes:
     """Encode a PIL image as JPEG bytes."""
     buf = io.BytesIO()
-    img.convert("RGB").save(buf, format="JPEG", quality=90)
+    _flatten_on_white(img).convert("RGB").save(buf, format="JPEG", quality=90)
     return buf.getvalue()
 
 
 def _load_image(path: str) -> PILImage.Image:
-    """Load an image from disk and apply EXIF orientation."""
+    """Load an image from disk, ready to be sent to a panel."""
     image = PILImage.open(path)
     image.load()
-    return ImageOps.exif_transpose(image)
+    return _normalize_source_image(image)
 
 
 def _load_image_from_bytes(data: bytes) -> PILImage.Image:
-    """Load an image from bytes and apply EXIF orientation."""
+    """Load an image from bytes, ready to be sent to a panel."""
     image = PILImage.open(io.BytesIO(data))
     image.load()
-    return ImageOps.exif_transpose(image)
+    return _normalize_source_image(image)
 
 
 async def _async_download_image(hass: HomeAssistant, url: str) -> PILImage.Image:
