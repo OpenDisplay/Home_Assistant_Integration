@@ -51,7 +51,7 @@ The service targets one or more OpenDisplay devices via the standard Home Assist
 | `background`       | Background color                         | `white`   | `white`, `black`, `accent`, `red`, `yellow`                                                               |
 | `rotate`           | Rotation of the whole image, in degrees  | `0`       | `0`, `90`, `180`, `270`                                                                                   |
 | `dither`           | Dithering algorithm                      | `ordered` | `none`, `burkes`, `ordered`, `floyd_steinberg`, `atkinson`, `stucki`, `sierra`, `sierra_lite`, `jarvis_judice_ninke`, `dizzy` |
-| `refresh_type`     | E-paper refresh mode                     | `full`    | `full`, `fast`                                                                                            |
+| `refresh_type`     | E-paper refresh mode                     | `full`    | `full`, `fast`, `partial` (`partial` needs a 1-bit colour mode and otherwise falls back to `full`)        |
 | `tone_compression` | Tone compression strength (%)            | automatic | `0`–`100`; omit for automatic tone mapping                                                                |
 | `dry-run`          | Generate the image without sending it    | `false`   | `true`, `false`                                                                                           |
 

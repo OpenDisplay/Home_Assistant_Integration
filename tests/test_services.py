@@ -18,6 +18,7 @@ from opendisplay import (
     BLEConnectionError,
     NfcNotSupportedError,
     NfcWriteError,
+    RefreshMode,
 )
 from PIL import Image as PILImage
 import pytest
@@ -1112,3 +1113,52 @@ async def test_drawcustom_transposes_the_canvas_for_a_rotated_panel(
 
     assert mock_render.await_args.kwargs["width"] == 128
     assert mock_render.await_args.kwargs["height"] == 296
+
+
+@pytest.mark.parametrize("refresh_type", ["fast", 1], ids=["name", "legacy_number"])
+async def test_drawcustom_fast_refresh_is_not_turned_into_a_full_one(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_render: MagicMock,
+    refresh_type: str | int,
+) -> None:
+    """A fast refresh carries no partial state, which would force FULL in the library."""
+    await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [_device_id(hass, mock_config_entry)],
+            "payload": [{"type": "text", "value": "hi"}],
+            "refresh_type": refresh_type,
+        },
+        blocking=True,
+    )
+
+    kwargs = mock_upload_device.upload_prepared_image.await_args.kwargs
+    assert kwargs["refresh_mode"] is RefreshMode.FAST
+    assert kwargs["state"] is None
+
+
+@pytest.mark.parametrize("refresh_type", ["full", "partial"])
+async def test_drawcustom_full_and_partial_refreshes_track_partial_state(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_render: MagicMock,
+    refresh_type: str,
+) -> None:
+    """Full refreshes seed the state the next partial refresh diffs against."""
+    await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [_device_id(hass, mock_config_entry)],
+            "payload": [{"type": "text", "value": "hi"}],
+            "refresh_type": refresh_type,
+        },
+        blocking=True,
+    )
+
+    kwargs = mock_upload_device.upload_prepared_image.await_args.kwargs
+    assert kwargs["state"] is mock_config_entry.runtime_data.partial_state

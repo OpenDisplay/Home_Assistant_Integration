@@ -88,7 +88,7 @@ class PendingUpload:
     # prepare_image() — the heavy CPU work is done once, at queue time.
     prepared: tuple[bytes, bytes | None, Any]
     refresh_mode: RefreshMode
-    partial_state: PartialState
+    partial_state: PartialState | None
     use_measured_palettes: bool
     preview_jpeg: bytes
     device_id: str | None
@@ -198,7 +198,7 @@ class DeliveryManager:
         *,
         prepared: tuple[bytes, bytes | None, Any],
         refresh_mode: RefreshMode,
-        partial_state: PartialState,
+        partial_state: PartialState | None,
         use_measured_palettes: bool,
         preview_jpeg: bytes,
         device_id: str | None,
