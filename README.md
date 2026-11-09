@@ -59,12 +59,13 @@ announced itself over mDNS, falling back to Bluetooth otherwise.
 Home Assistant ships its own
 [OpenDisplay integration](https://www.home-assistant.io/integrations/opendisplay),
 which works out of the box. This repository is a separate custom integration,
-installed through HACS, that covers more of what the devices can do. Both use the
+installed through the Marketplace (or HACS before Home Assistant 2026.11), that
+covers more of what the devices can do. Both use the
 domain `opendisplay`, so installing this one replaces the built-in one, and Home
 Assistant logs its usual warning about a custom integration that it has not tested.
 That warning is expected.
 
-| | Built into Home Assistant | This integration (HACS) |
+| | Built into Home Assistant | This integration (Marketplace) |
 |---|---|---|
 | `upload_image` action | ✅ | ✅ |
 | Temperature, battery and other sensors | Flex boards only | ✅ |
@@ -91,7 +92,13 @@ you need and you would rather not manage a custom integration.
 
 ## Installation
 
-### Option 1: HACS (recommended)
+### Option 1: Marketplace (recommended)
+From Home Assistant 2026.11, HACS is built into Home Assistant as the
+**Marketplace**, under **Settings**. Existing HACS installs move over on their own
+the first time 2026.11 starts, so if you installed this integration through HACS it
+keeps updating from the Marketplace. On earlier versions of Home Assistant, install
+it through HACS instead. The button below opens the repository in either one.
+
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=OpenDisplay&repository=Home_Assistant_Integration)
 
 ### Option 2: Manual
