@@ -453,7 +453,7 @@
           "name": "Rotação"
         },
         "tone_compression": {
-          "description": "Força da compressão da faixa dinâmica. Deixe vazio para automático.",
+          "description": "Força da compressão da faixa dinâmica. Deixe vazio para não comprimir.",
           "name": "Compressão de tom"
         }
       },

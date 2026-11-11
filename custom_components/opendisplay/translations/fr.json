@@ -453,7 +453,7 @@
           "name": "Rotation"
         },
         "tone_compression": {
-          "description": "Force de compression de la plage dynamique. Laisser vide pour automatique.",
+          "description": "Force de compression de la plage dynamique. Laisser vide pour aucune compression.",
           "name": "Compression de tonalité"
         }
       },

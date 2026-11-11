@@ -453,7 +453,7 @@
           "name": "Rotation"
         },
         "tone_compression": {
-          "description": "Stärke der Dynamikumfangkompression. Leer lassen für automatische Einstellung.",
+          "description": "Stärke der Dynamikumfangkompression. Leer lassen für keine Kompression.",
           "name": "Tonkompression"
         }
       },

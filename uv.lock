@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14.2"
 resolution-markers = [
     "platform_machine == 'x86_64' and sys_platform == 'darwin' and extra != 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha'",
@@ -641,19 +641,19 @@ name = "bleak"
 version = "3.0.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "dbus-fast", marker = "sys_platform == 'linux' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "pyobjc-framework-corebluetooth", marker = "sys_platform == 'darwin' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "pyobjc-framework-libdispatch", marker = "sys_platform == 'darwin' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "winrt-runtime", marker = "sys_platform == 'win32' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "winrt-windows-devices-bluetooth", marker = "sys_platform == 'win32' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "winrt-windows-devices-bluetooth-advertisement", marker = "sys_platform == 'win32' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "winrt-windows-devices-bluetooth-genericattributeprofile", marker = "sys_platform == 'win32' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "winrt-windows-devices-enumeration", marker = "sys_platform == 'win32' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "winrt-windows-devices-radios", marker = "sys_platform == 'win32' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "winrt-windows-foundation", marker = "sys_platform == 'win32' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "winrt-windows-foundation-collections", marker = "sys_platform == 'win32' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "winrt-windows-storage-streams", marker = "sys_platform == 'win32' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
+    { name = "dbus-fast", marker = "sys_platform == 'linux'" },
+    { name = "pyobjc-core", marker = "sys_platform == 'darwin'" },
+    { name = "pyobjc-framework-corebluetooth", marker = "sys_platform == 'darwin'" },
+    { name = "pyobjc-framework-libdispatch", marker = "sys_platform == 'darwin'" },
+    { name = "winrt-runtime", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-devices-bluetooth", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-devices-bluetooth-advertisement", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-devices-bluetooth-genericattributeprofile", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-devices-enumeration", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-devices-radios", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-foundation", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-foundation-collections", marker = "sys_platform == 'win32'" },
+    { name = "winrt-windows-storage-streams", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/16/df/05a3f80ca8e3f7f5b0dba68a9e618147c909ccdba1468f07487dc8d72a9d/bleak-3.0.2.tar.gz", hash = "sha256:c2229cb8238d5876b4bd05c74bf7a1aea1f88da39d2e51ac9dfd5cc319d5265f", size = 125293, upload-time = "2026-05-02T23:01:04.066Z" }
 wheels = [
@@ -666,8 +666,8 @@ version = "4.6.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bleak" },
-    { name = "bluetooth-adapters", marker = "sys_platform == 'linux' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
-    { name = "dbus-fast", marker = "sys_platform == 'linux' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
+    { name = "bluetooth-adapters", marker = "sys_platform == 'linux'" },
+    { name = "dbus-fast", marker = "sys_platform == 'linux'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/28/64/acd7d6989a7f0294990c42f035698beccf3da04182b76c1180d3d35850fd/bleak_retry_connector-4.6.3.tar.gz", hash = "sha256:c2fa859bc8b645b8eecde6dfefc49662765d4f43f0b0e2a18a50034660073201", size = 18926, upload-time = "2026-07-22T22:23:32.193Z" }
 wheels = [
@@ -681,7 +681,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiooui" },
     { name = "bleak" },
-    { name = "dbus-fast", marker = "sys_platform == 'linux' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
+    { name = "dbus-fast", marker = "sys_platform == 'linux'" },
     { name = "uart-devices" },
     { name = "usb-devices" },
 ]
@@ -792,7 +792,7 @@ name = "cffi"
 version = "2.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser", marker = "implementation_name != 'PyPy' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
+    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9e/ef/008a1939e372c06329a3fce4279c02f328488f3526744906eeec3da7ad5f/cffi-2.1.1.tar.gz", hash = "sha256:dd31f52ea1086513bb9df30f8fcee9b8918323ae067a3d5b78bc826a000712be", size = 530807, upload-time = "2026-08-03T21:21:18.939Z" }
 wheels = [
@@ -1159,7 +1159,7 @@ name = "cryptography"
 version = "50.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cffi", marker = "(platform_python_implementation != 'PyPy' and extra == 'group-25-opendisplay-homeassistant-dev') or (platform_python_implementation != 'PyPy' and extra != 'group-25-opendisplay-homeassistant-min-ha') or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
+    { name = "cffi", marker = "(platform_python_implementation != 'PyPy' and extra != 'group-25-opendisplay-homeassistant-min-ha') or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/bb/ad/5d6702db60b1e40b41ef513b6967ff5848f307d50f8449baf1634f5908f1/cryptography-50.0.1.tar.gz", hash = "sha256:5dd9bda1c12b4162f6ff568eeb5e0ff956c28d14406e875cfe8a63a2d414ff20", size = 880381, upload-time = "2026-08-25T19:45:45.499Z" }
 wheels = [
@@ -1238,28 +1238,38 @@ wheels = [
 
 [[package]]
 name = "epaper-dithering"
-version = "6.1.1"
+version = "7.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pillow", version = "12.2.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-25-opendisplay-homeassistant-min-ha'" },
     { name = "pillow", version = "12.3.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/34/a8/62d2daabca49f9f5be9a51e301f44bb5d5351f449e5096d68bf3862d8636/epaper_dithering-6.1.1.tar.gz", hash = "sha256:fcf6bd3bb235dcd5d5b7d0c3fb200e07ff613449ee66f6a8f4b8ab1e7102838a", size = 99776, upload-time = "2026-10-07T12:29:49.296Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/f8/f0f56afba2d8d4c115de2c34fb105d4bc83ee890c739cb5da738b26be23e/epaper_dithering-7.0.0.tar.gz", hash = "sha256:354bab7ab46364a5d3866155dd7d52ff8b6a519c0a741803d6fe00f91ea1ff32", size = 95351, upload-time = "2026-11-11T11:17:26.587Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/b4/3a69839ff2cd3ac16320422f7ed44e2cafee8319cf3aaf3e8345e682c443/epaper_dithering-6.1.1-cp314-cp314-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:4229485954e51f1388f4ddc1a2be24bb3206fddf3104f4b522331ec7b5532fe9", size = 730101, upload-time = "2026-10-07T12:29:20.265Z" },
-    { url = "https://files.pythonhosted.org/packages/66/88/918c76105875bea370cb78e0a8bf2d13fe773760727923691b3cfd3784c7/epaper_dithering-6.1.1-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4b95e47cb127c2624dded54fec71667ad0b2decd0d093814fe4d8ed4685bb8e0", size = 419093, upload-time = "2026-10-07T12:29:21.728Z" },
-    { url = "https://files.pythonhosted.org/packages/f4/c1/b1f1a06907ea5f7bf11768b858eb9959fea6023aea898149aee4e0c733a4/epaper_dithering-6.1.1-cp314-cp314-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:37379272e9478fae936250f3507defd5798586eb57412631eafa1dd71ad783ba", size = 420275, upload-time = "2026-10-07T12:29:23.332Z" },
-    { url = "https://files.pythonhosted.org/packages/8e/10/273750c974ac6c9b3f4052480c6f0e571e0c23d63f8ad09b9497fadfce87/epaper_dithering-6.1.1-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:18a88ad5298ff019aead278e5083f9b6deaa1ae940e73d2cb39c0cd11dde6fcc", size = 426326, upload-time = "2026-10-07T12:29:24.767Z" },
-    { url = "https://files.pythonhosted.org/packages/99/e7/abbb17d6542af12e8803425fd87a163075d053dd5567159215a58281b5e1/epaper_dithering-6.1.1-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:158d2754462aa6c01e2e2bd75285a903818584bde53bf9ba983032fe04c79ef2", size = 596244, upload-time = "2026-10-07T12:29:26.236Z" },
-    { url = "https://files.pythonhosted.org/packages/9e/3f/5f3fcc0885bb23d1bd275c70e7f27e6dc03082eda30ac144baac1f3926e2/epaper_dithering-6.1.1-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:3a11a1603181fd5ce38207bd992745cab57c70d62b675b25d95c99a619689572", size = 629936, upload-time = "2026-10-07T12:29:27.68Z" },
-    { url = "https://files.pythonhosted.org/packages/4b/e3/d5497c54a8992a9d715f93205596250778477b331fd8069148e48df9a93f/epaper_dithering-6.1.1-cp314-cp314-win_amd64.whl", hash = "sha256:f3da3a7f09346789c22946da3e16a328dd7d45e217888b943ccdb1572b9d6108", size = 258531, upload-time = "2026-10-07T12:29:29.182Z" },
-    { url = "https://files.pythonhosted.org/packages/15/9e/44df2da347e52ab5f65ab4530a5da00f34083339660e2f07321c77fbd12d/epaper_dithering-6.1.1-cp314-cp314t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ecb02c5f52091c36ee695d19a5f2eeb4070e651096613a12ab77ca55e29883ac", size = 419065, upload-time = "2026-10-07T12:29:30.538Z" },
-    { url = "https://files.pythonhosted.org/packages/4a/3e/dff9c891a2f56cb30f08bb4c86d00a31ab516f6325d0be59320636db7903/epaper_dithering-6.1.1-cp314-cp314t-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:4f8691ffb877fda69d2ec53b51bd125be5e5014815ad274e76609ec4c6ada23f", size = 419035, upload-time = "2026-10-07T12:29:32.175Z" },
-    { url = "https://files.pythonhosted.org/packages/5f/a5/46de5294071395f2f4e950a4c3e619b2fc739957fc9d89c0565c28e07dac/epaper_dithering-6.1.1-cp314-cp314t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ed94650f6dc3b519f4da66fa274b74557d26de51c4026992290c10363f4c359d", size = 426512, upload-time = "2026-10-07T12:29:33.566Z" },
-    { url = "https://files.pythonhosted.org/packages/26/be/f471a3804e2c8812761a4683f1f98e5bbf46f9860eb1607875a6bec319c8/epaper_dithering-6.1.1-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:75255cec3b556503fc21f018c362471afea4acb4435637309fca5d184043491e", size = 595755, upload-time = "2026-10-07T12:29:35.26Z" },
-    { url = "https://files.pythonhosted.org/packages/aa/bf/39ae17c60fc7d015acbf61a1d3b4192ed51fdfcde8715d76970d42161af2/epaper_dithering-6.1.1-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:062dbc1fe2fd13b2a397e94b9f104ebd68f115aae0bcb2f5e3da22349c81e980", size = 628925, upload-time = "2026-10-07T12:29:36.946Z" },
-    { url = "https://files.pythonhosted.org/packages/0c/17/a2bff2cbfd911447285294c0278f1e49c84d23f25eb759490d2a9e7b265a/epaper_dithering-6.1.1-cp315-cp315-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b77565519166094e0b6624c68b762a3bf70cc1c4468e2fd9f9aa9c9be5300692", size = 426704, upload-time = "2026-10-07T12:29:38.298Z" },
-    { url = "https://files.pythonhosted.org/packages/81/ee/797d2778489c2ce4cd7c46be41206b240244ed08f3103f2ea3f3862b3b9d/epaper_dithering-6.1.1-cp315-cp315t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4293413a01ca426f071c01f47b9937a78077f436fcd082ba5928df41dc5a531c", size = 426817, upload-time = "2026-10-07T12:29:39.601Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/56/fcdcbc3214dd78e270e3dd67d4cbd302987d2f9174237c89ab42d1b40921/epaper_dithering-7.0.0-cp314-cp314-macosx_10_12_universal2.macosx_10_12_x86_64.macosx_11_0_arm64.whl", hash = "sha256:3f192b920f09ad8964d12f908cfb062bede6c059f36c42bb8fe8d2a136297495", size = 907114, upload-time = "2026-11-11T11:16:34.195Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/75/2d26694bb3810cd0b655c678b25db6aea806e4755ed2380edad5e9e1d088/epaper_dithering-7.0.0-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:99c64f4cfb30ce7f1c74c03b5d4cba458bced75afc10886e37cd65d64a3fb180", size = 512789, upload-time = "2026-11-11T11:16:35.742Z" },
+    { url = "https://files.pythonhosted.org/packages/39/fc/bd33be18dc1484ad7ca41ec65f354804d3d4b13eacdf2d6b2d4bbbc60026/epaper_dithering-7.0.0-cp314-cp314-manylinux2014_armv7l.manylinux_2_17_armv7l.whl", hash = "sha256:61600495e7eb89d1261292bee48281428bec7a68d0642b234e6adcd3da3cccd7", size = 507482, upload-time = "2026-11-11T11:16:37.287Z" },
+    { url = "https://files.pythonhosted.org/packages/73/91/f4f2df37a7baa80dd17b3711d744c07bf3bc081815a3e644ce52524a8ee2/epaper_dithering-7.0.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:28ab5711748cf196229f240a79936382524a1c623af13f4c0ea24dc5a7384416", size = 517343, upload-time = "2026-11-11T11:16:38.911Z" },
+    { url = "https://files.pythonhosted.org/packages/26/9e/5add24b7ac9937e56472105bc976dbca1a8f700bbcce7222a8c9d7baa1da/epaper_dithering-7.0.0-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:306a6e16372036e825887962a48c7a2bd3191e5514d8ce201fe6567a2e57cf00", size = 690274, upload-time = "2026-11-11T11:16:40.581Z" },
+    { url = "https://files.pythonhosted.org/packages/cf/0c/92aab97b4165903525043fe66b6779a5356f736f8d57e503aef08e826c0b/epaper_dithering-7.0.0-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:b6ded077172f9b9fdd3fc68e404d11706133e40899d6e23537b184504dcda88f", size = 725795, upload-time = "2026-11-11T11:16:42.143Z" },
+    { url = "https://files.pythonhosted.org/packages/af/ef/ff7f396ce4b395c21eda6113bd23eabba9728bd6197968edb680ffb9db27/epaper_dithering-7.0.0-cp314-cp314-win_amd64.whl", hash = "sha256:944c17a06ceaa5b9c5c14f8e1d99a0e85ddd25f134bdb14f8ef56a965ba8cc4f", size = 337470, upload-time = "2026-11-11T11:16:43.82Z" },
+    { url = "https://files.pythonhosted.org/packages/74/9b/be223e4f6d2e33835d7ca92fb7648c20ce511c3816c212fc116b1e283b46/epaper_dithering-7.0.0-cp314-cp314t-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:c5a84e804eec57609745aacededbd3ab8521ef2f0f2c1c836e012a2369fe424b", size = 510637, upload-time = "2026-11-11T11:16:45.252Z" },
+    { url = "https://files.pythonhosted.org/packages/74/d2/3076d7f996775f5a27875f7f5fbdde98e3f7ebdfdc6adf652b54b749f7f1/epaper_dithering-7.0.0-cp314-cp314t-manylinux2014_armv7l.manylinux_2_17_armv7l.whl", hash = "sha256:b4ae21e2feab24ff50bc1dcd7f8390eaf67281b787ef00b6f58abd0a6392392f", size = 505475, upload-time = "2026-11-11T11:16:46.711Z" },
+    { url = "https://files.pythonhosted.org/packages/17/db/4bccb523cd8ba14d09bc6245778a977408b4aa615c400e6d3ae7c9329fa3/epaper_dithering-7.0.0-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:206e1744f14b39cffce662899ddeba89df03b58888c86a13c625d03997b15050", size = 517449, upload-time = "2026-11-11T11:16:48.3Z" },
+    { url = "https://files.pythonhosted.org/packages/75/4f/0d34ac3d161286440cb5459947a28d736a98b50da97388635e3b79349bfe/epaper_dithering-7.0.0-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:a917de7efaa1cb8092fb169a04370ccf28d5af1d34349f7351a8c3eeb9f840a6", size = 688965, upload-time = "2026-11-11T11:16:50.055Z" },
+    { url = "https://files.pythonhosted.org/packages/86/d6/cddeb5028a7e169a91566c9acd7077591bb80df13229f0d9b38e889776c6/epaper_dithering-7.0.0-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:0e6c5c0ca81aefcffb858bcebcdb11befab161c1d3e3dd5b93978d4407f5e9e9", size = 724896, upload-time = "2026-11-11T11:16:51.466Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/ac/2bf21bd3f60368ac36b1f73381d6637ada03ed10c5fcfb9e74221c2e6518/epaper_dithering-7.0.0-cp315-cp315-macosx_10_12_universal2.macosx_10_12_x86_64.macosx_11_0_arm64.whl", hash = "sha256:6e94e7ee21e0db981f7870584526f42b2f051a75e7f7928463824e6ccba1a07a", size = 908207, upload-time = "2026-11-11T11:16:53.357Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/b3/06bcb12e4e73ca01c4abffc4d5b0b6cab843987e75554ac2cbd71cfe1ec6/epaper_dithering-7.0.0-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:7ebd060a4d83faf44b4996cdfe977d7d9a50b41f29d29466985f8aa45297a209", size = 512803, upload-time = "2026-11-11T11:16:55.176Z" },
+    { url = "https://files.pythonhosted.org/packages/89/e0/a58f33c6a21590787e6a2e517277dcd005bcb1b31c3f0b2b0aff7d1fb994/epaper_dithering-7.0.0-cp315-cp315-manylinux2014_armv7l.manylinux_2_17_armv7l.whl", hash = "sha256:ab12b7a4104eb185a3dab625b38e42e19bdc7b69e6adcbe9b6894a99f37c67fd", size = 508552, upload-time = "2026-11-11T11:16:56.778Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/bc/254082873c7a7d8610da6f29b4f629ae943e715c758ca08306401718b247/epaper_dithering-7.0.0-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:a051c8ed4a06e49c1e5cd85eb147a6d54515d1fb7af92a15b999fc2e126454e0", size = 517548, upload-time = "2026-11-11T11:16:58.541Z" },
+    { url = "https://files.pythonhosted.org/packages/68/93/1c4f5b35b53cf064a0638e10d9ddc2b4d1958878921b427d36603e9aefbb/epaper_dithering-7.0.0-cp315-cp315-musllinux_1_2_aarch64.whl", hash = "sha256:8c96944e7432032aebc2a71e3b7beea2ed5e0cd8e2bdff0dc62115b043637bd5", size = 690316, upload-time = "2026-11-11T11:16:59.934Z" },
+    { url = "https://files.pythonhosted.org/packages/34/62/235ae15b7cb5a79dadea0aafa3041761e840bb6a9da6188f424b4757c3f0/epaper_dithering-7.0.0-cp315-cp315-musllinux_1_2_x86_64.whl", hash = "sha256:8f84b97225c971ce8dd916de145a1fabea886571f53d054626703deb86b0123d", size = 726105, upload-time = "2026-11-11T11:17:01.434Z" },
+    { url = "https://files.pythonhosted.org/packages/61/c8/314be3f2bbae8a6a88cc61876ce2000a5f16316914291703d8e907543da8/epaper_dithering-7.0.0-cp315-cp315-win_amd64.whl", hash = "sha256:ddeec41875d33c88377b86df728c6925a0a6a836c12a1400ffc513f2ee61e66a", size = 337662, upload-time = "2026-11-11T11:17:02.88Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/71/911f5d0f37e5347722b1bdb54fe1b7aaab6d7f3940b031ea03b5ea3cc03b/epaper_dithering-7.0.0-cp315-cp315t-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:0930b8f7066d58340f3016d77aad91922889e8567c5a68500caa9403c1a6fd9d", size = 511063, upload-time = "2026-11-11T11:17:04.36Z" },
+    { url = "https://files.pythonhosted.org/packages/ec/71/4d23f05a86b4cf5ccfd1e176e31442b60d91920c46c98532ba4139f51eb8/epaper_dithering-7.0.0-cp315-cp315t-manylinux2014_armv7l.manylinux_2_17_armv7l.whl", hash = "sha256:e5534dd57b3e57560fdc1445f3c0a4cb86d3a181abaa3139f92c77b4dd795185", size = 506118, upload-time = "2026-11-11T11:17:05.831Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/28/ae3c21331434d844d7074240fb5f336e18af46279d0ee8f756b9dcdfd11e/epaper_dithering-7.0.0-cp315-cp315t-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:ed10b9be965fc9aba7f01d14dc8c6d2f122bff866e29be9121923c004fc4fec6", size = 517850, upload-time = "2026-11-11T11:17:07.486Z" },
+    { url = "https://files.pythonhosted.org/packages/78/c2/f2500208fa1f7b3b6bcdb6385d416ea17f964eb37f03c349729f59604ae1/epaper_dithering-7.0.0-cp315-cp315t-musllinux_1_2_aarch64.whl", hash = "sha256:80f6bfb8037de0d39bc1ab267528ed091460496e7dc788d188819e6b76c598f7", size = 689135, upload-time = "2026-11-11T11:17:09.117Z" },
+    { url = "https://files.pythonhosted.org/packages/45/f1/10542fe76cd63368fc64ba231d638cc516eaee56b0dbfa65d55ac25dfc62/epaper_dithering-7.0.0-cp315-cp315t-musllinux_1_2_x86_64.whl", hash = "sha256:565319dbf27b0368bd1ca00aa431f2806b6416455addbbe72d9422baf383524b", size = 725566, upload-time = "2026-11-11T11:17:10.704Z" },
 ]
 
 [[package]]
@@ -2158,7 +2168,7 @@ min-ha = [
 [package.metadata]
 requires-dist = [
     { name = "odl-renderer", specifier = "==0.5.14" },
-    { name = "py-opendisplay", extras = ["silabs-ota"], specifier = "==7.18.1" },
+    { name = "py-opendisplay", extras = ["silabs-ota"], specifier = "==8.0.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -2573,7 +2583,7 @@ wheels = [
 
 [[package]]
 name = "py-opendisplay"
-version = "7.18.1"
+version = "8.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bleak" },
@@ -2585,9 +2595,9 @@ dependencies = [
     { name = "pillow", version = "12.2.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-25-opendisplay-homeassistant-min-ha'" },
     { name = "pillow", version = "12.3.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e3/e7/e77233483b092711a2379f304c8e4b85f2c0e2a436b9cb717a1fb9cf8658/py_opendisplay-7.18.1.tar.gz", hash = "sha256:c32e25f5417e974d57a85d761866bc06937e501484290054c40547fd134bdf9e", size = 357244, upload-time = "2026-10-07T17:02:16.233Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/b9/28c1b9fc3da31f70a4031e5cca23da0d02fd5813b100fea3bc27f8bcbe83/py_opendisplay-8.0.1.tar.gz", hash = "sha256:1226237e5bb32e16271d97a1a29333f988de6be8a7c7359b41f1643625b8415b", size = 389382, upload-time = "2026-11-11T17:31:30.91Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/88/ad28389c237c62a765d9f7851f46a71641b2198c1d45d87c1aeec6cc58d5/py_opendisplay-7.18.1-py3-none-any.whl", hash = "sha256:8a0d0ce4efebc4d38903e5c15d421167908b83cb43e6dd2c708cbfcef5245340", size = 164435, upload-time = "2026-10-07T17:02:14.739Z" },
+    { url = "https://files.pythonhosted.org/packages/de/52/3039c995e87ae91f20291ff192600f2e8133f864c0bb5518e40b76a24ef5/py_opendisplay-8.0.1-py3-none-any.whl", hash = "sha256:06d131338feaa5ec73d5cf7abbe6ba5783317cea7ccb6976e60b479f3684f8b5", size = 169881, upload-time = "2026-11-11T17:31:29.427Z" },
 ]
 
 [package.optional-dependencies]
@@ -3370,7 +3380,7 @@ name = "qrcode"
 version = "8.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'group-25-opendisplay-homeassistant-dev' and extra == 'group-25-opendisplay-homeassistant-min-ha')" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8f/b2/7fc2931bfae0af02d5f53b174e9cf701adbb35f39d69c2af63d4a39f81a9/qrcode-8.2.tar.gz", hash = "sha256:35c3f2a4172b33136ab9f6b3ef1c00260dd2f66f858f24d88418a015f446506c", size = 43317, upload-time = "2025-05-01T15:44:24.726Z" }
 wheels = [
@@ -4083,7 +4093,7 @@ name = "winrt-runtime"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin' or extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/16/dd/acdd527c1d890c8f852cc2af644aa6c160974e66631289420aa871b05e65/winrt_runtime-3.2.1.tar.gz", hash = "sha256:c8dca19e12b234ae6c3dadf1a4d0761b51e708457492c13beb666556958801ea", size = 21721, upload-time = "2025-06-06T14:40:27.593Z" }
 wheels = [
@@ -4097,7 +4107,7 @@ name = "winrt-windows-devices-bluetooth"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin' or extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
+    { name = "winrt-runtime" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b2/a0/1c8a0c469abba7112265c6cb52f0090d08a67c103639aee71fc690e614b8/winrt_windows_devices_bluetooth-3.2.1.tar.gz", hash = "sha256:db496d2d92742006d5a052468fc355bf7bb49e795341d695c374746113d74505", size = 23732, upload-time = "2025-06-06T14:41:20.489Z" }
 wheels = [
@@ -4111,7 +4121,7 @@ name = "winrt-windows-devices-bluetooth-advertisement"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin' or extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
+    { name = "winrt-runtime" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/06/fc/7ffe66ca4109b9e994b27c00f3d2d506e6e549e268791f755287ad9106d8/winrt_windows_devices_bluetooth_advertisement-3.2.1.tar.gz", hash = "sha256:0223852a7b7fa5c8dea3c6a93473bd783df4439b1ed938d9871f947933e574cc", size = 16906, upload-time = "2025-06-06T14:41:21.448Z" }
 wheels = [
@@ -4125,7 +4135,7 @@ name = "winrt-windows-devices-bluetooth-genericattributeprofile"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin' or extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
+    { name = "winrt-runtime" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/44/21/aeeddc0eccdfbd25e543360b5cc093233e2eab3cdfb53ad3cabae1b5d04d/winrt_windows_devices_bluetooth_genericattributeprofile-3.2.1.tar.gz", hash = "sha256:cdf6ddc375e9150d040aca67f5a17c41ceaf13a63f3668f96608bc1d045dde71", size = 38896, upload-time = "2025-06-06T14:41:22.687Z" }
 wheels = [
@@ -4139,7 +4149,7 @@ name = "winrt-windows-devices-enumeration"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin' or extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
+    { name = "winrt-runtime" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9e/dd/75835bfbd063dffa152109727dedbd80f6e92ea284855f7855d48cdf31c9/winrt_windows_devices_enumeration-3.2.1.tar.gz", hash = "sha256:df316899e39bfc0ffc1f3cb0f5ee54d04e1d167fbbcc1484d2d5121449a935cf", size = 23538, upload-time = "2025-06-06T14:41:26.787Z" }
 wheels = [
@@ -4153,7 +4163,7 @@ name = "winrt-windows-devices-radios"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin' or extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
+    { name = "winrt-runtime" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/5e/02/9704ea359ad8b0d6faa1011f98fb477e8fb6eac5201f39d19e73c2407e7b/winrt_windows_devices_radios-3.2.1.tar.gz", hash = "sha256:4dc9b9d1501846049eb79428d64ec698d6476c27a357999b78a8331072e18a0b", size = 5908, upload-time = "2025-06-06T14:41:44.868Z" }
 wheels = [
@@ -4167,7 +4177,7 @@ name = "winrt-windows-foundation"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin' or extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
+    { name = "winrt-runtime" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0c/55/098ce7ea0679efcc1298b269c48768f010b6c68f90c588f654ec874c8a74/winrt_windows_foundation-3.2.1.tar.gz", hash = "sha256:ad2f1fcaa6c34672df45527d7c533731fdf65b67c4638c2b4aca949f6eec0656", size = 30485, upload-time = "2025-06-06T14:41:53.344Z" }
 wheels = [
@@ -4181,7 +4191,7 @@ name = "winrt-windows-foundation-collections"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin' or extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
+    { name = "winrt-runtime" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ef/62/d21e3f1eeb8d47077887bbf0c3882c49277a84d8f98f7c12bda64d498a07/winrt_windows_foundation_collections-3.2.1.tar.gz", hash = "sha256:0eff1ad0d8d763ad17e9e7bbd0c26a62b27215016393c05b09b046d6503ae6d5", size = 16043, upload-time = "2025-06-06T14:41:53.983Z" }
 wheels = [
@@ -4195,7 +4205,7 @@ name = "winrt-windows-storage-streams"
 version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "winrt-runtime", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin' or extra == 'group-25-opendisplay-homeassistant-dev' or extra != 'group-25-opendisplay-homeassistant-min-ha'" },
+    { name = "winrt-runtime" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/00/50/f4488b07281566e3850fcae1021f0285c9653992f60a915e15567047db63/winrt_windows_storage_streams-3.2.1.tar.gz", hash = "sha256:476f522722751eb0b571bc7802d85a82a3cae8b1cce66061e6e758f525e7b80f", size = 34335, upload-time = "2025-06-06T14:43:23.905Z" }
 wheels = [

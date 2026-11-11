@@ -425,7 +425,7 @@ drawcustom:
             - "partial"
     tone_compression:
       name: Tone compression
-      description: Tone compression strength (0–100%). Omit to use automatic tone mapping.
+      description: Tone compression strength (0–100%). Omit for no compression.
       required: false
       selector:
         number:

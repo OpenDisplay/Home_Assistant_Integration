@@ -453,7 +453,7 @@
           "name": "Otočení"
         },
         "tone_compression": {
-          "description": "Síla komprese dynamického rozsahu. Nechat prázdné pro automatické nastavení.",
+          "description": "Síla komprese dynamického rozsahu. Nechat prázdné pro žádnou kompresi.",
           "name": "Komprese tónu"
         }
       },

@@ -4,7 +4,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 import contextlib
 from datetime import UTC, datetime, timedelta
-from enum import IntEnum
+from enum import Enum
 import functools
 import importlib
 import io
@@ -106,11 +106,11 @@ _NFC_RECORD_TYPE_ENUM: dict[str, NfcRecordType] = {
 }
 
 
-def _str_to_int_enum(enum_class: type[IntEnum]) -> Callable[[str], Any]:
+def _str_to_enum(enum_class: type[Enum]) -> Callable[[str], Any]:
     """Convert a lowercase enum name string to an enum member."""
     members = {m.name.lower(): m for m in enum_class}
 
-    def validate(value: str) -> IntEnum:
+    def validate(value: str) -> Enum:
         if (result := members.get(value)) is None:
             raise vol.Invalid(f"Invalid value: {value}")
         return result
@@ -118,16 +118,32 @@ def _str_to_int_enum(enum_class: type[IntEnum]) -> Callable[[str], Any]:
     return validate
 
 
+# Numeric dither values from before DitherMode became a string enum, in their
+# original order. Kept so existing automations using ``dither: 1`` still work.
+_LEGACY_DITHER_MODES: tuple[DitherMode, ...] = (
+    DitherMode.NONE,
+    DitherMode.BURKES,
+    DitherMode.ORDERED,
+    DitherMode.FLOYD_STEINBERG,
+    DitherMode.ATKINSON,
+    DitherMode.STUCKI,
+    DitherMode.SIERRA,
+    DitherMode.SIERRA_LITE,
+    DitherMode.JARVIS_JUDICE_NINKE,
+    DitherMode.DIZZY,
+)
+
+
 def _dither_value(value: Any) -> DitherMode:
     """Accept new dither names ("ordered") and legacy numeric values (0/1/2...)."""
     if isinstance(value, (int, float)) or (
         isinstance(value, str) and value.lstrip("-").isdigit()
     ):
-        try:
-            return DitherMode(int(value))
-        except ValueError as err:
-            raise vol.Invalid(f"Invalid dither value: {value}") from err
-    return _str_to_int_enum(DitherMode)(value)
+        index = int(value)
+        if not 0 <= index < len(_LEGACY_DITHER_MODES):
+            raise vol.Invalid(f"Invalid dither value: {value}")
+        return _LEGACY_DITHER_MODES[index]
+    return _str_to_enum(DitherMode)(value)
 
 
 def _valid_melody(value: str) -> str:
@@ -164,7 +180,7 @@ def _refresh_type_value(value: Any) -> RefreshMode:
         except ValueError as err:
             raise vol.Invalid(f"Invalid refresh_type: {value}") from err
         return mode
-    return _str_to_int_enum(RefreshMode)(value)
+    return _str_to_enum(RefreshMode)(value)
 
 
 SCHEMA_UPLOAD_IMAGE = vol.Schema(
@@ -176,9 +192,9 @@ SCHEMA_UPLOAD_IMAGE = vol.Schema(
         vol.Optional(ATTR_ROTATION, default=Rotation.ROTATE_0): vol.All(
             vol.Coerce(int), vol.Coerce(Rotation)
         ),
-        vol.Optional(ATTR_DITHER_MODE, default="burkes"): _str_to_int_enum(DitherMode),
+        vol.Optional(ATTR_DITHER_MODE, default="burkes"): _str_to_enum(DitherMode),
         vol.Optional(ATTR_REFRESH_MODE, default="full"): _refresh_type_value,
-        vol.Optional(ATTR_FIT_MODE, default="contain"): _str_to_int_enum(FitMode),
+        vol.Optional(ATTR_FIT_MODE, default="contain"): _str_to_enum(FitMode),
         vol.Optional(ATTR_TONE_COMPRESSION): vol.All(
             vol.Coerce(float), vol.Range(min=0.0, max=100.0)
         ),
@@ -605,7 +621,7 @@ async def _async_send_image(
     dither_mode: DitherMode,
     refresh_mode: RefreshMode,
     fit: FitMode = FitMode.CONTAIN,
-    tone: float | str = "auto",
+    tone: float = 0.0,
     rotate: Rotation = Rotation.ROTATE_0,
     use_measured_palettes: bool = False,
     refine_dithering: bool = False,
@@ -756,8 +772,9 @@ async def _async_upload_image(call: ServiceCall) -> ServiceResponse:
     refresh_mode: RefreshMode = call.data[ATTR_REFRESH_MODE]
     fit_mode: FitMode = call.data[ATTR_FIT_MODE]
     tone_compression_pct: float | None = call.data.get(ATTR_TONE_COMPRESSION)
-    tone_compression: float | str = (
-        tone_compression_pct / 100.0 if tone_compression_pct is not None else "auto"
+    # Empty means off: epaper-dithering 7 has no automatic tone mapping.
+    tone_compression = (
+        tone_compression_pct / 100.0 if tone_compression_pct is not None else 0.0
     )
     use_measured_palettes: bool = call.data[ATTR_USE_MEASURED_PALETTES]
 
@@ -1022,8 +1039,9 @@ async def _drawcustom_for_device(
     dither_mode: DitherMode = call.data["dither"]
     refresh_mode: RefreshMode = call.data["refresh_type"]
     tone_compression_pct: float | None = call.data.get(ATTR_TONE_COMPRESSION)
-    tone_compression: float | str = (
-        tone_compression_pct / 100.0 if tone_compression_pct is not None else "auto"
+    # Empty means off: epaper-dithering 7 has no automatic tone mapping.
+    tone_compression = (
+        tone_compression_pct / 100.0 if tone_compression_pct is not None else 0.0
     )
     use_measured_palettes: bool = call.data[ATTR_USE_MEASURED_PALETTES]
 

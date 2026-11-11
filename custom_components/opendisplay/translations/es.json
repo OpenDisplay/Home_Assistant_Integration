@@ -453,7 +453,7 @@
           "name": "Rotación"
         },
         "tone_compression": {
-          "description": "Intensidad de compresión del rango dinámico. Dejar vacío para automático.",
+          "description": "Intensidad de compresión del rango dinámico. Dejar vacío para no comprimir.",
           "name": "Compresión de tono"
         }
       },
