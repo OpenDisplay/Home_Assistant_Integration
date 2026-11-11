@@ -12,11 +12,11 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from opendisplay import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
     BLEConnectionError,
-    DitherMode,
     NfcNotSupportedError,
     NfcWriteError,
 )
@@ -27,10 +27,19 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 import voluptuous as vol
 
 from custom_components.opendisplay import services
-from custom_components.opendisplay.const import CONF_ENCRYPTION_KEY, DOMAIN
+from custom_components.opendisplay.const import (
+    CONF_ENCRYPTION_KEY,
+    DOMAIN,
+    SIGNAL_IMAGE_UPDATED,
+)
 from custom_components.opendisplay.services import HA_TAG_URL_PREFIX, NFC_MAX_PAYLOAD
 
-from . import ENCRYPTION_KEY, make_nfc_device_config, make_notifier_device_config
+from . import (
+    ENCRYPTION_KEY,
+    TEST_ADDRESS,
+    make_nfc_device_config,
+    make_notifier_device_config,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -1089,36 +1098,6 @@ async def test_drawcustom_tone(
     assert prepare.call_args.kwargs["tone"] == expected_tone
 
 
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        (0, DitherMode.NONE),
-        (1, DitherMode.BURKES),
-        ("2", DitherMode.ORDERED),
-        (3, DitherMode.FLOYD_STEINBERG),
-        (4, DitherMode.ATKINSON),
-        (5, DitherMode.STUCKI),
-        (6, DitherMode.SIERRA),
-        (7, DitherMode.SIERRA_LITE),
-        (8, DitherMode.JARVIS_JUDICE_NINKE),
-        (9, DitherMode.DIZZY),
-        ("ordered", DitherMode.ORDERED),
-    ],
-)
-def test_dither_value_accepts_legacy_numbers(
-    value: object, expected: DitherMode
-) -> None:
-    """Automations written with 6.x numeric dither modes keep their algorithm."""
-    assert services._dither_value(value) is expected
-
-
-@pytest.mark.parametrize("value", [10, -1, "10", "bogus"])
-def test_dither_value_rejects_unknown(value: object) -> None:
-    """Out-of-range numbers and unknown names are rejected."""
-    with pytest.raises(vol.Invalid):
-        services._dither_value(value)
-
-
 async def test_drawcustom_dry_run_previews_without_uploading(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
@@ -1139,6 +1118,79 @@ async def test_drawcustom_dry_run_previews_without_uploading(
     )
 
     assert response["status"] == "dry_run"
+    mock_upload_device.upload_prepared_image.assert_not_awaited()
+
+
+def _capture_previews(hass: HomeAssistant) -> list[bytes]:
+    """Collect the JPEGs sent to the display-content image entity."""
+    previews: list[bytes] = []
+    async_dispatcher_connect(
+        hass, f"{SIGNAL_IMAGE_UPDATED}_{TEST_ADDRESS}", previews.append
+    )
+    return previews
+
+
+def _is_dithered(jpeg: bytes) -> bool:
+    """Mid-grey only survives undithered; dithered to BWR it is black and white dots."""
+    lum = PILImage.open(io.BytesIO(jpeg)).convert("L")
+    width, height = lum.size
+    centre = lum.crop((width // 4, height // 4, 3 * width // 4, 3 * height // 4))
+    low, high = centre.getextrema()
+    return low < 64 and high > 192
+
+
+async def test_upload_image_preview_is_the_dithered_frame(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_resolve_media: MagicMock,
+) -> None:
+    """The image entity shows what the panel shows, not the source photo."""
+    PILImage.new("RGB", (296, 128), (128, 128, 128)).save(mock_resolve_media.path)
+    previews = _capture_previews(hass)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "upload_image",
+        {
+            "device_id": _device_id(hass, mock_config_entry),
+            "image": {
+                "media_content_id": "media-source://local/test.png",
+                "media_content_type": "image/png",
+            },
+        },
+        blocking=True,
+    )
+
+    assert len(previews) == 1
+    assert _is_dithered(previews[0])
+
+
+async def test_drawcustom_dry_run_previews_the_dithered_frame(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+) -> None:
+    """A dry run previews the frame as it would be dithered for the panel."""
+    previews = _capture_previews(hass)
+    with patch(
+        "custom_components.opendisplay.services.generate_image",
+        AsyncMock(return_value=PILImage.new("RGB", (296, 128), (128, 128, 128))),
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            "drawcustom",
+            {
+                "device_id": [_device_id(hass, mock_config_entry)],
+                "payload": [{"type": "text", "value": "hi"}],
+                "dry-run": True,
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    assert len(previews) == 1
+    assert _is_dithered(previews[0])
     mock_upload_device.upload_prepared_image.assert_not_awaited()
 
 

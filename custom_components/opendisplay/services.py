@@ -49,6 +49,7 @@ from opendisplay import (
     ColorScheme,
     DitherMode,
     FitMode,
+    GlobalConfig,
     LedFlashConfig,
     LedFlashStep,
     NfcNotSupportedError,
@@ -60,6 +61,7 @@ from opendisplay import (
     RefreshMode,
     Rotation,
     prepare_image,
+    preview_image,
 )
 
 if TYPE_CHECKING:
@@ -116,34 +118,6 @@ def _str_to_enum(enum_class: type[Enum]) -> Callable[[str], Any]:
         return result
 
     return validate
-
-
-# Numeric dither values from before DitherMode became a string enum, in their
-# original order. Kept so existing automations using ``dither: 1`` still work.
-_LEGACY_DITHER_MODES: tuple[DitherMode, ...] = (
-    DitherMode.NONE,
-    DitherMode.BURKES,
-    DitherMode.ORDERED,
-    DitherMode.FLOYD_STEINBERG,
-    DitherMode.ATKINSON,
-    DitherMode.STUCKI,
-    DitherMode.SIERRA,
-    DitherMode.SIERRA_LITE,
-    DitherMode.JARVIS_JUDICE_NINKE,
-    DitherMode.DIZZY,
-)
-
-
-def _dither_value(value: Any) -> DitherMode:
-    """Accept new dither names ("ordered") and legacy numeric values (0/1/2...)."""
-    if isinstance(value, (int, float)) or (
-        isinstance(value, str) and value.lstrip("-").isdigit()
-    ):
-        index = int(value)
-        if not 0 <= index < len(_LEGACY_DITHER_MODES):
-            raise vol.Invalid(f"Invalid dither value: {value}")
-        return _LEGACY_DITHER_MODES[index]
-    return _str_to_enum(DitherMode)(value)
 
 
 def _valid_melody(value: str) -> str:
@@ -214,7 +188,7 @@ SCHEMA_DRAWCUSTOM = vol.Schema(
         vol.Optional("rotate", default=0): vol.All(
             vol.Coerce(int), vol.In([0, 90, 180, 270])
         ),
-        vol.Optional("dither", default="burkes"): _dither_value,
+        vol.Optional("dither", default="burkes"): _str_to_enum(DitherMode),
         vol.Optional("refresh_type", default="full"): _refresh_type_value,
         vol.Optional(ATTR_TONE_COMPRESSION): vol.All(
             vol.Coerce(float), vol.Range(min=0.0, max=100.0)
@@ -612,6 +586,34 @@ async def _async_connect_and_run(
         ) from err
 
 
+def _prepare_frame(
+    img: PILImage.Image,
+    config: GlobalConfig | None,
+    *,
+    compress: bool,
+    dither_mode: DitherMode,
+    fit: FitMode,
+    tone: float,
+    rotate: Rotation,
+    use_measured_palettes: bool,
+    refine_dithering: bool,
+) -> tuple[tuple[bytes, bytes | None, PILImage.Image], bytes]:
+    """Dither and encode a frame, plus a JPEG preview of it as the panel shows it."""
+    prepared = prepare_image(
+        img,
+        config=config,
+        dither_mode=dither_mode,
+        compress=compress,
+        tone=tone,
+        fit=fit,
+        rotate=rotate,
+        use_measured_palettes=use_measured_palettes,
+        dbs=refine_dithering,
+    )
+    preview = preview_image(prepared[2], config=config, rotate=rotate)
+    return prepared, _pil_to_jpeg(preview)
+
+
 async def _async_send_image(
     hass: HomeAssistant,
     entry: OpenDisplayConfigEntry,
@@ -625,12 +627,14 @@ async def _async_send_image(
     rotate: Rotation = Rotation.ROTATE_0,
     use_measured_palettes: bool = False,
     refine_dithering: bool = False,
+    dry_run: bool = False,
 ) -> DeliveryReceipt:
     """Upload a PIL image, delivering live or queuing it for the next wake.
 
     Returns a receipt describing whether the frame was delivered immediately or
     queued (for a sleeping device). Non-sleepy devices always deliver live and
-    keep the original strict-failure behavior.
+    keep the original strict-failure behavior. A dry run only updates the
+    preview with the dithered frame.
     """
     # Split the upload into its heavy CPU half and its BLE-I/O half. The CPU
     # work (rotate + fit + dither + encode + zlib on a full frame) is offloaded
@@ -648,20 +652,23 @@ async def _async_send_image(
         if display_cfg
         else True
     )
-    prepared = await hass.async_add_executor_job(
+    prepared, jpeg = await hass.async_add_executor_job(
         functools.partial(
-            prepare_image,
+            _prepare_frame,
             img,
-            config=config,
-            dither_mode=dither_mode,
+            config,
             compress=supports_compression,
-            tone=tone,
+            dither_mode=dither_mode,
             fit=fit,
+            tone=tone,
             rotate=rotate,
             use_measured_palettes=use_measured_palettes,
-            dbs=refine_dithering,
+            refine_dithering=refine_dithering,
         )
     )
+    if dry_run:
+        async_dispatcher_send(hass, f"{SIGNAL_IMAGE_UPDATED}_{entry.unique_id}", jpeg)
+        return DeliveryReceipt(status="dry_run", expires_at=None)
 
     # Partial refreshes diff against the entry's tracked frame; full/fast
     # refreshes re-baseline the panel, so start a fresh state that this upload
@@ -674,9 +681,8 @@ async def _async_send_image(
         runtime.partial_state = PartialState()
     state = runtime.partial_state
 
-    # The preview JPEG is built up-front so a queued frame can be shown on the
-    # image entity immediately (D6), not only after a successful delivery.
-    jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)
+    # The preview JPEG (built with the frame above) lets a queued frame show on
+    # the image entity immediately (D6), not only after a successful delivery.
 
     profile = runtime.sleep_profile
     manager = runtime.delivery
@@ -1032,9 +1038,6 @@ async def _drawcustom_for_device(
 
     if call.data["dry-run"]:
         _LOGGER.info("Drawcustom dry run for device %s", device_id)
-        jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)
-        async_dispatcher_send(hass, f"{SIGNAL_IMAGE_UPDATED}_{entry.unique_id}", jpeg)
-        return DeliveryReceipt(status="dry_run", expires_at=None)
 
     dither_mode: DitherMode = call.data["dither"]
     refresh_mode: RefreshMode = call.data["refresh_type"]
@@ -1056,6 +1059,7 @@ async def _drawcustom_for_device(
         rotate=Rotation(rotate),
         use_measured_palettes=use_measured_palettes,
         refine_dithering=call.data[ATTR_REFINE_DITHERING],
+        dry_run=call.data["dry-run"],
     )
 
 
