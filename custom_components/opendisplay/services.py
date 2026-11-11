@@ -194,7 +194,7 @@ SCHEMA_DRAWCUSTOM = vol.Schema(
             vol.Coerce(float), vol.Range(min=0.0, max=100.0)
         ),
         vol.Optional(ATTR_REFINE_DITHERING, default=False): cv.boolean,
-        vol.Optional(ATTR_USE_MEASURED_PALETTES, default=False): cv.boolean,
+        vol.Optional(ATTR_USE_MEASURED_PALETTES, default=True): cv.boolean,
         vol.Optional("dry-run", default=False): cv.boolean,
     },
     extra=vol.REMOVE_EXTRA,  # silently drop legacy keys (ttl, preload_type, preload_lut, ...)
@@ -625,7 +625,7 @@ async def _async_send_image(
     fit: FitMode = FitMode.CONTAIN,
     tone: float = 0.0,
     rotate: Rotation = Rotation.ROTATE_0,
-    use_measured_palettes: bool = False,
+    use_measured_palettes: bool = True,
     refine_dithering: bool = False,
     dry_run: bool = False,
 ) -> DeliveryReceipt:
