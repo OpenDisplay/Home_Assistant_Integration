@@ -453,7 +453,7 @@
           "name": "Rotazione"
         },
         "tone_compression": {
-          "description": "Intensità della compressione della gamma dinamica. Lasciare vuoto per automatico.",
+          "description": "Intensità della compressione della gamma dinamica. Lasciare vuoto per nessuna compressione.",
           "name": "Compressione tono"
         }
       },

@@ -453,7 +453,7 @@
           "name": "Rotatie"
         },
         "tone_compression": {
-          "description": "Sterkte van dynamische bereikcompressie. Leeg laten voor automatisch.",
+          "description": "Sterkte van dynamische bereikcompressie. Leeg laten voor geen compressie.",
           "name": "Tooncompressie"
         }
       },

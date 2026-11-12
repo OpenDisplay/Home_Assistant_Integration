@@ -453,7 +453,7 @@
           "name": "Obrót"
         },
         "tone_compression": {
-          "description": "Siła kompresji zakresu dynamicznego. Pozostawić puste dla automatycznej wartości.",
+          "description": "Siła kompresji zakresu dynamicznego. Pozostawić puste, aby wyłączyć kompresję.",
           "name": "Kompresja tonów"
         }
       },

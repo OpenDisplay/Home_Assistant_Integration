@@ -4,7 +4,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 import contextlib
 from datetime import UTC, datetime, timedelta
-from enum import IntEnum
+from enum import Enum
 import functools
 import importlib
 import io
@@ -49,6 +49,7 @@ from opendisplay import (
     ColorScheme,
     DitherMode,
     FitMode,
+    GlobalConfig,
     LedFlashConfig,
     LedFlashStep,
     NfcNotSupportedError,
@@ -60,6 +61,7 @@ from opendisplay import (
     RefreshMode,
     Rotation,
     prepare_image,
+    preview_image,
 )
 
 if TYPE_CHECKING:
@@ -106,28 +108,16 @@ _NFC_RECORD_TYPE_ENUM: dict[str, NfcRecordType] = {
 }
 
 
-def _str_to_int_enum(enum_class: type[IntEnum]) -> Callable[[str], Any]:
+def _str_to_enum(enum_class: type[Enum]) -> Callable[[str], Any]:
     """Convert a lowercase enum name string to an enum member."""
     members = {m.name.lower(): m for m in enum_class}
 
-    def validate(value: str) -> IntEnum:
+    def validate(value: str) -> Enum:
         if (result := members.get(value)) is None:
             raise vol.Invalid(f"Invalid value: {value}")
         return result
 
     return validate
-
-
-def _dither_value(value: Any) -> DitherMode:
-    """Accept new dither names ("ordered") and legacy numeric values (0/1/2...)."""
-    if isinstance(value, (int, float)) or (
-        isinstance(value, str) and value.lstrip("-").isdigit()
-    ):
-        try:
-            return DitherMode(int(value))
-        except ValueError as err:
-            raise vol.Invalid(f"Invalid dither value: {value}") from err
-    return _str_to_int_enum(DitherMode)(value)
 
 
 def _valid_melody(value: str) -> str:
@@ -164,7 +154,7 @@ def _refresh_type_value(value: Any) -> RefreshMode:
         except ValueError as err:
             raise vol.Invalid(f"Invalid refresh_type: {value}") from err
         return mode
-    return _str_to_int_enum(RefreshMode)(value)
+    return _str_to_enum(RefreshMode)(value)
 
 
 SCHEMA_UPLOAD_IMAGE = vol.Schema(
@@ -176,9 +166,9 @@ SCHEMA_UPLOAD_IMAGE = vol.Schema(
         vol.Optional(ATTR_ROTATION, default=Rotation.ROTATE_0): vol.All(
             vol.Coerce(int), vol.Coerce(Rotation)
         ),
-        vol.Optional(ATTR_DITHER_MODE, default="burkes"): _str_to_int_enum(DitherMode),
+        vol.Optional(ATTR_DITHER_MODE, default="burkes"): _str_to_enum(DitherMode),
         vol.Optional(ATTR_REFRESH_MODE, default="full"): _refresh_type_value,
-        vol.Optional(ATTR_FIT_MODE, default="contain"): _str_to_int_enum(FitMode),
+        vol.Optional(ATTR_FIT_MODE, default="contain"): _str_to_enum(FitMode),
         vol.Optional(ATTR_TONE_COMPRESSION): vol.All(
             vol.Coerce(float), vol.Range(min=0.0, max=100.0)
         ),
@@ -198,13 +188,13 @@ SCHEMA_DRAWCUSTOM = vol.Schema(
         vol.Optional("rotate", default=0): vol.All(
             vol.Coerce(int), vol.In([0, 90, 180, 270])
         ),
-        vol.Optional("dither", default="burkes"): _dither_value,
+        vol.Optional("dither", default="burkes"): _str_to_enum(DitherMode),
         vol.Optional("refresh_type", default="full"): _refresh_type_value,
         vol.Optional(ATTR_TONE_COMPRESSION): vol.All(
             vol.Coerce(float), vol.Range(min=0.0, max=100.0)
         ),
         vol.Optional(ATTR_REFINE_DITHERING, default=False): cv.boolean,
-        vol.Optional(ATTR_USE_MEASURED_PALETTES, default=False): cv.boolean,
+        vol.Optional(ATTR_USE_MEASURED_PALETTES, default=True): cv.boolean,
         vol.Optional("dry-run", default=False): cv.boolean,
     },
     extra=vol.REMOVE_EXTRA,  # silently drop legacy keys (ttl, preload_type, preload_lut, ...)
@@ -596,6 +586,34 @@ async def _async_connect_and_run(
         ) from err
 
 
+def _prepare_frame(
+    img: PILImage.Image,
+    config: GlobalConfig | None,
+    *,
+    compress: bool,
+    dither_mode: DitherMode,
+    fit: FitMode,
+    tone: float,
+    rotate: Rotation,
+    use_measured_palettes: bool,
+    refine_dithering: bool,
+) -> tuple[tuple[bytes, bytes | None, PILImage.Image], bytes]:
+    """Dither and encode a frame, plus a JPEG preview of it as the panel shows it."""
+    prepared = prepare_image(
+        img,
+        config=config,
+        dither_mode=dither_mode,
+        compress=compress,
+        tone=tone,
+        fit=fit,
+        rotate=rotate,
+        use_measured_palettes=use_measured_palettes,
+        dbs=refine_dithering,
+    )
+    preview = preview_image(prepared[2], config=config, rotate=rotate)
+    return prepared, _pil_to_jpeg(preview)
+
+
 async def _async_send_image(
     hass: HomeAssistant,
     entry: OpenDisplayConfigEntry,
@@ -605,16 +623,18 @@ async def _async_send_image(
     dither_mode: DitherMode,
     refresh_mode: RefreshMode,
     fit: FitMode = FitMode.CONTAIN,
-    tone: float | str = "auto",
+    tone: float = 0.0,
     rotate: Rotation = Rotation.ROTATE_0,
-    use_measured_palettes: bool = False,
+    use_measured_palettes: bool = True,
     refine_dithering: bool = False,
+    dry_run: bool = False,
 ) -> DeliveryReceipt:
     """Upload a PIL image, delivering live or queuing it for the next wake.
 
     Returns a receipt describing whether the frame was delivered immediately or
     queued (for a sleeping device). Non-sleepy devices always deliver live and
-    keep the original strict-failure behavior.
+    keep the original strict-failure behavior. A dry run only updates the
+    preview with the dithered frame.
     """
     # Split the upload into its heavy CPU half and its BLE-I/O half. The CPU
     # work (rotate + fit + dither + encode + zlib on a full frame) is offloaded
@@ -632,20 +652,23 @@ async def _async_send_image(
         if display_cfg
         else True
     )
-    prepared = await hass.async_add_executor_job(
+    prepared, jpeg = await hass.async_add_executor_job(
         functools.partial(
-            prepare_image,
+            _prepare_frame,
             img,
-            config=config,
-            dither_mode=dither_mode,
+            config,
             compress=supports_compression,
-            tone=tone,
+            dither_mode=dither_mode,
             fit=fit,
+            tone=tone,
             rotate=rotate,
             use_measured_palettes=use_measured_palettes,
-            dbs=refine_dithering,
+            refine_dithering=refine_dithering,
         )
     )
+    if dry_run:
+        async_dispatcher_send(hass, f"{SIGNAL_IMAGE_UPDATED}_{entry.unique_id}", jpeg)
+        return DeliveryReceipt(status="dry_run", expires_at=None)
 
     # Partial refreshes diff against the entry's tracked frame; full/fast
     # refreshes re-baseline the panel, so start a fresh state that this upload
@@ -658,9 +681,8 @@ async def _async_send_image(
         runtime.partial_state = PartialState()
     state = runtime.partial_state
 
-    # The preview JPEG is built up-front so a queued frame can be shown on the
-    # image entity immediately (D6), not only after a successful delivery.
-    jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)
+    # The preview JPEG (built with the frame above) lets a queued frame show on
+    # the image entity immediately (D6), not only after a successful delivery.
 
     profile = runtime.sleep_profile
     manager = runtime.delivery
@@ -756,8 +778,9 @@ async def _async_upload_image(call: ServiceCall) -> ServiceResponse:
     refresh_mode: RefreshMode = call.data[ATTR_REFRESH_MODE]
     fit_mode: FitMode = call.data[ATTR_FIT_MODE]
     tone_compression_pct: float | None = call.data.get(ATTR_TONE_COMPRESSION)
-    tone_compression: float | str = (
-        tone_compression_pct / 100.0 if tone_compression_pct is not None else "auto"
+    # Empty means off: epaper-dithering 7 has no automatic tone mapping.
+    tone_compression = (
+        tone_compression_pct / 100.0 if tone_compression_pct is not None else 0.0
     )
     use_measured_palettes: bool = call.data[ATTR_USE_MEASURED_PALETTES]
 
@@ -1015,15 +1038,13 @@ async def _drawcustom_for_device(
 
     if call.data["dry-run"]:
         _LOGGER.info("Drawcustom dry run for device %s", device_id)
-        jpeg = await hass.async_add_executor_job(_pil_to_jpeg, img)
-        async_dispatcher_send(hass, f"{SIGNAL_IMAGE_UPDATED}_{entry.unique_id}", jpeg)
-        return DeliveryReceipt(status="dry_run", expires_at=None)
 
     dither_mode: DitherMode = call.data["dither"]
     refresh_mode: RefreshMode = call.data["refresh_type"]
     tone_compression_pct: float | None = call.data.get(ATTR_TONE_COMPRESSION)
-    tone_compression: float | str = (
-        tone_compression_pct / 100.0 if tone_compression_pct is not None else "auto"
+    # Empty means off: epaper-dithering 7 has no automatic tone mapping.
+    tone_compression = (
+        tone_compression_pct / 100.0 if tone_compression_pct is not None else 0.0
     )
     use_measured_palettes: bool = call.data[ATTR_USE_MEASURED_PALETTES]
 
@@ -1038,6 +1059,7 @@ async def _drawcustom_for_device(
         rotate=Rotation(rotate),
         use_measured_palettes=use_measured_palettes,
         refine_dithering=call.data[ATTR_REFINE_DITHERING],
+        dry_run=call.data["dry-run"],
     )
 
 

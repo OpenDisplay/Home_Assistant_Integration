@@ -72,7 +72,7 @@ upload_image:
               unit_of_measurement: "%"
         measured_palette:
           required: false
-          default: false
+          default: true
           selector:
             boolean:
         refine_dithering:
@@ -425,7 +425,7 @@ drawcustom:
             - "partial"
     tone_compression:
       name: Tone compression
-      description: Tone compression strength (0–100%). Omit to use automatic tone mapping.
+      description: Tone compression strength (0–100%). Omit for no compression.
       required: false
       selector:
         number:
@@ -438,7 +438,7 @@ drawcustom:
       name: Use measured palette
       description: Use the panel's measured color palette when available. Turn off to dither against the theoretical color scheme. No effect on panels without measured data.
       required: false
-      default: false
+      default: true
       selector:
         boolean:
     refine_dithering:
