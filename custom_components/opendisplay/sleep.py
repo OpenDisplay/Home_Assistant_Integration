@@ -31,10 +31,12 @@ from .const import (
     CONF_MISSED_CYCLES,
     CONF_PROBE_BEFORE_QUEUE,
     CONF_QUEUE_TIMEOUT_HOURS,
+    CONF_SLEEP_AFTER_DELIVERY,
     CONF_SLEEP_MODE,
     DEFAULT_MISSED_CYCLES,
     DEFAULT_PROBE_BEFORE_QUEUE,
     DEFAULT_QUEUE_TIMEOUT_HOURS,
+    DEFAULT_SLEEP_AFTER_DELIVERY,
     DEFAULT_SLEEP_MODE,
     SLEEP_MODE_OFF,
     SLEEP_MODE_ON,
@@ -67,6 +69,7 @@ class SleepProfile:
     missed_cycles: int
     queue_timeout_hours: int
     probe_before_queue: bool
+    sleep_after_delivery: bool = DEFAULT_SLEEP_AFTER_DELIVERY
 
     @property
     def wake_window_s(self) -> float:
@@ -120,6 +123,7 @@ class SleepProfile:
         missed_cycles: int,
         queue_timeout_hours: int,
         probe_before_queue: bool = DEFAULT_PROBE_BEFORE_QUEUE,
+        sleep_after_delivery: bool = DEFAULT_SLEEP_AFTER_DELIVERY,
     ) -> SleepProfile:
         """Build a profile from primitive values (pure; unit-testable)."""
         deep_sleep_enabled = (
@@ -139,6 +143,7 @@ class SleepProfile:
             missed_cycles=missed_cycles,
             queue_timeout_hours=queue_timeout_hours,
             probe_before_queue=probe_before_queue,
+            sleep_after_delivery=sleep_after_delivery,
         )
 
     @classmethod
@@ -159,5 +164,8 @@ class SleepProfile:
             ),
             probe_before_queue=options.get(
                 CONF_PROBE_BEFORE_QUEUE, DEFAULT_PROBE_BEFORE_QUEUE
+            ),
+            sleep_after_delivery=options.get(
+                CONF_SLEEP_AFTER_DELIVERY, DEFAULT_SLEEP_AFTER_DELIVERY
             ),
         )

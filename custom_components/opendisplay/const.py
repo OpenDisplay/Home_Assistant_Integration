@@ -72,6 +72,14 @@ SETUP_DEADLINE_S = 60.0  # entry-setup active connect (has sleepy-cache fallback
 CONF_PROBE_BEFORE_QUEUE = "probe_before_queue"
 DEFAULT_PROBE_BEFORE_QUEUE = True
 
+# Send the deep-sleep command (0x0053) as soon as queued work has been delivered
+# to a sleepy device, instead of leaving it awake for the rest of its
+# post-activity window (sleep_timeout_ms, ~10 s by default). Best-effort: the
+# firmware rejects it on mains power or with deep sleep disabled, and a failure
+# never affects the delivery itself.
+CONF_SLEEP_AFTER_DELIVERY = "sleep_after_delivery"
+DEFAULT_SLEEP_AFTER_DELIVERY = True
+
 # BLE sliding-window pipe transfer (py-opendisplay pipe client). Frames sent
 # per acknowledgment (QUIC-style N) and maximum upload frames in flight
 # (window W). max_queue_size == 1 disables fast transfer (legacy

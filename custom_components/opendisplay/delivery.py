@@ -76,6 +76,12 @@ DELIVERY_DEADLINE_S = 600.0
 # with a ``content_expired`` event so the failure surfaces promptly.
 MAX_DELIVERY_ATTEMPTS = 5
 
+# Ceiling on the best-effort deep-sleep command sent after a delivery. The
+# library already treats a dropped link or a missing ACK as success and bounds
+# its own ACK read; this only stops a wedged write from eating into the
+# delivery deadline. Comfortably above py-opendisplay's ACK timeout.
+SLEEP_COMMAND_TIMEOUT_S = 15.0
+
 # Sentinel distinguishing "no key" (None) from "malformed key" during resolve.
 _KEY_INVALID = object()
 
@@ -346,15 +352,30 @@ class DeliveryManager:
             ),
         }
 
+        # Set once any invocation of ``_run`` has delivered something. Shared
+        # across the WiFi attempt and the BLE fallback, so a frame that landed
+        # over WiFi before a resync failed still counts when BLE finishes.
+        did_work = False
+
         async def _run(device: OpenDisplayDevice) -> None:
+            nonlocal did_work
             # Re-read pending state each invocation: if a WiFi attempt uploaded
             # then failed on resync, the BLE fallback re-runs this and must not
             # re-upload an already-delivered frame (``_drain_upload`` clears it).
             pending = self._pending_upload
             if pending is not None:
                 await self._drain_upload(device, pending)
+                did_work = True
             if self._pending_config_resync:
                 await self._drain_resync(device)
+                did_work = True
+            # Only after *all* queued work for this wake has run (upload and
+            # resync share the link), and only on the invocation that completes
+            # the drain: a WiFi attempt that raised above never reaches this, so
+            # the BLE fallback is the one that sends it. ``_sleep_now`` swallows
+            # every error, so it can never itself trigger the fallback.
+            if did_work and self._should_sleep_after_delivery():
+                await self._sleep_now(device)
 
         # Prefer WiFi when the entry has a fresh mDNS host; fall back to BLE on any
         # WiFi failure. All inside the per-MAC lock (MAC-keyed, transport-neutral).
@@ -417,6 +438,43 @@ class DeliveryManager:
         self._pending_config_resync = False
         _write_cache(self._hass, self._entry, device_config, fw, is_flex, landing_url)
         _LOGGER.debug("%s: config resync complete", self._address)
+
+    def _should_sleep_after_delivery(self) -> bool:
+        """Return True if the device should be put back to sleep now.
+
+        Only for sleepy devices with the option on, and only once nothing is
+        left to deliver: new content queued mid-drain (or a resync that could
+        not complete) is picked up by the next advertisement in this same wake
+        window instead of waiting a whole sleep cycle.
+        """
+        return (
+            self._profile.is_sleepy
+            and self._profile.sleep_after_delivery
+            and not self._has_pending_work()
+        )
+
+    async def _sleep_now(self, device: OpenDisplayDevice) -> None:
+        """Ask the device to deep-sleep now; best-effort, never raises.
+
+        Saves the rest of the firmware's post-activity wake window
+        (``sleep_timeout_ms``) on every wake that delivered something. The
+        delivery has already succeeded by the time this runs, so any failure
+        here -- a NACK (mains power / deep sleep disabled), an old firmware, a
+        timeout, the link dropping -- is logged and otherwise ignored; the
+        device then simply falls asleep on its own timer.
+        """
+        try:
+            async with asyncio.timeout(SLEEP_COMMAND_TIMEOUT_S):
+                await device.deep_sleep()
+        except Exception as err:  # best-effort: must never fail the delivery
+            _LOGGER.debug(
+                "%s: deep sleep after delivery not acknowledged (%s); the device "
+                "will sleep on its own timer",
+                self._address,
+                err,
+            )
+        else:
+            _LOGGER.debug("%s: sent deep sleep after delivery", self._address)
 
     # -- expiry -------------------------------------------------------------
 

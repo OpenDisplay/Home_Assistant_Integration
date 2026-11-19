@@ -15,6 +15,7 @@ from custom_components.opendisplay.const import (
     CONF_MISSED_CYCLES,
     CONF_PROBE_BEFORE_QUEUE,
     CONF_QUEUE_TIMEOUT_HOURS,
+    CONF_SLEEP_AFTER_DELIVERY,
     CONF_SLEEP_MODE,
 )
 
@@ -43,6 +44,7 @@ async def test_options_flow_persists_and_reloads(
             CONF_MISSED_CYCLES: 5,
             CONF_QUEUE_TIMEOUT_HOURS: 12,
             CONF_PROBE_BEFORE_QUEUE: False,
+            CONF_SLEEP_AFTER_DELIVERY: False,
             CONF_BLOCKS_PER_ACK: 8,
             CONF_MAX_QUEUE_SIZE: 4,
         },
@@ -52,8 +54,10 @@ async def test_options_flow_persists_and_reloads(
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert mock_config_entry.options[CONF_SLEEP_MODE] == "on"
     assert mock_config_entry.options[CONF_MISSED_CYCLES] == 5
+    assert mock_config_entry.options[CONF_SLEEP_AFTER_DELIVERY] is False
     # Reloaded, so the new sleep mode is live on the profile.
     assert mock_config_entry.runtime_data.sleep_profile.is_sleepy is True
+    assert mock_config_entry.runtime_data.sleep_profile.sleep_after_delivery is False
 
 
 async def test_options_flow_stores_and_clears_the_github_token(

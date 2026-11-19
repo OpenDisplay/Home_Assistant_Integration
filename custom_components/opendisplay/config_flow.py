@@ -56,6 +56,7 @@ from .const import (
     CONF_PORT,
     CONF_PROBE_BEFORE_QUEUE,
     CONF_QUEUE_TIMEOUT_HOURS,
+    CONF_SLEEP_AFTER_DELIVERY,
     CONF_SLEEP_MODE,
     CONF_TLS,
     CONNECT_PROBE_DEADLINE_S,
@@ -65,6 +66,7 @@ from .const import (
     DEFAULT_MISSED_CYCLES,
     DEFAULT_PROBE_BEFORE_QUEUE,
     DEFAULT_QUEUE_TIMEOUT_HOURS,
+    DEFAULT_SLEEP_AFTER_DELIVERY,
     DEFAULT_SLEEP_MODE,
     DEFAULT_TLS_PORT,
     DOMAIN,
@@ -147,6 +149,9 @@ def _options_schema() -> vol.Schema:
             ),
             vol.Required(
                 CONF_PROBE_BEFORE_QUEUE, default=DEFAULT_PROBE_BEFORE_QUEUE
+            ): BooleanSelector(),
+            vol.Required(
+                CONF_SLEEP_AFTER_DELIVERY, default=DEFAULT_SLEEP_AFTER_DELIVERY
             ): BooleanSelector(),
             vol.Required(CONF_BLOCKS_PER_ACK, default=DEFAULT_BLOCKS_PER_ACK): vol.All(
                 NumberSelector(

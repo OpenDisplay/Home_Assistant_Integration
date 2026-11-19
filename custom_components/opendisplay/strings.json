@@ -64,6 +64,7 @@
           "missed_cycles": "Missed wake cycles before unavailable",
           "queue_timeout_hours": "Queued content timeout (hours)",
           "probe_before_queue": "Try connecting before queueing",
+          "sleep_after_delivery": "Sleep right after delivery",
           "blocks_per_ack": "Blocks sent per acknowledgment",
           "max_queue_size": "Maximum upload frames in flight",
           "github_token": "GitHub token (optional)"
@@ -73,6 +74,7 @@
           "missed_cycles": "How many expected wake-ups the device may miss before its entities are marked unavailable.",
           "queue_timeout_hours": "How long content queued for a sleeping device waits for a wake before it expires.",
           "probe_before_queue": "Before queueing an image for a sleeping device, make one quick connection attempt in case it is actually awake (missed advertisements, always-on radios). Adds at most a few seconds when the device really is asleep.",
+          "sleep_after_delivery": "After queued content reaches a sleeping device, tell it to go back to deep sleep immediately instead of staying awake for the rest of its wake window (about 10 seconds by default). Saves battery on every refresh. Turn off if something else needs to reach the device while it is awake after a delivery.",
           "blocks_per_ack": "How many image frames the device receives before it sends one acknowledgment during a fast (sliding-window) upload. Higher values reduce round trips; the effective value is capped by the device and the maximum frames in flight.",
           "max_queue_size": "Maximum number of image frames kept in flight at once during a fast (sliding-window) upload. Higher values raise throughput on slow (proxy) links. Set to 1 to disable fast transfer and use the classic one-frame-at-a-time upload.",
           "github_token": "Used only for the firmware update checks against the GitHub API, and applies to every OpenDisplay device. Without a token, all devices and other tools on the same network share GitHub's limit of 60 requests per hour. A fine-grained token with no extra permissions (public repositories, read-only) raises it to 5,000. Leave empty to stay anonymous."
