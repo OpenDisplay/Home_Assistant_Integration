@@ -384,7 +384,11 @@ class DeliveryManager:
         )
         if upload.cancel_deadline:
             upload.cancel_deadline()
-        self._pending_upload = None
+        # Only clear the slot if it still holds the frame just sent: a newer
+        # frame queued while this one was streaming (latest-wins) must survive
+        # to be delivered next, not be silently dropped here.
+        if self._pending_upload is upload:
+            self._pending_upload = None
         self._last_error = None
         # Bump the image entity's timestamp to when the frame actually landed.
         async_dispatcher_send(

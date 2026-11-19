@@ -623,3 +623,23 @@ async def test_drain_waits_for_a_preheld_registry_lock(
         and record.levelno == logging.WARNING
     ]
     assert len(contention) == 1
+
+
+async def test_a_frame_queued_mid_upload_is_not_dropped(
+    hass: HomeAssistant, manager: DeliveryManager
+) -> None:
+    """Latest-wins must not lose a frame queued while an older one streams."""
+    device = _uploading_device()
+
+    async def _upload(*_args, **_kwargs) -> None:
+        _submit(manager, device_id="newer")
+
+    device.upload_prepared_image = AsyncMock(side_effect=_upload)
+    with connects_to(device):
+        _submit(manager, device_id="first")
+        await manager._deliver()
+
+    assert manager.state.pending is True
+    assert manager._pending_upload is not None
+    assert manager._pending_upload.device_id == "newer"
+    await manager.async_shutdown()
