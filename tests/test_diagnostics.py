@@ -2,10 +2,12 @@
 
 from collections.abc import Awaitable, Callable
 import dataclasses
+import struct
 from unittest.mock import MagicMock
 
 from homeassistant.components.diagnostics import REDACTED
 from homeassistant.core import HomeAssistant
+from opendisplay import LengthPrefixedPacket
 import pytest
 from pytest_homeassistant.common import MockConfigEntry
 from pytest_homeassistant.components.diagnostics import get_diagnostics_for_config_entry
@@ -14,7 +16,37 @@ from syrupy.assertion import SnapshotAssertion
 
 from . import DEVICE_CONFIG, make_wifi_device_config
 
+# A FindMy packet (key material), one drive mode the library decodes, and one
+# length-prefixed packet it does not know.
+CONFIG_WITH_PACKETS = dataclasses.replace(
+    DEVICE_CONFIG,
+    findmy_config_raw=b"\x00\x2d" + b"\x11" * 128,
+    length_prefixed_packets=[
+        LengthPrefixedPacket(
+            0,
+            0xAE,
+            struct.pack(
+                "<BB12sBBbbB8s8sH",
+                0,
+                0,
+                b"full",
+                1,
+                1,
+                0,
+                50,
+                0,
+                b"\x00" + b"\xff" * 7,
+                bytes(8),
+                3,
+            )
+            + b"\x01\x12\x00",
+        ),
+        LengthPrefixedPacket(1, 0xF0, b"\x22" * 8),
+    ],
+)
 
+
+@pytest.mark.parametrize("device_config", [CONFIG_WITH_PACKETS], ids=["drive_packets"])
 async def test_diagnostics(
     hass: HomeAssistant,
     hass_client: ClientSessionGenerator,
