@@ -1,8 +1,8 @@
 name: Bump test harness
 
-# pytest-homeassistant-custom-component ships a release per Home Assistant
-# release, so the `dev` pin is what decides which HA version the suite is tested
-# against. Left alone it goes stale within weeks.
+# pytest-homeassistant is published from Home Assistant core with one release
+# per HA release (same version number), so the `dev` pin is what decides which
+# HA version the suite is tested against. Left alone it goes stale within weeks.
 #
 # This deliberately does not use Dependabot: it is blind to PEP 735 dependency
 # groups (dependabot/dependabot-core#10847) and would try to drag `min-ha` up to
@@ -11,8 +11,11 @@ name: Bump test harness
 
 on:
   schedule:
-    # Mondays, 06:00 UTC.
-    - cron: "0 6 * * 1"
+    # Thursdays, 18:00 UTC. Home Assistant's monthly .0 lands on the first
+    # Wednesday afternoon (UTC), and pytest-homeassistant 2026.11.0 followed
+    # about 19 hours later, on Thursday 13:00 UTC. A Wednesday-night run would
+    # have missed it by a week.
+    - cron: "0 18 * * 4"
   workflow_dispatch:
 
 permissions:
@@ -34,13 +37,14 @@ jobs:
         id: bump
         run: |
           set -euo pipefail
-          before=$(grep -oE 'pytest-homeassistant-custom-component==[0-9.]+' pyproject.toml | head -1 | cut -d= -f3-)
+          before=$(grep -oE 'pytest-homeassistant\[bluetooth\]==[0-9.]+' pyproject.toml | head -1 | cut -d= -f3-)
           latest=$(uv run --no-project --with packaging python - <<'PY'
           import json, urllib.request
           from packaging.version import Version
-          url = "https://pypi.org/pypi/pytest-homeassistant-custom-component/json"
+          url = "https://pypi.org/pypi/pytest-homeassistant/json"
           data = json.load(urllib.request.urlopen(url))
-          print(max(data["releases"], key=Version))
+          # HA betas are published too; only test against stable releases.
+          print(max((v for v in data["releases"] if not Version(v).is_prerelease), key=Version))
           PY
           )
           echo "before=$before" >> "$GITHUB_OUTPUT"
@@ -59,16 +63,15 @@ jobs:
           dev_start = text.index("dev = [")
           dev_end = text.index("]", dev_start)
           block = text[dev_start:dev_end].replace(
-              f"pytest-homeassistant-custom-component=={before}",
-              f"pytest-homeassistant-custom-component=={latest}",
+              f"pytest-homeassistant[bluetooth]=={before}",
+              f"pytest-homeassistant[bluetooth]=={latest}",
           )
           path.write_text(text[:dev_start] + block + text[dev_end:])
           PY
 
-          # A plain `uv lock` keeps the unpinned component requirements at
-          # their locked versions, so they would never follow the new HA.
-          uv lock --upgrade-package aiousbwatcher --upgrade-package serialx \
-            --upgrade-package dbus-fast
+          # A plain `uv lock` keeps the unpinned dbus-fast at its locked
+          # version, so it would never follow the new HA.
+          uv lock --upgrade-package dbus-fast
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Report the Home Assistant version this pulls in
@@ -104,12 +107,12 @@ jobs:
           commit-message: |
             chore(deps): test against Home Assistant ${{ steps.ha.outputs.version }}
 
-            Bumps pytest-homeassistant-custom-component from
+            Bumps pytest-homeassistant from
             ${{ steps.bump.outputs.before }} to ${{ steps.bump.outputs.latest }}
             in the dev group only. The min-ha pin is the hacs.json floor and
             moves by hand.
           body: |
-            Bumps `pytest-homeassistant-custom-component`
+            Bumps `pytest-homeassistant`
             `${{ steps.bump.outputs.before }}` -> `${{ steps.bump.outputs.latest }}`,
             which is how the Home Assistant version under test is chosen. This
             pulls in **Home Assistant ${{ steps.ha.outputs.version }}**.

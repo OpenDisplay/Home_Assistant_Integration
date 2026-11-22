@@ -20,8 +20,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # pytest-homeassistant-custom-component pins one exact Home Assistant
-          # version per release, so the dependency group is how the HA version
+          # pytest-homeassistant pins one exact Home Assistant version per
+          # release, so the dependency group is how the HA version
           # under test is chosen. See the comments in pyproject.toml.
           - leg: latest
             group: dev
