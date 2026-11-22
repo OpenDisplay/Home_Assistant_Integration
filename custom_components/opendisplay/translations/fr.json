@@ -187,18 +187,14 @@
     "step": {
       "init": {
         "data": {
-          "blocks_per_ack": "Blocs envoyés par accusé de réception",
           "github_token": "Token GitHub (optionnel)",
-          "max_queue_size": "Nombre maximum de trames en cours de téléversement",
           "missed_cycles": "Cycles de réveil manqués avant indisponibilité",
           "probe_before_queue": "Essayer de se connecter avant de mettre en file d’attente",
           "queue_timeout_hours": "Expiration du contenu en file d’attente (heures)",
           "sleep_mode": "Gestion du mode veille profonde"
         },
         "data_description": {
-          "blocks_per_ack": "Nombre de trames d’image reçues par l’appareil avant qu’il n’envoie un accusé de réception lors d’un téléversement rapide (fenêtre glissante). Des valeurs plus élevées réduisent les allers-retours ; la valeur effective est limitée par l’appareil et le nombre maximum de trames en cours.",
           "github_token": "Utilisé uniquement pour vérifier les mises à jour du firmware via l'API GitHub, et s'applique à tous les appareils OpenDisplay. Sans token, tous les appareils et autres outils sur le même réseau partagent la limite GitHub de 60 requêtes par heure. Un token précis sans permissions supplémentaires (dépôts publics, lecture seule) augmente cette limite à 5 000. Laisser vide pour rester anonyme.",
-          "max_queue_size": "Nombre maximum de trames d’image maintenues en cours lors d’un téléversement rapide (fenêtre glissante). Des valeurs plus élevées augmentent le débit sur les liaisons lentes (proxy). Mettre à 1 pour désactiver le transfert rapide et utiliser le téléversement classique une trame à la fois.",
           "missed_cycles": "Nombre de réveils attendus que l’appareil peut manquer avant que ses entités soient marquées comme indisponibles.",
           "probe_before_queue": "Avant de mettre une image en file d’attente pour un appareil en veille, effectuer une tentative rapide de connexion au cas où il serait en fait réveillé (publicités manquées, radios toujours actives). Ajoute au maximum quelques secondes lorsque l’appareil est vraiment en veille.",
           "queue_timeout_hours": "Durée pendant laquelle le contenu en file d’attente pour un appareil en veille attend un réveil avant d’expirer.",

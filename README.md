@@ -69,8 +69,10 @@ announced itself over mDNS, falling back to Bluetooth otherwise.
 Devices are discovered automatically once they are in range, over Bluetooth or
 over mDNS if they are on WiFi. Confirm the discovery to add one.
 
-If a device has encryption enabled you are asked for its 32-character key. Home
-Assistant prompts you again if the key is ever rejected.
+If a device has encryption enabled you are asked for its 32-character key: the
+firmware 2.x key, or on firmware 3.0 the key of a claimed display. A 2.x key keeps
+working after the update to 3.0. Home Assistant prompts you again if the key is
+ever rejected.
 
 Each device has options, under **Configure** on the device page:
 
@@ -80,7 +82,6 @@ Each device has options, under **Configure** on the device page:
 | **Missed cycles** | how many wakes may be missed before entities are marked unavailable |
 | **Queue timeout** | how long queued content waits for a wake before it expires |
 | **Probe before queueing** | try a quick connection first, so content reaches an awake tag immediately |
-| **Blocks per ack**, **Max queue size** | Bluetooth transfer tuning; leave these alone unless transfers are unreliable |
 
 ## Usage
 

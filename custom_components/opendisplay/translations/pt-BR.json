@@ -187,18 +187,14 @@
     "step": {
       "init": {
         "data": {
-          "blocks_per_ack": "Blocos enviados por reconhecimento",
           "github_token": "Token do GitHub (opcional)",
-          "max_queue_size": "Máximo de quadros de upload em voo",
           "missed_cycles": "Ciclos de ativação perdidos antes de indisponível",
           "probe_before_queue": "Tentar conectar antes de enfileirar",
           "queue_timeout_hours": "Tempo limite de conteúdo enfileirado (horas)",
           "sleep_mode": "Gerenciamento de modo de sono profundo"
         },
         "data_description": {
-          "blocks_per_ack": "Quantos quadros de imagem o dispositivo recebe antes de enviar um reconhecimento durante um upload rápido (janela deslizante). Valores maiores reduzem viagens de ida e volta; o valor efetivo é limitado pelo dispositivo e pelo máximo de quadros em voo.",
           "github_token": "Usado apenas para verificar atualizações de firmware na API do GitHub, e se aplica a todos os dispositivos OpenDisplay. Sem um token, todos os dispositivos e outras ferramentas na mesma rede compartilham o limite do GitHub de 60 requisições por hora. Um token específico, sem permissões extras (repositórios públicos, somente leitura), aumenta para 5.000. Deixe vazio para permanecer anônimo.",
-          "max_queue_size": "Número máximo de quadros de imagem mantidos em voo simultaneamente durante um upload rápido (janela deslizante). Valores maiores aumentam a taxa em conexões lentas (proxy). Defina como 1 para desativar a transferência rápida e usar o upload clássico quadro a quadro.",
           "missed_cycles": "Quantas ativações esperadas o dispositivo pode perder antes que suas entidades sejam marcadas como indisponíveis.",
           "probe_before_queue": "Antes de enfileirar uma imagem para um dispositivo em sono, faça uma tentativa rápida de conexão caso ele esteja acordado (anúncios perdidos, rádios sempre ligados). Adiciona no máximo alguns segundos quando o dispositivo realmente está dormindo.",
           "queue_timeout_hours": "Quanto tempo o conteúdo enfileirado para um dispositivo em sono espera por uma ativação antes de expirar.",

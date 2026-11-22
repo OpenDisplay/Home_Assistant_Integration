@@ -92,7 +92,6 @@ async def test_update_pending_turns_on_when_content_is_queued(
         prepared=(b"frame", None, MagicMock()),
         refresh_mode=MagicMock(),
         partial_state=MagicMock(),
-        use_measured_palettes=False,
         preview_jpeg=b"jpeg",
         device_id=None,
     )
@@ -121,7 +120,6 @@ async def test_update_pending_survives_a_dark_device(
         prepared=(b"frame", None, MagicMock()),
         refresh_mode=MagicMock(),
         partial_state=MagicMock(),
-        use_measured_palettes=False,
         preview_jpeg=b"jpeg",
         device_id=None,
     )

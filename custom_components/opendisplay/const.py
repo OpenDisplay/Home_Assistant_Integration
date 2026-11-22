@@ -72,16 +72,6 @@ SETUP_DEADLINE_S = 60.0  # entry-setup active connect (has sleepy-cache fallback
 CONF_PROBE_BEFORE_QUEUE = "probe_before_queue"
 DEFAULT_PROBE_BEFORE_QUEUE = True
 
-# BLE sliding-window pipe transfer (py-opendisplay pipe client). Frames sent
-# per acknowledgment (QUIC-style N) and maximum upload frames in flight
-# (window W). max_queue_size == 1 disables fast transfer (legacy
-# stop-and-wait only).
-CONF_BLOCKS_PER_ACK = "blocks_per_ack"
-DEFAULT_BLOCKS_PER_ACK = 4
-
-CONF_MAX_QUEUE_SIZE = "max_queue_size"
-DEFAULT_MAX_QUEUE_SIZE = 16
-
 # Optional GitHub token for the firmware update checks. Anonymous GitHub API
 # calls share a 60 requests/hour budget per public IP; a token raises that to
 # 5,000/hour. A token set on any OpenDisplay entry is used for all of them.

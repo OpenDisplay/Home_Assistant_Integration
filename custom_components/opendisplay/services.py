@@ -60,6 +60,7 @@ from opendisplay import (
     PartialState,
     RefreshMode,
     Rotation,
+    Sec2KeyRequiredError,
     prepare_image,
     preview_image,
 )
@@ -68,15 +69,7 @@ if TYPE_CHECKING:
     from . import OpenDisplayConfigEntry
 
 from .ble_lock import ble_connection
-from .const import (
-    CONF_BLOCKS_PER_ACK,
-    CONF_ENCRYPTION_KEY,
-    CONF_MAX_QUEUE_SIZE,
-    DEFAULT_BLOCKS_PER_ACK,
-    DEFAULT_MAX_QUEUE_SIZE,
-    DOMAIN,
-    SIGNAL_IMAGE_UPDATED,
-)
+from .const import CONF_ENCRYPTION_KEY, DOMAIN, SIGNAL_IMAGE_UPDATED
 from .delivery import DELIVERY_DEADLINE_S, DeliveryReceipt
 from .transport import async_run_with_fallback
 
@@ -430,37 +423,33 @@ class _DeviceUnavailable(Exception):
     """
 
 
-# Probe budget for a probably-asleep tag: one connect attempt, short timeout.
-# 5 s is >2x the observed 1-3 s connect-during-window latency (plus proxy
-# slack), so a genuinely awake tag connects comfortably, while a dark ESP32
-# (radio fully off in timer deep sleep) costs at most ~5 s before queuing —
-# vs the ~40 s default budget (4 attempts x 10 s). Deliberately below both the
-# 10 s wake window and the 15 s freshness horizon (wake_window_s +
-# FRESHNESS_SLACK_S), so a probe triggered by a just-missed advert still lands
-# inside the window it is betting on.
-PROBE_CONNECT_TIMEOUT_S = 5.0
-PROBE_MAX_ATTEMPTS = 1
+# Probe budget for a probably-asleep tag: a deadline on the whole connect (link,
+# firmware version, identity, security, config). The link takes 1-3 s inside a
+# wake window and the reads about as long again (plus proxy slack), so an awake
+# tag connects comfortably, while a dark ESP32 (radio fully off in timer deep
+# sleep) costs at most ~8 s before queuing — vs the ~40 s default budget
+# (4 attempts x 10 s). Deliberately below both the 10 s wake window and the 15 s
+# freshness horizon (wake_window_s + FRESHNESS_SLACK_S), so a probe triggered by
+# a just-missed advert still lands inside the window it is betting on.
+PROBE_CONNECT_DEADLINE_S = 8.0
 
 
 async def _async_connect_and_run(
     hass: HomeAssistant,
     entry: OpenDisplayConfigEntry,
     action: Callable[[OpenDisplayDevice], Awaitable[None]],
-    use_measured_palettes: bool = False,
     reraise_ble: bool = False,
     *,
-    connect_timeout: float | None = None,
-    max_attempts: int | None = None,
+    connect_deadline: float | None = None,
 ) -> None:
     """Resolve BLE device, open a connection, run action, handle auth errors.
 
     When ``reraise_ble`` is set, a missing connectable device or a BLE
     connect/timeout failure raises ``_DeviceUnavailable`` instead of a
     translated ``device_not_found``/``upload_error``, so the caller can defer
-    the work to the delivery queue. ``connect_timeout``/``max_attempts``
-    override the library's connect budget (10 s x 4 attempts) — used by the
-    probe path to bound a likely-doomed attempt; ``None`` keeps the library
-    defaults. All other behavior is unchanged.
+    the work to the delivery queue. ``connect_deadline`` bounds the connect —
+    used by the probe path to give up quickly on a likely-doomed attempt;
+    ``None`` keeps the library's own budget (10 s x 4 attempts).
     """
     address = entry.unique_id
     assert address is not None
@@ -509,24 +498,6 @@ async def _async_connect_and_run(
             translation_domain=DOMAIN, translation_key="authentication_error"
         ) from err
 
-    base_kwargs: dict[str, Any] = {
-        "config": entry.runtime_data.device_config,
-        "use_measured_palettes": use_measured_palettes,
-        "encryption_key": encryption_key,
-    }
-    if connect_timeout is not None:
-        base_kwargs["timeout"] = connect_timeout
-    if max_attempts is not None:
-        base_kwargs["max_attempts"] = max_attempts
-    # Sliding-window pipe-transfer tuning (max_queue_size == 1 disables it).
-    options = entry.options
-    base_kwargs["blocks_per_ack"] = options.get(
-        CONF_BLOCKS_PER_ACK, DEFAULT_BLOCKS_PER_ACK
-    )
-    base_kwargs["max_queue_size"] = options.get(
-        CONF_MAX_QUEUE_SIZE, DEFAULT_MAX_QUEUE_SIZE
-    )
-
     try:
         # Serialize all access to this tag: the device has a single link (BLE or
         # the one-client WiFi/LAN endpoint) and the library has no per-address
@@ -549,8 +520,9 @@ async def _async_connect_and_run(
                 hass,
                 entry,
                 action,
-                base_kwargs=base_kwargs,
+                encryption_key=encryption_key,
                 ble_unavailable=_ble_unavailable,
+                connect_deadline=connect_deadline,
             )
     except TimeoutError as err:
         raise HomeAssistantError(
@@ -560,7 +532,11 @@ async def _async_connect_and_run(
                 "error": f"operation exceeded {DELIVERY_DEADLINE_S:.0f}s deadline"
             },
         ) from err
-    except (AuthenticationFailedError, AuthenticationRequiredError) as err:
+    except (
+        AuthenticationFailedError,
+        AuthenticationRequiredError,
+        Sec2KeyRequiredError,
+    ) as err:
         _LOGGER.warning(
             "%s: device rejected the encryption key (%s); reauthentication required",
             address,
@@ -694,7 +670,6 @@ async def _async_send_image(
             prepared=prepared,
             refresh_mode=refresh_mode,
             partial_state=state,
-            use_measured_palettes=use_measured_palettes,
             preview_jpeg=jpeg,
             device_id=device_id,
         )
@@ -709,12 +684,12 @@ async def _async_send_image(
     # "probe") in case the tag is actually awake: its wake adverts may have
     # been missed by the scanner, and Silabs tags advertise continuously even
     # when their power config looks sleepy. A dark ESP32 costs at most
-    # ~PROBE_CONNECT_TIMEOUT_S before falling back to the queue. HA drops the
+    # ~PROBE_CONNECT_DEADLINE_S before falling back to the queue. HA drops the
     # connectable BLEDevice ~3-5 min after the last advert, so a long-dark or
     # never-seen tag short-circuits to the queue at near-zero cost (no
     # BLEDevice -> _DeviceUnavailable without any radio traffic).
     probing = False
-    connect_kwargs: dict[str, Any] = {}
+    connect_deadline: float | None = None
     if sleepy:
         last_seen = (
             runtime.coordinator.data.last_seen if runtime.coordinator.data else None
@@ -723,19 +698,15 @@ async def _async_send_image(
             if not profile.probe_before_queue:
                 return _queue()
             probing = True
-            connect_kwargs = {
-                "connect_timeout": PROBE_CONNECT_TIMEOUT_S,
-                "max_attempts": PROBE_MAX_ATTEMPTS,
-            }
+            connect_deadline = PROBE_CONNECT_DEADLINE_S
 
     try:
         await _async_connect_and_run(
             hass,
             entry,
             _upload,
-            use_measured_palettes=use_measured_palettes,
             reraise_ble=sleepy,
-            **connect_kwargs,
+            connect_deadline=connect_deadline,
         )
     except _DeviceUnavailable:
         # The device was dark, dropped, or refused the link; defer.

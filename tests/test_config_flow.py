@@ -16,6 +16,7 @@ from opendisplay import (
     BLEConnectionError,
     BLETimeoutError,
     OpenDisplayError,
+    Sec2KeyRequiredError,
 )
 import pytest
 from pytest_homeassistant.common import MockConfigEntry, async_fire_time_changed
@@ -223,7 +224,7 @@ async def test_bluetooth_confirm_connection_timeout(
     async def _never_returns(*args: object, **kwargs: object) -> None:
         await asyncio.Event().wait()
 
-    mock_opendisplay_device.read_firmware_version.side_effect = _never_returns
+    mock_opendisplay_device.__aenter__.side_effect = _never_returns
 
     result = await hass.config_entries.flow.async_init(
         DOMAIN,
@@ -365,13 +366,19 @@ async def test_user_step_already_configured(
     assert result["reason"] == "no_devices_found"
 
 
+@pytest.mark.parametrize(
+    "needs_key",
+    [AuthenticationRequiredError("auth required"), Sec2KeyRequiredError(0)],
+    ids=["2x", "sec2"],
+)
 async def test_bluetooth_discovery_encrypted_device(
     hass: HomeAssistant,
     mock_opendisplay_device: MagicMock,
+    needs_key: Exception,
 ) -> None:
     """Test Bluetooth discovery prompts for key when device requires encryption."""
     mock_opendisplay_device.__aenter__.side_effect = [
-        AuthenticationRequiredError("auth required"),
+        needs_key,
         mock_opendisplay_device,
     ]
 
@@ -431,14 +438,20 @@ async def test_bluetooth_discovery_encrypted_invalid_key_format(
     assert result["type"] is FlowResultType.CREATE_ENTRY
 
 
+@pytest.mark.parametrize(
+    "rejected",
+    [AuthenticationFailedError("wrong key"), Sec2KeyRequiredError(1)],
+    ids=["2x", "sec2"],
+)
 async def test_bluetooth_discovery_encrypted_wrong_key(
     hass: HomeAssistant,
     mock_opendisplay_device: MagicMock,
+    rejected: Exception,
 ) -> None:
     """Test encryption_key step shows error on wrong key, then succeeds."""
     mock_opendisplay_device.__aenter__.side_effect = [
         AuthenticationRequiredError("auth required"),
-        AuthenticationFailedError("wrong key"),
+        rejected,
         mock_opendisplay_device,
     ]
 

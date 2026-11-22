@@ -1741,7 +1741,7 @@ min-ha = [
 [package.metadata]
 requires-dist = [
     { name = "odl-renderer", specifier = "==0.5.14" },
-    { name = "py-opendisplay", extras = ["silabs-ota"], specifier = "==8.2.0" },
+    { name = "py-opendisplay", extras = ["silabs-ota"], specifier = "==8.3.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -1996,7 +1996,7 @@ wheels = [
 
 [[package]]
 name = "py-opendisplay"
-version = "8.2.0"
+version = "8.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bleak" },
@@ -2006,9 +2006,9 @@ dependencies = [
     { name = "numpy" },
     { name = "pillow" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a4/da/269bda3e08f5947cc3462f09a92ae9e92df84ad08e12a479de053c75199a/py_opendisplay-8.2.0.tar.gz", hash = "sha256:199dab45f4834b7353a6b26700d7482321f254aee936d53b27cb76935f74df21", size = 746521, upload-time = "2026-11-21T20:54:35.727Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/e4/431d644743477450a82117a6a899ffd7b8f326c02371fe6fa63d81e52e38/py_opendisplay-8.3.1.tar.gz", hash = "sha256:9b965c5a7e9b4ec1a459e66c10ea5872cb8d179bb98e6cc567c795774a7fa5ba", size = 750666, upload-time = "2026-11-22T22:27:20.223Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/da/8d/5eaa3f9622460203fd937671b75c6e6cbc6cc15407c73ec7c4dfdcb09bcc/py_opendisplay-8.2.0-py3-none-any.whl", hash = "sha256:840f5d3da3270ceedffda67bb648abd40686b95f521e3a5ea48171bf7f6c5ed8", size = 344860, upload-time = "2026-11-21T20:54:34.201Z" },
+    { url = "https://files.pythonhosted.org/packages/25/19/da31a33fcb4b2a4f14bfbdda94b90d4489f052adca00caa4693873f23fc3/py_opendisplay-8.3.1-py3-none-any.whl", hash = "sha256:a4a4e3c7f6dc6499fc6d3fa25a748a6badd7e36d0a2e6b49e8935fc83b781a8b", size = 346024, upload-time = "2026-11-22T22:27:18.879Z" },
 ]
 
 [package.optional-dependencies]

@@ -462,8 +462,8 @@ _UNSET = object()
 def connects_to(device: object) -> Iterator[MagicMock]:
     """Patch the transport so a connection attempt yields ``device``.
 
-    Yields the OpenDisplayDevice mock, whose call kwargs say which transport
-    was chosen: a WiFi attempt passes ``host``, a BLE one ``mac_address``.
+    Yields the ``connect`` mock, whose call kwargs say which transport was
+    chosen: a WiFi attempt passes ``host``, a BLE one ``address``.
     """
     with _patched_transport(lambda **kw: _async_ctx(device)) as constructor:
         yield constructor
@@ -510,10 +510,25 @@ def ble_unreachable() -> Iterator[None]:
     from custom_components.opendisplay import transport as transport_mod
 
     with (
-        patch.object(transport_mod, "OpenDisplayDevice"),
+        patch.object(transport_mod, "connect"),
         patch.object(transport_mod, "async_ble_device_from_address", return_value=None),
     ):
         yield
+
+
+def _connected(inner):
+    """Wrap a context yielding the legacy device as ``connect()`` does: ``dev.legacy``."""
+    ctx = MagicMock()
+
+    async def _aenter(*_args):
+        return MagicMock(legacy=await inner.__aenter__())
+
+    async def _aexit(*args):
+        return await inner.__aexit__(*args)
+
+    ctx.__aenter__ = _aenter
+    ctx.__aexit__ = _aexit
+    return ctx
 
 
 @contextmanager
@@ -528,7 +543,9 @@ def _patched_transport(factory, ble_device: object = _UNSET) -> Iterator[MagicMo
             return_value=MagicMock() if ble_device is _UNSET else ble_device,
         ),
         patch.object(
-            transport_mod, "OpenDisplayDevice", side_effect=factory
+            transport_mod,
+            "connect",
+            side_effect=lambda **kw: _connected(factory(**kw)),
         ) as constructor,
     ):
         yield constructor
