@@ -489,5 +489,18 @@
       },
       "name": "Draw custom image"
     }
+  },
+  "issues": {
+    "key_rotated": {
+      "title": "The key of {name} was replaced",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "New key for {name}",
+            "description": "{name} was updated from firmware 2.x and still used its old key. Home Assistant replaced it with a new key the display generated, because 2.x keys are often weak or were shared in links.\n\nOther apps that use this display, such as the OpenDisplay website or the CLI, need the new key:\n\n`{key}`\n\nSelect **Submit** once you have copied it. Home Assistant already uses the new key."
+          }
+        }
+      }
+    }
   }
 }

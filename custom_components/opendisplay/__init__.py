@@ -43,6 +43,7 @@ from .ble_lock import async_get_ble_lock, ble_connection
 from .const import CONF_CACHED_STATE, CONF_ENCRYPTION_KEY, DOMAIN, SETUP_DEADLINE_S
 from .coordinator import OpenDisplayCoordinator
 from .delivery import DeliveryManager
+from .keystore import EntryKeyStore
 from .services import async_setup_services
 from .sleep import SleepProfile
 
@@ -260,6 +261,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
                         address=address,
                         ble_device=ble_device,
                         encryption_key=encryption_key,
+                        # Lets the library replace a key migrated from 2.x (§ 10.5).
+                        key_store=EntryKeyStore(hass, entry),
                     ) as device,
                 ):
                     fw = device.profile.firmware

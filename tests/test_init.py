@@ -24,6 +24,7 @@ from custom_components.opendisplay.const import (
     CONF_ENCRYPTION_KEY,
     DOMAIN,
 )
+from custom_components.opendisplay.keystore import EntryKeyStore
 
 from . import (
     DEVICE_CONFIG,
@@ -370,3 +371,19 @@ async def test_platform_selection(
     await hass.async_block_till_done()
 
     assert set(_get_platforms(mock_config_entry.runtime_data)) == expected
+
+
+async def test_setup_hands_the_entry_key_store_to_connect(
+    hass: HomeAssistant,
+    mock_encrypted_config_entry: MockConfigEntry,
+    mock_opendisplay_connect: MagicMock,
+) -> None:
+    """The library can rotate a migrated key only into a store that keeps it."""
+    mock_encrypted_config_entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(mock_encrypted_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    store = mock_opendisplay_connect.call_args.kwargs["key_store"]
+    assert isinstance(store, EntryKeyStore)
+    assert store.keys_to_try("any") == [bytes.fromhex(ENCRYPTION_KEY)]

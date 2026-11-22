@@ -41,6 +41,7 @@ from .const import (
     DEFAULT_LAN_PORT,
     MDNS_FRESHNESS_WINDOW_S,
 )
+from .keystore import EntryKeyStore
 
 if TYPE_CHECKING:
     from . import OpenDisplayConfigEntry
@@ -142,6 +143,7 @@ def record_last_transport(entry: OpenDisplayConfigEntry, transport: str) -> None
 async def _connect_and_run(
     action: Callable[[OpenDisplayDevice], Awaitable[None]],
     encryption_key: bytes | None,
+    key_store: EntryKeyStore,
     connect_deadline: float | None,
     **addressing: Any,
 ) -> None:
@@ -156,7 +158,11 @@ async def _connect_and_run(
         try:
             async with deadline:
                 device = await stack.enter_async_context(
-                    connect(encryption_key=encryption_key, **addressing)
+                    connect(
+                        encryption_key=encryption_key,
+                        key_store=key_store,
+                        **addressing,
+                    )
                 )
         except TimeoutError as err:
             if not deadline.expired():
@@ -193,12 +199,14 @@ async def async_run_with_fallback(
     address = entry.unique_id
     assert address is not None
     resolved = resolve_transport(entry)
+    key_store = EntryKeyStore(hass, entry)
 
     if resolved.use_wifi:
         try:
             await _connect_and_run(
                 action,
                 encryption_key,
+                key_store,
                 connect_deadline,
                 host=resolved.host,
                 port=resolved.port,
@@ -223,6 +231,7 @@ async def async_run_with_fallback(
     await _connect_and_run(
         action,
         encryption_key,
+        key_store,
         connect_deadline,
         address=address,
         ble_device=ble_device,

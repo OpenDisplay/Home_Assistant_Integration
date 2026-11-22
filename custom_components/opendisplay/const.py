@@ -4,6 +4,10 @@ from datetime import timedelta
 
 DOMAIN = "opendisplay"
 CONF_ENCRYPTION_KEY = "encryption_key"
+# Firmware 3.0 keys that are not confirmed yet (a rotation cut short), newest last,
+# and the device uid the confirmed key is bound to (SECURITY_V2 § 4.3, § 8.8).
+CONF_KEY_CANDIDATES = "key_candidates"
+CONF_DEVICE_UID = "device_uid"
 
 # --- WiFi (LAN) transport ---------------------------------------------------
 # Entry-data keys for a WiFi-reachable device (protocol 2.2 SECTION 9). Reuse

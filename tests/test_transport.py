@@ -29,6 +29,7 @@ from custom_components.opendisplay.const import (
     DEFAULT_LAN_PORT,
     MDNS_FRESHNESS_WINDOW_S,
 )
+from custom_components.opendisplay.keystore import EntryKeyStore
 from custom_components.opendisplay.transport import (
     TRANSPORT_BLE,
     TRANSPORT_WIFI,
@@ -337,3 +338,4 @@ async def test_the_key_reaches_connect(
         )
 
     assert calls[0]["encryption_key"] == b"\x01" * 16
+    assert isinstance(calls[0]["key_store"], EntryKeyStore)
