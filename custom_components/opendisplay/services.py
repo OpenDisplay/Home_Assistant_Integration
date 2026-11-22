@@ -178,12 +178,35 @@ SCHEMA_UPLOAD_IMAGE = vol.Schema(
 )
 
 
+def _is_y_alias(key: Any) -> bool:
+    """Return whether a payload key is an unquoted `y` that YAML read as true."""
+    return key is True or key in {"true", "True"}
+
+
+def _restore_y_key(element: Any) -> Any:
+    """Return an element with a boolean-parsed `y` key named `y` again."""
+    if not isinstance(element, dict):
+        return element
+    restored = {k: v for k, v in element.items() if not _is_y_alias(k)}
+    aliased = [v for k, v in element.items() if _is_y_alias(k)]
+    return {"y": aliased[0], **restored} if aliased else restored
+
+
+def _restore_y_keys(payload: list[Any]) -> list[Any]:
+    """Undo YAML 1.1 turning an unquoted `y:` into a boolean key.
+
+    The action editor can deliver `y: 10` as `true: 10`, which would otherwise
+    reach the renderer with no y coordinate at all.
+    """
+    return [_restore_y_key(element) for element in payload]
+
+
 SCHEMA_DRAWCUSTOM = vol.Schema(
     {
         vol.Optional("device_id", default=[]): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional("label_id", default=[]): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional("area_id", default=[]): vol.All(cv.ensure_list, [cv.string]),
-        vol.Required("payload"): list,
+        vol.Required("payload"): vol.All(list, _restore_y_keys),
         vol.Optional("background", default="white"): cv.string,
         vol.Optional("rotate", default=0): vol.All(
             vol.Coerce(int), vol.In([0, 90, 180, 270])
