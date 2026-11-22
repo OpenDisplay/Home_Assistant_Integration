@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 
 from homeassistant.const import Platform
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.opendisplay.const import (
     CONF_MISSED_CYCLES,

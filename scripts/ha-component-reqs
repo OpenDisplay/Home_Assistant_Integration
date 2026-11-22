@@ -9,8 +9,9 @@ depend on -- have to be pinned explicitly in the pyproject dependency groups.
 Getting this wrong shows up as an ImportError deep inside homeassistant
 (e.g. `cannot import name 'BluetoothReachabilityIntent' from 'habluetooth'`).
 
-Run this after bumping a pytest-homeassistant-custom-component pin, and paste
-the output into the matching dependency group in pyproject.toml.
+Run this after bumping a pytest-homeassistant pin. Its `bluetooth` extra
+covers the bluetooth stack; anything printed here that it does not cover goes
+into the matching dependency group in pyproject.toml.
 
     scripts/ha-component-reqs              # against the synced .venv
     scripts/ha-component-reqs path/to.whl  # against a homeassistant wheel

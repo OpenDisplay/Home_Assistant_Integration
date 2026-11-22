@@ -2,7 +2,7 @@
 name = "opendisplay-homeassistant"
 version = "0.0.0"
 description = "OpenDisplay Home Assistant custom integration"
-# 3.14.2 is homeassistant's floor; PHCC's own metadata only claims >=3.14.
+# Home Assistant's own floor.
 requires-python = ">=3.14.2"
 
 # Mirrors custom_components/opendisplay/manifest.json "requirements". Everything
@@ -14,52 +14,42 @@ dependencies = [
 ]
 
 [dependency-groups]
-# One group per CI matrix leg. pytest-homeassistant-custom-component pins an
-# exact homeassistant version (and pytest, syrupy, freezegun, SQLAlchemy, ...)
-# per release, so never re-pin those here -- picking the PHCC version *is*
+# One group per CI matrix leg. pytest-homeassistant is published from Home
+# Assistant core with one release per HA release, and its version *is* the HA
+# version: it pins homeassistant (and pytest, syrupy, freezegun, ...) exactly,
+# so never re-pin those here. Picking the pytest-homeassistant version is
 # picking the HA version being tested against.
 #
-#   0.13.356 -> homeassistant 2026.8.2  (latest)
-#   0.13.344 -> homeassistant 2026.7.0  (the hacs.json floor)
+#   dev     latest HA
+#   min-ha  the hacs.json floor (2026.11.0 is the first pytest-homeassistant)
 #
-# The three extras below are Home Assistant *component* requirements. HA
-# installs those at runtime from each component's own manifest.json, so they
-# are invisible to uv -- but the tests set up the real bluetooth, http and
-# recorder components, so they have to be installed. These three are the ones
-# that are not already pulled in transitively by py-opendisplay/PHCC:
+# The `bluetooth` extra pins the Home Assistant *component* requirements of the
+# bluetooth stack (habluetooth, serialx, aiousbwatcher, ...). HA installs those
+# at runtime from each component's own manifest.json, so they are invisible to
+# uv, but the tests set up the real bluetooth component. If a future HA bump
+# adds another such import, `scripts/ha-component-reqs` prints the full
+# component requirement set to compare against.
 #
-#   aiousbwatcher, serialx  components/bluetooth imports components/usb, which
-#                           imports both at module scope
-#   dbus-fast               PHCC's mock_bluetooth_adapters forces the *Linux*
-#                           adapter path even on macOS, so BlueZDBusObjects is
-#                           constructed for real; without it bluetooth setup
-#                           dies on `NoneType is not callable`
-#
-# They are deliberately unpinned: uv.lock is what pins them for CI, and letting
-# the resolver track the PHCC-pinned HA is what keeps the two legs honest.
-# If a future HA bump adds another such import, `scripts/ha-component-reqs`
-# prints the full component requirement set to compare against.
+#   dbus-fast  mock_bluetooth_adapters forces the *Linux* adapter path even on
+#              macOS, so BlueZDBusObjects is constructed for real; without it
+#              bluetooth setup dies on `NoneType is not callable`. The extra
+#              only pulls it in on Linux, so macOS runs need it listed here.
+#              Unpinned: uv.lock pins it.
 dev = [
-    "pytest-homeassistant-custom-component==0.13.372",
+    "pytest-homeassistant[bluetooth]==2026.11.2",
+    # Not a pytest-homeassistant dependency (PHCC used to pull it in).
+    "pytest-cov==7.1.0",
     "ruff==0.15.17",
     "mypy==1.18.2",
-    "aiousbwatcher",
-    "serialx",
     "dbus-fast",
 ]
 min-ha = [
-    "pytest-homeassistant-custom-component==0.13.344",
+    "pytest-homeassistant[bluetooth]==2026.11.0",
+    # Not a pytest-homeassistant dependency (PHCC used to pull it in).
+    "pytest-cov==7.1.0",
     "ruff==0.15.17",
     "mypy==1.18.2",
-    "aiousbwatcher",
-    # Pinned to what 2026.7.0's usb manifest asks for. The latest leg needs a
-    # newer serialx whose esphome transport no longer imports against the
-    # aioesphomeapi this leg resolves, so the two legs cannot share a version.
-    "serialx==1.8.2",
     "dbus-fast",
-    # 2026.7.0 only: components/usb imports serialx's esphome transport
-    # eagerly (2026.8.x defers it), which drags in aioesphomeapi.
-    "aioesphomeapi",
 ]
 
 [tool.uv]
@@ -71,8 +61,10 @@ conflicts = [[{ group = "dev" }, { group = "min-ha" }]]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["."]
 norecursedirs = [".git", ".venv", "config"]
-addopts = "--cov=custom_components.opendisplay --cov-report=term-missing"
+addopts = "-p no:respx --cov=custom_components.opendisplay --cov-report=term-missing"
 
 [tool.coverage.run]
 source = ["custom_components/opendisplay"]

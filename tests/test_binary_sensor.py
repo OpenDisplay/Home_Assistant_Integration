@@ -7,12 +7,12 @@ from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
+from pytest_homeassistant.components.bluetooth import inject_bluetooth_service_info
 
 from custom_components.opendisplay.const import DEFAULT_LAN_PORT
 
 from . import DEVICE_CONFIG, VALID_SERVICE_INFO, make_wifi_device_config
-from .bluetooth import inject_bluetooth_service_info
 
 pytestmark = pytest.mark.usefixtures("entity_registry_enabled_by_default")
 

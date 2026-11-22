@@ -18,10 +18,7 @@ from opendisplay import (
     OpenDisplayError,
 )
 import pytest
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    async_fire_time_changed,
-)
+from pytest_homeassistant.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.opendisplay.const import (
     CONF_ENCRYPTION_KEY,
