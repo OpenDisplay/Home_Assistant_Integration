@@ -20,8 +20,9 @@ from homeassistant.helpers.entity_component import async_update_entity
 from opendisplay import AuthenticationFailedError, BLEConnectionError
 from opendisplay.ota import OTAError
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+from pytest_homeassistant.common import MockConfigEntry
+from pytest_homeassistant.components.bluetooth import inject_bluetooth_service_info
+from pytest_homeassistant.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.opendisplay.const import CONF_GITHUB_TOKEN
 from custom_components.opendisplay.update import _format_firmware_version
@@ -33,7 +34,6 @@ from . import (
     VALID_SERVICE_INFO,
     make_ota_device_config,
 )
-from .bluetooth import inject_bluetooth_service_info
 
 ENTITY = "update.opendisplay_1234_firmware"
 LATEST = "v9.9.9"

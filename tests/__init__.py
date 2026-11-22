@@ -32,8 +32,7 @@ from opendisplay.models.config import (
 )
 from opendisplay.models.config_json import config_to_json
 from opendisplay.models.enums import ICType, PowerMode, SensorType
-
-from tests.bluetooth import generate_ble_device
+from pytest_homeassistant.components.bluetooth import generate_ble_device
 
 OPENDISPLAY_MANUFACTURER_ID = 9286  # 0x2446
 

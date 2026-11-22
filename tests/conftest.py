@@ -9,10 +9,9 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from opendisplay import GlobalConfig
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
-from pytest_homeassistant_custom_component.typing import RecorderInstanceContextManager
-from syrupy.assertion import SnapshotAssertion
+from pytest_homeassistant.common import MockConfigEntry
+from pytest_homeassistant.components.bluetooth import generate_ble_device
+from pytest_homeassistant.typing import RecorderInstanceContextManager
 
 from custom_components.opendisplay import BASE_PLATFORMS, FLEX_PLATFORMS
 from custom_components.opendisplay.const import CONF_ENCRYPTION_KEY, DOMAIN
@@ -28,7 +27,6 @@ from . import (
     make_binary_inputs,
     make_button_device_config,
 )
-from .bluetooth import generate_ble_device
 
 # Every module that imports these by name needs its own patch, since patching
 # the source module would not reach the already-bound references.
@@ -46,31 +44,6 @@ _BLE_DEVICE_NAMESPACES = (
     "custom_components.opendisplay.transport.async_ble_device_from_address",
     "custom_components.opendisplay.update.async_ble_device_from_address",
 )
-
-
-# PHCC provides this too, but whether its plugin fixture wins over syrupy's own
-# depends on plugin load order, which is not stable across the two dependency
-# groups or across platforms: without it snapshots resolve to __snapshots__/
-# instead of snapshots/ and every snapshot reads as missing. Home Assistant core
-# defines it in its own conftest for the same reason.
-@pytest.fixture
-def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
-    """Use the Home Assistant snapshot extension."""
-    return snapshot.use_extension(HomeAssistantSnapshotExtension)
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
-    """Load custom_components/opendisplay as a custom integration."""
-
-
-# homeassistant 2026.7-2026.8 leaves a HaScanner expiry timer behind when the
-# bluetooth config entry unloads, which the teardown check fails on. Drop this
-# once both PHCC pins are past the release that cleans it up.
-@pytest.fixture(autouse=True)
-def expected_lingering_timers() -> bool:
-    """Tolerate the bluetooth scanner's expiry timer at teardown."""
-    return True
 
 
 @pytest.fixture(autouse=True)
@@ -92,17 +65,6 @@ async def mock_recorder_before_hass(
 @pytest.fixture(autouse=True)
 def mock_recorder(recorder_mock: object) -> None:
     """Give every test an in-memory recorder instance."""
-
-
-# Lives in core's tests/components/conftest.py, which PHCC does not ship.
-@pytest.fixture
-def entity_registry_enabled_by_default() -> Generator[None]:
-    """Ensure entities that are disabled by default get registered anyway."""
-    with patch(
-        "homeassistant.helpers.entity.Entity.entity_registry_enabled_default",
-        return_value=True,
-    ):
-        yield
 
 
 @contextmanager

@@ -15,7 +15,7 @@ from opendisplay import (
     OpenDisplayError,
 )
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.opendisplay import BASE_PLATFORMS, FLEX_PLATFORMS, _get_platforms
 from custom_components.opendisplay.const import (

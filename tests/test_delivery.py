@@ -7,6 +7,7 @@ Home Assistant's clock rather than by hand-calling a captured callback.
 """
 
 import asyncio
+from collections.abc import AsyncGenerator
 from datetime import timedelta
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -22,11 +23,12 @@ from opendisplay import (
     RefreshMode,
 )
 import pytest
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     MockConfigEntry,
     async_capture_events,
     async_fire_time_changed,
 )
+from pytest_homeassistant.components.bluetooth import inject_bluetooth_service_info
 
 from custom_components.opendisplay import delivery as delivery_mod
 from custom_components.opendisplay.binary_sensor import OpenDisplayUpdatePendingSensor
@@ -50,7 +52,6 @@ from . import (
     make_sleepy_device_config,
     make_v1_service_info,
 )
-from .bluetooth import inject_bluetooth_service_info
 
 # Every test here is about a tag that sleeps: a device that is always awake
 # delivers immediately and never queues anything.
@@ -73,9 +74,15 @@ async def entry(mock_config_entry: MockConfigEntry, setup_entry) -> MockConfigEn
 
 
 @pytest.fixture
-def manager(hass: HomeAssistant, entry: MockConfigEntry) -> DeliveryManager:
+async def manager(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> AsyncGenerator[DeliveryManager]:
     """Return a manager bound to the real entry, as async_setup_entry builds one."""
-    return DeliveryManager(hass, entry)
+    mgr = DeliveryManager(hass, entry)
+    yield mgr
+    # Unloading the entry shuts down the entry's own manager, not this one, so
+    # its expiry timer would otherwise outlive the test.
+    await mgr.async_shutdown()
 
 
 def _submit(mgr: DeliveryManager, device_id: str = "dev1", **overrides):
@@ -403,7 +410,7 @@ async def test_a_malformed_stored_key_pauses_without_looping(
 
 
 async def test_submitting_after_an_expiry_reports_auth_not_the_stale_expiry(
-    manager: DeliveryManager,
+    hass: HomeAssistant, manager: DeliveryManager
 ) -> None:
     """Auth failure, then expiry, then new content: the error must read "auth".
 
@@ -414,7 +421,8 @@ async def test_submitting_after_an_expiry_reports_auth_not_the_stale_expiry(
         _submit(manager)
         await manager._deliver()
 
-        manager._expire_upload(manager._pending_upload)
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(hours=25))
+        await hass.async_block_till_done()
         assert manager.state.last_error == "expired"
 
         _submit(manager, device_id="dev2")
@@ -437,7 +445,8 @@ async def test_auth_paused_reaches_the_entities(
         _submit(manager)
         await manager._deliver()
         # Expiry lands after the pause and overwrites last_error.
-        manager._expire_upload(manager._pending_upload)
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(hours=25))
+        await hass.async_block_till_done()
 
     assert manager.state.last_error == "expired"
     assert manager.state.auth_paused is True
