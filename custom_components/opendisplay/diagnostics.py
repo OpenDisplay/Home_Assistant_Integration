@@ -63,7 +63,17 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: OpenDisplayConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    runtime = entry.runtime_data
+    runtime = getattr(entry, "runtime_data", None)
+    if runtime is None:
+        # Setup retry or a reload in progress: only what the entry itself holds.
+        return {
+            "state": entry.state.value,
+            "transport": {
+                "host": entry.data.get(CONF_HOST),
+                "port": entry.data.get(CONF_PORT),
+                "tls": entry.data.get(CONF_TLS),
+            },
+        }
     fw = runtime.firmware
     profile = runtime.sleep_profile
 
