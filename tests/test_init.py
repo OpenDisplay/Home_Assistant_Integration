@@ -3,6 +3,7 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -21,13 +22,16 @@ from custom_components.opendisplay import BASE_PLATFORMS, FLEX_PLATFORMS, _get_p
 from custom_components.opendisplay.const import (
     CONF_CACHED_STATE,
     CONF_ENCRYPTION_KEY,
+    CONF_HOST,
     DOMAIN,
 )
+from custom_components.opendisplay.transport import resolve_transport
 
 from . import (
     DEVICE_CONFIG,
     ENCRYPTION_KEY,
     LANDING_URL,
+    ZEROCONF_INFO,
     make_cached_state,
     make_sleepy_device_config,
     make_touch_device_config,
@@ -352,3 +356,26 @@ async def test_platform_selection(
     await hass.async_block_till_done()
 
     assert set(_get_platforms(mock_config_entry.runtime_data)) == expected
+
+
+async def test_a_new_lan_address_keeps_wifi_preferred_after_the_reload(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """The sighting that brought a new address survives the reload it causes.
+
+    Otherwise a device that got a new DHCP lease is reached over BLE until it is
+    seen over mDNS again.
+    """
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_ZEROCONF}, data=ZEROCONF_INFO
+    )
+    await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+    assert mock_config_entry.data[CONF_HOST] == "192.168.1.50"
+    assert resolve_transport(mock_config_entry).use_wifi is True

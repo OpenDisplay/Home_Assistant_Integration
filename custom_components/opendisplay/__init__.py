@@ -40,6 +40,7 @@ from .coordinator import OpenDisplayCoordinator
 from .delivery import DeliveryManager
 from .services import async_setup_services
 from .sleep import SleepProfile
+from .transport import last_mdns_sighting
 
 if TYPE_CHECKING:
     from opendisplay.models import FirmwareVersion
@@ -336,6 +337,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
         sleep_profile=profile,
         ble_lock=async_get_ble_lock(address),
         config_resync_pending=from_cache,
+        mdns_last_seen=last_mdns_sighting(hass, address),
     )
 
     # Persist a fresh interrogation so the next dark startup can set up from

@@ -112,24 +112,24 @@ async def test_resolve_host_never_seen_is_ble(entry: MockConfigEntry) -> None:
 
 @pytest.mark.parametrize("config_entry_data", [{CONF_HOST: "1.2.3.4"}])
 async def test_note_mdns_seen_records_timestamp_and_wakes_delivery(
-    entry: MockConfigEntry,
+    hass: HomeAssistant, entry: MockConfigEntry
 ) -> None:
     """A sighting stamps the freshness timestamp and triggers a wake."""
     entry.runtime_data.delivery = MagicMock()
     assert entry.runtime_data.mdns_last_seen is None
 
-    note_mdns_seen(entry)
+    note_mdns_seen(hass, entry)
 
     assert entry.runtime_data.mdns_last_seen is not None
     entry.runtime_data.delivery.notify_device_seen.assert_called_once_with("mdns")
 
 
-async def test_note_mdns_seen_without_runtime_is_noop() -> None:
+async def test_note_mdns_seen_without_runtime_is_noop(hass: HomeAssistant) -> None:
     """An unloaded entry (no runtime_data) is tolerated silently."""
-    unloaded = MagicMock()
+    unloaded = MagicMock(unique_id="AA:BB:CC:DD:EE:FF")
     unloaded.runtime_data = None
 
-    note_mdns_seen(unloaded)  # must not raise
+    note_mdns_seen(hass, unloaded)  # must not raise
 
 
 # -- async_run_with_fallback ------------------------------------------------
