@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.bluetooth import async_ble_device_from_address
 from homeassistant.core import HomeAssistant
+from homeassistant.util.hass_dict import HassKey
 
 from opendisplay import (
     BLETimeoutError,
@@ -39,6 +40,7 @@ from .const import (
     CONF_PORT,
     CONF_TLS,
     DEFAULT_LAN_PORT,
+    DOMAIN,
     MDNS_FRESHNESS_WINDOW_S,
 )
 from .keystore import EntryKeyStore
@@ -51,6 +53,11 @@ _LOGGER = logging.getLogger(__name__)
 # Transport labels recorded on runtime data / surfaced in diagnostics.
 TRANSPORT_WIFI = "wifi"
 TRANSPORT_BLE = "ble"
+
+# Last mDNS sighting per device address. Kept outside the runtime data so that a
+# reload, which replaces the runtime data, does not forget it: the sighting that
+# brings a new address is what reloads the entry.
+_MDNS_SEEN: HassKey[dict[str, float]] = HassKey(f"{DOMAIN}_mdns_seen")
 
 # Exceptions from a WiFi attempt that must trigger the BLE fallback. The neutral
 # py-opendisplay superclasses cover connect/read failures on any transport;
@@ -112,18 +119,26 @@ def _mdns_last_seen(entry: OpenDisplayConfigEntry) -> float | None:
     return getattr(runtime, "mdns_last_seen", None)
 
 
-def note_mdns_seen(entry: OpenDisplayConfigEntry) -> None:
+def last_mdns_sighting(hass: HomeAssistant, address: str) -> float | None:
+    """Return the monotonic time ``address`` was last seen via mDNS, or None."""
+    return hass.data.get(_MDNS_SEEN, {}).get(address)
+
+
+def note_mdns_seen(hass: HomeAssistant, entry: OpenDisplayConfigEntry) -> None:
     """Record that ``entry``'s device was just seen via mDNS.
 
     Called from the zeroconf config-flow step for an already-configured entry so
     the resolver can prefer WiFi, and so the delivery manager treats the mDNS
     sighting as a wake (union of BLE-advert and mDNS presence).
     """
+    seen = time.monotonic()
+    if entry.unique_id is not None:
+        hass.data.setdefault(_MDNS_SEEN, {})[entry.unique_id] = seen
     runtime = getattr(entry, "runtime_data", None)
     if runtime is None:
         return
     try:
-        runtime.mdns_last_seen = time.monotonic()
+        runtime.mdns_last_seen = seen
     except AttributeError:  # pragma: no cover - runtime is always a mutable dataclass
         return
     delivery = getattr(runtime, "delivery", None)

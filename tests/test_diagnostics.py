@@ -3,7 +3,7 @@
 from collections.abc import Awaitable, Callable
 import dataclasses
 import struct
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from homeassistant.components.diagnostics import REDACTED
 from homeassistant.core import HomeAssistant
@@ -111,3 +111,25 @@ async def test_diagnostics_redacts_unparsed_config_bytes(
     )
 
     assert result["device_config"]["unparsed_tail"] == REDACTED
+
+
+async def test_diagnostics_of_an_entry_that_is_not_loaded(
+    hass: HomeAssistant,
+    hass_client: ClientSessionGenerator,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """While the entry is not loaded (setup retry, a reload) there is no runtime data."""
+    mock_config_entry.add_to_hass(hass)
+    with patch(
+        "custom_components.opendisplay.async_ble_device_from_address",
+        return_value=None,
+    ):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    result = await get_diagnostics_for_config_entry(
+        hass, hass_client, mock_config_entry
+    )
+
+    assert result["state"] == "setup_retry"
+    assert result["transport"]["host"] is None
