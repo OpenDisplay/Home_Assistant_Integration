@@ -172,6 +172,10 @@
       "out": "451ec0042a3e",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "049bcbf59dd8",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "e469310c63c6",
       "src": "f244d0d2db8d"
@@ -207,6 +211,10 @@
     "exceptions\u0000multiple_errors\u0000message": {
       "out": "e0151482bbbb",
       "src": "f17c68e0a848"
+    },
+    "exceptions\u0000needs_migration\u0000message": {
+      "out": "5ffe1edae6da",
+      "src": "246199624848"
     },
     "exceptions\u0000nfc_content_empty\u0000message": {
       "out": "2694884c2464",
@@ -255,6 +263,54 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "4f1612b673a0",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "28c668dcb204",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "cb7a0cc901f4",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "6a7d7030269b",
+      "src": "7092e40b2515"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000cannot_connect": {
+      "out": "850acfb3952f",
+      "src": "12aaa708c080"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000migration_blocked": {
+      "out": "6e7fa271939c",
+      "src": "23ad09004e31"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000cannot_connect": {
+      "out": "e857fc10af8a",
+      "src": "330f79f826f6"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000write_failed": {
+      "out": "925ac7086c4d",
+      "src": "046bfc76f851"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "cc76b92064ef",
+      "src": "30ee3dd41d25"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "67089016465a",
+      "src": "f2d1860d4c02"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000description": {
+      "out": "a8b5ed0140fb",
+      "src": "fdc57afb0001"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000title": {
+      "out": "68643a8139cc",
+      "src": "33f73d46d1d0"
+    },
+    "issues\u0000needs_migration\u0000title": {
+      "out": "61b9701591f6",
+      "src": "05a54f8edc07"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "f4064970f630",
@@ -1014,6 +1070,10 @@
       "out": "9e507db4cc0f",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "917542e57bb6",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "5c1f9c1134fc",
       "src": "f244d0d2db8d"
@@ -1049,6 +1109,10 @@
     "exceptions\u0000multiple_errors\u0000message": {
       "out": "b35c4f55b78e",
       "src": "f17c68e0a848"
+    },
+    "exceptions\u0000needs_migration\u0000message": {
+      "out": "16a4b30b2e74",
+      "src": "246199624848"
     },
     "exceptions\u0000nfc_content_empty\u0000message": {
       "out": "3d9b3519fd41",
@@ -1097,6 +1161,54 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "fbd45bf5d464",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "b81fbefc1b8f",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "43eedb045ef4",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "da391782ba9a",
+      "src": "7092e40b2515"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000cannot_connect": {
+      "out": "b3bd55bfc263",
+      "src": "12aaa708c080"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000migration_blocked": {
+      "out": "54ca1da3af17",
+      "src": "23ad09004e31"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000cannot_connect": {
+      "out": "2bb31b56c31d",
+      "src": "330f79f826f6"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000write_failed": {
+      "out": "53ab69cc2bed",
+      "src": "046bfc76f851"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "3c26578535a5",
+      "src": "30ee3dd41d25"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "dd7b790b2e7f",
+      "src": "f2d1860d4c02"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000description": {
+      "out": "555319fd5f39",
+      "src": "fdc57afb0001"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000title": {
+      "out": "5436b67264ee",
+      "src": "33f73d46d1d0"
+    },
+    "issues\u0000needs_migration\u0000title": {
+      "out": "d234c3eec99d",
+      "src": "05a54f8edc07"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "f407ac69b8bd",
@@ -1856,6 +1968,10 @@
       "out": "5b02c9b5bc26",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "92881495e4c7",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "429a0d6f8a18",
       "src": "f244d0d2db8d"
@@ -1891,6 +2007,10 @@
     "exceptions\u0000multiple_errors\u0000message": {
       "out": "e8f50cf5816c",
       "src": "f17c68e0a848"
+    },
+    "exceptions\u0000needs_migration\u0000message": {
+      "out": "20272407d131",
+      "src": "246199624848"
     },
     "exceptions\u0000nfc_content_empty\u0000message": {
       "out": "389e03d6cb91",
@@ -1939,6 +2059,54 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "fdebaa8d51f1",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "d4d5d5eac4ba",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "88f8447bb174",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "f96cf5368691",
+      "src": "7092e40b2515"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000cannot_connect": {
+      "out": "99c3a2abf95f",
+      "src": "12aaa708c080"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000migration_blocked": {
+      "out": "319f020a9324",
+      "src": "23ad09004e31"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000cannot_connect": {
+      "out": "2df068b07e4b",
+      "src": "330f79f826f6"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000write_failed": {
+      "out": "2c67602bf8bf",
+      "src": "046bfc76f851"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "06b483acf553",
+      "src": "30ee3dd41d25"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "a92f74b5ac6b",
+      "src": "f2d1860d4c02"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000description": {
+      "out": "761e79d1f8c5",
+      "src": "fdc57afb0001"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000title": {
+      "out": "a4c51e131956",
+      "src": "33f73d46d1d0"
+    },
+    "issues\u0000needs_migration\u0000title": {
+      "out": "731251c595a4",
+      "src": "05a54f8edc07"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "b91e673e4faf",
@@ -2698,6 +2866,10 @@
       "out": "b4c0bb1725b5",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "328fcc4e822a",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "d749244c1514",
       "src": "f244d0d2db8d"
@@ -2733,6 +2905,10 @@
     "exceptions\u0000multiple_errors\u0000message": {
       "out": "2f8e69a4d79e",
       "src": "f17c68e0a848"
+    },
+    "exceptions\u0000needs_migration\u0000message": {
+      "out": "0b301ffcd424",
+      "src": "246199624848"
     },
     "exceptions\u0000nfc_content_empty\u0000message": {
       "out": "850fac77feb5",
@@ -2781,6 +2957,54 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "b1f7216a69d7",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "a66fbd2ee502",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "7cc0ea3c065d",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "aea2e3f93834",
+      "src": "7092e40b2515"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000cannot_connect": {
+      "out": "0c550f073e1c",
+      "src": "12aaa708c080"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000migration_blocked": {
+      "out": "27667f8db6df",
+      "src": "23ad09004e31"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000cannot_connect": {
+      "out": "adeedc61a573",
+      "src": "330f79f826f6"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000write_failed": {
+      "out": "1045eb19821d",
+      "src": "046bfc76f851"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "f27308abcfaf",
+      "src": "30ee3dd41d25"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "fec72a4a3161",
+      "src": "f2d1860d4c02"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000description": {
+      "out": "6dc4898d243e",
+      "src": "fdc57afb0001"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000title": {
+      "out": "55d0625be01f",
+      "src": "33f73d46d1d0"
+    },
+    "issues\u0000needs_migration\u0000title": {
+      "out": "c93e269a7e09",
+      "src": "05a54f8edc07"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "3300b9e0cebf",
@@ -3540,6 +3764,10 @@
       "out": "808d4428797d",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "2838b623d770",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "2a6eb6f25f73",
       "src": "f244d0d2db8d"
@@ -3575,6 +3803,10 @@
     "exceptions\u0000multiple_errors\u0000message": {
       "out": "280310410b47",
       "src": "f17c68e0a848"
+    },
+    "exceptions\u0000needs_migration\u0000message": {
+      "out": "9e48470d4d24",
+      "src": "246199624848"
     },
     "exceptions\u0000nfc_content_empty\u0000message": {
       "out": "2c8100dd1c1f",
@@ -3623,6 +3855,54 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "4d728bd5af6b",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "ac88d8de7326",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "67fe06f5a2cc",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "906e85383202",
+      "src": "7092e40b2515"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000cannot_connect": {
+      "out": "452351696a9d",
+      "src": "12aaa708c080"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000migration_blocked": {
+      "out": "466fd8e0a8d0",
+      "src": "23ad09004e31"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000cannot_connect": {
+      "out": "24684efe49fe",
+      "src": "330f79f826f6"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000write_failed": {
+      "out": "3ed777888394",
+      "src": "046bfc76f851"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "3bbd3c628158",
+      "src": "30ee3dd41d25"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "22450f79144c",
+      "src": "f2d1860d4c02"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000description": {
+      "out": "e8a61ae1575b",
+      "src": "fdc57afb0001"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000title": {
+      "out": "5709dede20fa",
+      "src": "33f73d46d1d0"
+    },
+    "issues\u0000needs_migration\u0000title": {
+      "out": "e7c16534795f",
+      "src": "05a54f8edc07"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "179c008aff1b",
@@ -4382,6 +4662,10 @@
       "out": "967e5cf30a74",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "5db80816ff4a",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "a80f90799c7a",
       "src": "f244d0d2db8d"
@@ -4417,6 +4701,10 @@
     "exceptions\u0000multiple_errors\u0000message": {
       "out": "8cefc6cf7040",
       "src": "f17c68e0a848"
+    },
+    "exceptions\u0000needs_migration\u0000message": {
+      "out": "478931ab7b8b",
+      "src": "246199624848"
     },
     "exceptions\u0000nfc_content_empty\u0000message": {
       "out": "ace5922fd5da",
@@ -4465,6 +4753,54 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "ba50f1abf1df",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "03cd94a303b6",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "12a1e940c614",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "d520a3d9683e",
+      "src": "7092e40b2515"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000cannot_connect": {
+      "out": "f03a1dc60872",
+      "src": "12aaa708c080"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000migration_blocked": {
+      "out": "805dd5ce2fb1",
+      "src": "23ad09004e31"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000cannot_connect": {
+      "out": "03cef9cab2b2",
+      "src": "330f79f826f6"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000write_failed": {
+      "out": "8b019508f219",
+      "src": "046bfc76f851"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "665ccfc0e344",
+      "src": "30ee3dd41d25"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "5ac400133184",
+      "src": "f2d1860d4c02"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000description": {
+      "out": "f24fb62c9b1d",
+      "src": "fdc57afb0001"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000title": {
+      "out": "6cde8b60c922",
+      "src": "33f73d46d1d0"
+    },
+    "issues\u0000needs_migration\u0000title": {
+      "out": "eb4e3e677c6c",
+      "src": "05a54f8edc07"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "43e2e40d805c",
@@ -5224,6 +5560,10 @@
       "out": "b7f02c4bb3f9",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "ee994f031d56",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "3701c74aad7c",
       "src": "f244d0d2db8d"
@@ -5259,6 +5599,10 @@
     "exceptions\u0000multiple_errors\u0000message": {
       "out": "b5d5ed102c46",
       "src": "f17c68e0a848"
+    },
+    "exceptions\u0000needs_migration\u0000message": {
+      "out": "ea6c54a64a3f",
+      "src": "246199624848"
     },
     "exceptions\u0000nfc_content_empty\u0000message": {
       "out": "54f20d9c8dd7",
@@ -5307,6 +5651,54 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "6ee8fc0b163f",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "f68d34e9d07d",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "68da82d2ece3",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "7124ee9ec259",
+      "src": "7092e40b2515"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000cannot_connect": {
+      "out": "a259b418d819",
+      "src": "12aaa708c080"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000migration_blocked": {
+      "out": "599b1e9652d7",
+      "src": "23ad09004e31"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000cannot_connect": {
+      "out": "ff859f719921",
+      "src": "330f79f826f6"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000write_failed": {
+      "out": "5dff48cc6fe6",
+      "src": "046bfc76f851"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "889730432a3a",
+      "src": "30ee3dd41d25"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "8c2b2f6058d6",
+      "src": "f2d1860d4c02"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000description": {
+      "out": "26dd87c5221b",
+      "src": "fdc57afb0001"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000title": {
+      "out": "643b8aef9127",
+      "src": "33f73d46d1d0"
+    },
+    "issues\u0000needs_migration\u0000title": {
+      "out": "164031c3f94b",
+      "src": "05a54f8edc07"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "c908f1878f2b",
@@ -6066,6 +6458,10 @@
       "out": "19b11cedb540",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "28efc03d059f",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "dd2fad6c9806",
       "src": "f244d0d2db8d"
@@ -6101,6 +6497,10 @@
     "exceptions\u0000multiple_errors\u0000message": {
       "out": "145c56dd9649",
       "src": "f17c68e0a848"
+    },
+    "exceptions\u0000needs_migration\u0000message": {
+      "out": "b4e24e233edd",
+      "src": "246199624848"
     },
     "exceptions\u0000nfc_content_empty\u0000message": {
       "out": "18796d161a54",
@@ -6149,6 +6549,54 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "ff9646286a09",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "50e74b6a1894",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "1ed14da8a835",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "cf87c0332e0a",
+      "src": "7092e40b2515"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000cannot_connect": {
+      "out": "c6c16e99c5cb",
+      "src": "12aaa708c080"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000migration_blocked": {
+      "out": "0ce871902047",
+      "src": "23ad09004e31"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000cannot_connect": {
+      "out": "da3e284ec95c",
+      "src": "330f79f826f6"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000write_failed": {
+      "out": "51bb939f706c",
+      "src": "046bfc76f851"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "aea7bd7c4217",
+      "src": "30ee3dd41d25"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "09daa2bb5e21",
+      "src": "f2d1860d4c02"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000description": {
+      "out": "847fcfe51c35",
+      "src": "fdc57afb0001"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000title": {
+      "out": "516cf86efda3",
+      "src": "33f73d46d1d0"
+    },
+    "issues\u0000needs_migration\u0000title": {
+      "out": "50c56c0f57f2",
+      "src": "05a54f8edc07"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "ae0e734c291f",
@@ -6908,6 +7356,10 @@
       "out": "09ff0363aa17",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "e145563a60ac",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "dd2fad6c9806",
       "src": "f244d0d2db8d"
@@ -6943,6 +7395,10 @@
     "exceptions\u0000multiple_errors\u0000message": {
       "out": "be3dca23ac69",
       "src": "f17c68e0a848"
+    },
+    "exceptions\u0000needs_migration\u0000message": {
+      "out": "621f86379d28",
+      "src": "246199624848"
     },
     "exceptions\u0000nfc_content_empty\u0000message": {
       "out": "18796d161a54",
@@ -6991,6 +7447,54 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "7a9528bffb26",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "28e3705e08a4",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "1ed14da8a835",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "cf87c0332e0a",
+      "src": "7092e40b2515"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000cannot_connect": {
+      "out": "9c931bb14e32",
+      "src": "12aaa708c080"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000abort\u0000migration_blocked": {
+      "out": "095df3715348",
+      "src": "23ad09004e31"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000cannot_connect": {
+      "out": "513e765a85ac",
+      "src": "330f79f826f6"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000error\u0000write_failed": {
+      "out": "65fbc3662395",
+      "src": "046bfc76f851"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "7a2b00e7be0b",
+      "src": "30ee3dd41d25"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "09daa2bb5e21",
+      "src": "f2d1860d4c02"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000description": {
+      "out": "9a604fddcdc0",
+      "src": "fdc57afb0001"
+    },
+    "issues\u0000needs_migration\u0000fix_flow\u0000step\u0000confirm_untested\u0000title": {
+      "out": "516cf86efda3",
+      "src": "33f73d46d1d0"
+    },
+    "issues\u0000needs_migration\u0000title": {
+      "out": "be594d277967",
+      "src": "05a54f8edc07"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "b3fa9ef0928e",

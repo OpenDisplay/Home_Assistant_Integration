@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Falha na autenticação. Atualizar a chave de encriptação."
     },
+    "device_not_configured": {
+      "message": "O dispositivo OpenDisplay não tem configuração armazenada. Configurá-lo no website ou CLI do OpenDisplay, depois recarregar a integração."
+    },
     "device_not_found": {
       "message": "Não foi possível encontrar o dispositivo Bluetooth com o endereço `{address}`."
     },
@@ -145,6 +148,9 @@
     },
     "multiple_errors": {
       "message": "Ocorreram erros em um ou mais dispositivos:\n{errors}"
+    },
+    "needs_migration": {
+      "message": "{name} não tem dados de drive para o seu painel e não desenharia nada. Abrir a sua reparação em Definições > Reparações para adicionar."
     },
     "nfc_content_empty": {
       "message": "O conteúdo NFC não pode estar vazio."
@@ -181,6 +187,42 @@
     },
     "url_not_allowed": {
       "message": "URL `{url}` não é permitida. Adicionar a `allowlist_external_urls` no configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} foi atualizado do firmware 2.x e ainda usava a sua chave antiga. O Home Assistant substituiu-a por uma nova chave gerada pelo ecrã, porque as chaves 2.x são frequentemente fracas ou foram partilhadas em links.\n\nOutras apps que usam este ecrã, como o website OpenDisplay ou o CLI, precisam da nova chave:\n\n`{key}`\n\nSelecionar **Enviar** depois de copiar. O Home Assistant já usa a nova chave.",
+            "title": "Nova chave para {name}"
+          }
+        }
+      },
+      "title": "A chave de {name} foi substituída"
+    },
+    "needs_migration": {
+      "fix_flow": {
+        "abort": {
+          "cannot_connect": "Não foi possível contactar {name}. Acordá-lo, depois abrir esta reparação novamente.",
+          "migration_blocked": "O Home Assistant não consegue adicionar os dados de drive: {reason}"
+        },
+        "error": {
+          "cannot_connect": "Não foi possível contactar o ecrã. Acordá-lo e tentar novamente.",
+          "write_failed": "A configuração não pôde ser escrita, ou não foi lida como escrita. O backup está em `opendisplay/backups` na sua pasta de configuração."
+        },
+        "step": {
+          "confirm": {
+            "description": "{name} usa firmware 3.0, mas a sua configuração não tem dados de drive para o seu painel, por isso não desenha nada. Isto acontece após uma atualização do firmware 2.x, que mantém a configuração antiga. Uploads para {name} são recusados até ser corrigido.\n\nO Home Assistant escreve os dados de drive para {panel} na configuração de {name} e mantém todo o resto. Primeiro guarda um backup da configuração atual, sem a sua chave, palavra-passe WiFi e chaves FindMy, em `opendisplay/backups` na sua pasta de configuração.\n\nManter {name} acordado e ao alcance. Alguns painéis redesenham durante cerca de 30 segundos após a escrita.",
+            "title": "Adicionar dados de drive a {name}"
+          },
+          "confirm_untested": {
+            "description": "{name} usa firmware 3.0, mas a sua configuração não tem dados de drive para o seu painel, por isso não desenha nada. Isto acontece após uma atualização do firmware 2.x, que mantém a configuração antiga. Uploads para {name} são recusados até ser corrigido.\n\nO Home Assistant escreve os dados de drive para {panel} na configuração de {name} e mantém todo o resto. Primeiro guarda um backup da configuração atual, sem a sua chave, palavra-passe WiFi e chaves FindMy, em `opendisplay/backups` na sua pasta de configuração.\n\nManter {name} acordado e ao alcance. Alguns painéis redesenham durante cerca de 30 segundos após a escrita.\n\n**Não testado:** estes dados de drive repetem o que o firmware 2.x enviava para {panel}, mas ninguém confirmou ainda que desenha corretamente com firmware 3.0. Verificar o ecrã após o próximo upload e manter o backup.",
+            "title": "Adicionar dados de drive não testados a {name}"
+          }
+        }
+      },
+      "title": "{name} não consegue desenhar o seu painel"
     }
   },
   "options": {

@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Autentizace selhala. Aktualizovat šifrovací klíč."
     },
+    "device_not_configured": {
+      "message": "Zařízení OpenDisplay nemá uloženou konfiguraci. Nakonfigurujte jej na webu OpenDisplay nebo pomocí CLI a poté znovu načtěte integraci."
+    },
     "device_not_found": {
       "message": "Bluetooth zařízení s adresou `{address}` nebylo nalezeno."
     },
@@ -145,6 +148,9 @@
     },
     "multiple_errors": {
       "message": "Došlo k chybám u jednoho nebo více zařízení:\n{errors}"
+    },
+    "needs_migration": {
+      "message": "{name} nemá data pro ovládání panelu a nezobrazí nic. Otevřete jeho opravu v Nastavení > Opravy a přidejte je."
     },
     "nfc_content_empty": {
       "message": "Obsah NFC nesmí být prázdný."
@@ -181,6 +187,42 @@
     },
     "url_not_allowed": {
       "message": "URL `{url}` není povolena. Přidejte ji do `allowlist_external_urls` v configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} byl aktualizován z firmwaru 2.x a stále používal svůj starý klíč. Home Assistant jej nahradil novým klíčem, který generoval displej, protože klíče 2.x jsou často slabé nebo byly sdíleny v odkazech.\n\nJiné aplikace používající tento displej, jako web OpenDisplay nebo CLI, potřebují nový klíč:\n\n`{key}`\n\nPo zkopírování vyberte **Odeslat**. Home Assistant již nový klíč používá.",
+            "title": "Nový klíč pro {name}"
+          }
+        }
+      },
+      "title": "Klíč zařízení {name} byl nahrazen"
+    },
+    "needs_migration": {
+      "fix_flow": {
+        "abort": {
+          "cannot_connect": "{name} nelze kontaktovat. Probuďte jej a znovu otevřete tuto opravu.",
+          "migration_blocked": "Home Assistant nemůže přidat data pro ovládání: {reason}"
+        },
+        "error": {
+          "cannot_connect": "Displej nelze kontaktovat. Probuďte jej a zkuste to znovu.",
+          "write_failed": "Konfiguraci se nepodařilo zapsat nebo se nepřečetla správně. Záloha je v `opendisplay/backups` ve vaší konfigurační složce."
+        },
+        "step": {
+          "confirm": {
+            "description": "{name} používá firmware 3.0, ale jeho konfigurace neobsahuje data pro ovládání panelu, takže nezobrazuje nic. To se stává po aktualizaci z firmwaru 2.x, která ponechává starou konfiguraci. Nahrávání do {name} je odmítnuto, dokud se to neopraví.\n\nHome Assistant zapíše data pro ovládání {panel} do konfigurace {name} a zachová vše ostatní. Nejprve uloží zálohu aktuální konfigurace bez klíče, hesla WiFi a klíčů FindMy do `opendisplay/backups` ve vaší konfigurační složce.\n\nUdržujte {name} probuzený a v dosahu. Některé panely překreslují asi 30 sekund po zápisu.",
+            "title": "Přidat data pro ovládání do {name}"
+          },
+          "confirm_untested": {
+            "description": "{name} používá firmware 3.0, ale jeho konfigurace neobsahuje data pro ovládání panelu, takže nezobrazuje nic. To se stává po aktualizaci z firmwaru 2.x, která ponechává starou konfiguraci. Nahrávání do {name} je odmítnuto, dokud se to neopraví.\n\nHome Assistant zapíše data pro ovládání {panel} do konfigurace {name} a zachová vše ostatní. Nejprve uloží zálohu aktuální konfigurace bez klíče, hesla WiFi a klíčů FindMy do `opendisplay/backups` ve vaší konfigurační složce.\n\nUdržujte {name} probuzený a v dosahu. Některé panely překreslují asi 30 sekund po zápisu.\n\n**Netestováno:** tato data pro ovládání opakují to, co firmware 2.x posílal do {panel}, ale zatím nikdo nepotvrdil, že se správně zobrazují s firmwarem 3.0. Zkontrolujte displej po dalším nahrání a zachovejte zálohu.",
+            "title": "Přidat netestovaná data pro ovládání do {name}"
+          }
+        }
+      },
+      "title": "{name} nemůže zobrazit svůj panel"
     }
   },
   "options": {
