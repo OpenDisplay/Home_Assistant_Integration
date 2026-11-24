@@ -507,16 +507,15 @@
     },
     "needs_migration": {
       "title": "{name} cannot draw its panel",
-      "description": "{name} runs firmware 3.0, but its configuration has no drive data for its panel, so it draws nothing. This happens after an update from firmware 2.x, which keeps the old configuration.\n\nSelect **Fix** to add the drive data from the OpenDisplay panel database. Uploads to {name} are refused until then.",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Add drive data to {name}",
-            "description": "Home Assistant writes the drive data for {panel} to the configuration of {name} and keeps everything else. It first saves a backup of the current configuration, without its key, WiFi password and FindMy keys, in `opendisplay/backups` in your configuration folder.\n\nKeep {name} awake and in range. Some panels redraw for about 30 seconds after the write."
+            "description": "{name} runs firmware 3.0, but its configuration has no drive data for its panel, so it draws nothing. This happens after an update from firmware 2.x, which keeps the old configuration. Uploads to {name} are refused until it is fixed.\n\nHome Assistant writes the drive data for {panel} to the configuration of {name} and keeps everything else. It first saves a backup of the current configuration, without its key, WiFi password and FindMy keys, in `opendisplay/backups` in your configuration folder.\n\nKeep {name} awake and in range. Some panels redraw for about 30 seconds after the write."
           },
           "confirm_untested": {
             "title": "Add untested drive data to {name}",
-            "description": "Home Assistant writes the drive data for {panel} to the configuration of {name} and keeps everything else. It first saves a backup of the current configuration, without its key, WiFi password and FindMy keys, in `opendisplay/backups` in your configuration folder.\n\nKeep {name} awake and in range. Some panels redraw for about 30 seconds after the write.\n\n**Untested:** this drive data repeats what firmware 2.x sent to {panel}, but nobody has confirmed yet that it draws correctly with firmware 3.0. Check the display after the next upload, and keep the backup."
+            "description": "{name} runs firmware 3.0, but its configuration has no drive data for its panel, so it draws nothing. This happens after an update from firmware 2.x, which keeps the old configuration. Uploads to {name} are refused until it is fixed.\n\nHome Assistant writes the drive data for {panel} to the configuration of {name} and keeps everything else. It first saves a backup of the current configuration, without its key, WiFi password and FindMy keys, in `opendisplay/backups` in your configuration folder.\n\nKeep {name} awake and in range. Some panels redraw for about 30 seconds after the write.\n\n**Untested:** this drive data repeats what firmware 2.x sent to {panel}, but nobody has confirmed yet that it draws correctly with firmware 3.0. Check the display after the next upload, and keep the backup."
           }
         },
         "error": {
