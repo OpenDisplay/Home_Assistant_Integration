@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Authenticatie mislukt. Update de encryptiesleutel."
     },
+    "device_not_configured": {
+      "message": "Het OpenDisplay-apparaat heeft geen opgeslagen configuratie. Configureer het via de OpenDisplay-website of CLI en laad de integratie daarna opnieuw."
+    },
     "device_not_found": {
       "message": "Bluetooth-apparaat met adres `{address}` niet gevonden."
     },
@@ -145,6 +148,9 @@
     },
     "multiple_errors": {
       "message": "Fouten opgetreden voor een of meer apparaten:\n{errors}"
+    },
+    "needs_migration": {
+      "message": "{name} heeft geen drive-gegevens voor zijn paneel en zou niets tekenen. Open de reparatie onder Instellingen > Reparaties om deze toe te voegen."
     },
     "nfc_content_empty": {
       "message": "NFC-inhoud mag niet leeg zijn."
@@ -181,6 +187,42 @@
     },
     "url_not_allowed": {
       "message": "URL `{url}` is niet toegestaan. Voeg deze toe aan `allowlist_external_urls` in configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} is bijgewerkt vanaf firmware 2.x en gebruikte nog zijn oude sleutel. Home Assistant heeft deze vervangen door een nieuwe sleutel die het display genereerde, omdat 2.x-sleutels vaak zwak zijn of gedeeld werden in links.\n\nAndere apps die dit display gebruiken, zoals de OpenDisplay-website of de CLI, hebben de nieuwe sleutel nodig:\n\n`{key}`\n\nSelecteer **Verzenden** zodra je deze hebt gekopieerd. Home Assistant gebruikt al de nieuwe sleutel.",
+            "title": "Nieuwe sleutel voor {name}"
+          }
+        }
+      },
+      "title": "De sleutel van {name} is vervangen"
+    },
+    "needs_migration": {
+      "fix_flow": {
+        "abort": {
+          "cannot_connect": "{name} kon niet worden bereikt. Wek het apparaat, en open deze reparatie opnieuw.",
+          "migration_blocked": "Home Assistant kan de drive-gegevens niet toevoegen: {reason}"
+        },
+        "error": {
+          "cannot_connect": "Het display kon niet worden bereikt. Wek het apparaat en probeer het opnieuw.",
+          "write_failed": "De configuratie kon niet worden weggeschreven, of werd niet correct teruggelezen. De backup staat in `opendisplay/backups` in je configuratiemap."
+        },
+        "step": {
+          "confirm": {
+            "description": "{name} draait firmware 3.0, maar de configuratie bevat geen drive-gegevens voor het paneel, dus er wordt niets getekend. Dit gebeurt na een update van firmware 2.x, die de oude configuratie behoudt. Uploads naar {name} worden geweigerd totdat dit is opgelost.\n\nHome Assistant schrijft de drive-gegevens voor {panel} naar de configuratie van {name} en behoudt de rest. Eerst wordt een backup gemaakt van de huidige configuratie, zonder de sleutel, WiFi-wachtwoord en FindMy-sleutels, in `opendisplay/backups` in je configuratiemap.\n\nHoud {name} wakker en binnen bereik. Sommige panelen tekenen opnieuw gedurende ongeveer 30 seconden na het wegschrijven.",
+            "title": "Drive-gegevens toevoegen aan {name}"
+          },
+          "confirm_untested": {
+            "description": "{name} draait firmware 3.0, maar de configuratie bevat geen drive-gegevens voor het paneel, dus er wordt niets getekend. Dit gebeurt na een update van firmware 2.x, die de oude configuratie behoudt. Uploads naar {name} worden geweigerd totdat dit is opgelost.\n\nHome Assistant schrijft de drive-gegevens voor {panel} naar de configuratie van {name} en behoudt de rest. Eerst wordt een backup gemaakt van de huidige configuratie, zonder de sleutel, WiFi-wachtwoord en FindMy-sleutels, in `opendisplay/backups` in je configuratiemap.\n\nHoud {name} wakker en binnen bereik. Sommige panelen tekenen opnieuw gedurende ongeveer 30 seconden na het wegschrijven.\n\n**Ongetest:** deze drive-gegevens herhalen wat firmware 2.x naar {panel} stuurde, maar niemand heeft bevestigd dat het correct tekent met firmware 3.0. Controleer het display na de volgende upload en bewaar de backup.",
+            "title": "Ongeteste drive-gegevens toevoegen aan {name}"
+          }
+        }
+      },
+      "title": "{name} kan zijn paneel niet tekenen"
     }
   },
   "options": {

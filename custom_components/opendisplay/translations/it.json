@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Autenticazione fallita. Aggiornare la chiave di crittografia."
     },
+    "device_not_configured": {
+      "message": "Il dispositivo OpenDisplay non ha configurazioni memorizzate. Configurarlo tramite il sito OpenDisplay o CLI, quindi ricaricare l'integrazione."
+    },
     "device_not_found": {
       "message": "Impossibile trovare il dispositivo Bluetooth con indirizzo `{address}`."
     },
@@ -145,6 +148,9 @@
     },
     "multiple_errors": {
       "message": "Si sono verificati errori per uno o più dispositivi:\n{errors}"
+    },
+    "needs_migration": {
+      "message": "{name} non ha dati di guida per il suo pannello e non disegnerebbe nulla. Aprire la sua riparazione in Impostazioni > Riparazioni per aggiungerli."
     },
     "nfc_content_empty": {
       "message": "Il contenuto NFC non può essere vuoto."
@@ -181,6 +187,42 @@
     },
     "url_not_allowed": {
       "message": "L'URL `{url}` non è consentito. Aggiungerlo a `allowlist_external_urls` in configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} è stato aggiornato dal firmware 2.x e usava ancora la sua vecchia chiave. Home Assistant l'ha sostituita con una nuova chiave generata dal display, perché le chiavi 2.x sono spesso deboli o erano condivise nei link.\n\nAltre app che usano questo display, come il sito OpenDisplay o la CLI, necessitano della nuova chiave:\n\n`{key}`\n\nSelezionare **Invia** una volta copiata. Home Assistant usa già la nuova chiave.",
+            "title": "Nuova chiave per {name}"
+          }
+        }
+      },
+      "title": "La chiave di {name} è stata sostituita"
+    },
+    "needs_migration": {
+      "fix_flow": {
+        "abort": {
+          "cannot_connect": "Impossibile raggiungere {name}. Risvegliarlo, quindi aprire di nuovo questa riparazione.",
+          "migration_blocked": "Home Assistant non può aggiungere i dati di guida: {reason}"
+        },
+        "error": {
+          "cannot_connect": "Impossibile raggiungere il display. Risvegliarlo e riprovare.",
+          "write_failed": "La configurazione non può essere scritta o non è stata letta correttamente. Il backup si trova in `opendisplay/backups` nella cartella di configurazione."
+        },
+        "step": {
+          "confirm": {
+            "description": "{name} esegue il firmware 3.0, ma la sua configurazione non ha dati di guida per il suo pannello, quindi non disegna nulla. Questo accade dopo un aggiornamento dal firmware 2.x, che mantiene la vecchia configurazione. I caricamenti a {name} sono rifiutati finché non viene risolto.\n\nHome Assistant scrive i dati di guida per {panel} nella configurazione di {name} mantenendo tutto il resto. Prima salva un backup della configurazione corrente, senza la chiave, la password WiFi e le chiavi FindMy, in `opendisplay/backups` nella cartella di configurazione.\n\nTenere {name} sveglio e nel raggio. Alcuni pannelli ridisegnano per circa 30 secondi dopo la scrittura.",
+            "title": "Aggiungere dati di guida a {name}"
+          },
+          "confirm_untested": {
+            "description": "{name} esegue il firmware 3.0, ma la sua configurazione non ha dati di guida per il suo pannello, quindi non disegna nulla. Questo accade dopo un aggiornamento dal firmware 2.x, che mantiene la vecchia configurazione. I caricamenti a {name} sono rifiutati finché non viene risolto.\n\nHome Assistant scrive i dati di guida per {panel} nella configurazione di {name} mantenendo tutto il resto. Prima salva un backup della configurazione corrente, senza la chiave, la password WiFi e le chiavi FindMy, in `opendisplay/backups` nella cartella di configurazione.\n\nTenere {name} sveglio e nel raggio. Alcuni pannelli ridisegnano per circa 30 secondi dopo la scrittura.\n\n**Non testato:** questi dati di guida ripetono ciò che il firmware 2.x inviava a {panel}, ma nessuno ha ancora confermato che disegni correttamente con il firmware 3.0. Controllare il display dopo il prossimo caricamento e conservare il backup.",
+            "title": "Aggiungere dati di guida non testati a {name}"
+          }
+        }
+      },
+      "title": "{name} non può disegnare il suo pannello"
     }
   },
   "options": {

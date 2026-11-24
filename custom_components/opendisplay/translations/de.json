@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Authentifizierung fehlgeschlagen. Verschlüsselungsschlüssel aktualisieren."
     },
+    "device_not_configured": {
+      "message": "Das OpenDisplay-Gerät hat keine gespeicherte Konfiguration. Mit der OpenDisplay-Website oder CLI konfigurieren und dann die Integration neu laden."
+    },
     "device_not_found": {
       "message": "Bluetooth-Gerät mit Adresse `{address}` konnte nicht gefunden werden."
     },
@@ -145,6 +148,9 @@
     },
     "multiple_errors": {
       "message": "Fehler bei einem oder mehreren Geräten:\n{errors}"
+    },
+    "needs_migration": {
+      "message": "{name} hat keine Antriebsdaten für sein Panel und würde nichts anzeigen. Die Reparatur unter Einstellungen > Reparaturen öffnen, um sie hinzuzufügen."
     },
     "nfc_content_empty": {
       "message": "NFC-Inhalt darf nicht leer sein."
@@ -181,6 +187,42 @@
     },
     "url_not_allowed": {
       "message": "URL `{url}` ist nicht erlaubt. In `allowlist_external_urls` in configuration.yaml hinzufügen."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} wurde von Firmware 2.x aktualisiert und verwendete noch den alten Schlüssel. Home Assistant hat ihn durch einen neuen Schlüssel ersetzt, den das Display generiert hat, da 2.x-Schlüssel oft schwach sind oder in Links geteilt wurden.\n\nAndere Apps, die dieses Display verwenden, wie die OpenDisplay-Website oder die CLI, benötigen den neuen Schlüssel:\n\n`{key}`\n\n**Absenden** auswählen, sobald der Schlüssel kopiert wurde. Home Assistant verwendet bereits den neuen Schlüssel.",
+            "title": "Neuer Schlüssel für {name}"
+          }
+        }
+      },
+      "title": "Der Schlüssel von {name} wurde ersetzt"
+    },
+    "needs_migration": {
+      "fix_flow": {
+        "abort": {
+          "cannot_connect": "{name} konnte nicht erreicht werden. Wecken und dann diese Reparatur erneut öffnen.",
+          "migration_blocked": "Home Assistant kann die Antriebsdaten nicht hinzufügen: {reason}"
+        },
+        "error": {
+          "cannot_connect": "Das Display konnte nicht erreicht werden. Wecken und erneut versuchen.",
+          "write_failed": "Die Konfiguration konnte nicht geschrieben werden oder wurde nicht korrekt zurückgelesen. Die Sicherung befindet sich in `opendisplay/backups` im Konfigurationsordner."
+        },
+        "step": {
+          "confirm": {
+            "description": "{name} läuft mit Firmware 3.0, aber seine Konfiguration enthält keine Antriebsdaten für sein Panel, daher wird nichts angezeigt. Dies passiert nach einem Update von Firmware 2.x, die alte Konfiguration bleibt erhalten. Uploads zu {name} werden abgelehnt, bis es behoben ist.\n\nHome Assistant schreibt die Antriebsdaten für {panel} in die Konfiguration von {name} und behält alles andere bei. Zuvor wird eine Sicherung der aktuellen Konfiguration ohne Schlüssel, WLAN-Passwort und FindMy-Schlüssel in `opendisplay/backups` im Konfigurationsordner gespeichert.\n\n{name} wach und in Reichweite halten. Einige Panels zeichnen etwa 30 Sekunden nach dem Schreiben neu.",
+            "title": "Antriebsdaten zu {name} hinzufügen"
+          },
+          "confirm_untested": {
+            "description": "{name} läuft mit Firmware 3.0, aber seine Konfiguration enthält keine Antriebsdaten für sein Panel, daher wird nichts angezeigt. Dies passiert nach einem Update von Firmware 2.x, die alte Konfiguration bleibt erhalten. Uploads zu {name} werden abgelehnt, bis es behoben ist.\n\nHome Assistant schreibt die Antriebsdaten für {panel} in die Konfiguration von {name} und behält alles andere bei. Zuvor wird eine Sicherung der aktuellen Konfiguration ohne Schlüssel, WLAN-Passwort und FindMy-Schlüssel in `opendisplay/backups` im Konfigurationsordner gespeichert.\n\n{name} wach und in Reichweite halten. Einige Panels zeichnen etwa 30 Sekunden nach dem Schreiben neu.\n\n**Ungetestet:** Diese Antriebsdaten wiederholen, was Firmware 2.x an {panel} gesendet hat, aber es wurde noch nicht bestätigt, dass sie mit Firmware 3.0 korrekt zeichnen. Nach dem nächsten Upload das Display prüfen und die Sicherung behalten.",
+            "title": "Ungetestete Antriebsdaten zu {name} hinzufügen"
+          }
+        }
+      },
+      "title": "{name} kann sein Panel nicht zeichnen"
     }
   },
   "options": {

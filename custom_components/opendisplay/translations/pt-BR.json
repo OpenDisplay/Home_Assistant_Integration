@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Falha na autenticação. Atualize a chave de criptografia."
     },
+    "device_not_configured": {
+      "message": "O dispositivo OpenDisplay não tem configuração armazenada. Configure-o pelo site ou CLI do OpenDisplay, depois recarregue a integração."
+    },
     "device_not_found": {
       "message": "Não foi possível encontrar o dispositivo Bluetooth com o endereço `{address}`."
     },
@@ -145,6 +148,9 @@
     },
     "multiple_errors": {
       "message": "Ocorreram erros para um ou mais dispositivos:\n{errors}"
+    },
+    "needs_migration": {
+      "message": "{name} não tem dados de drive para seu painel e não desenharia nada. Abra seu reparo em Configurações > Reparos para adicioná-los."
     },
     "nfc_content_empty": {
       "message": "O conteúdo NFC não pode estar vazio."
@@ -181,6 +187,42 @@
     },
     "url_not_allowed": {
       "message": "URL `{url}` não é permitida. Adicione-a a `allowlist_external_urls` no configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} foi atualizado do firmware 2.x e ainda usava sua chave antiga. O Home Assistant a substituiu por uma nova chave gerada pelo display, porque as chaves 2.x costumam ser fracas ou foram compartilhadas em links.\n\nOutros apps que usam este display, como o site OpenDisplay ou o CLI, precisam da nova chave:\n\n`{key}`\n\nSelecione **Enviar** após copiá-la. O Home Assistant já usa a nova chave.",
+            "title": "Nova chave para {name}"
+          }
+        }
+      },
+      "title": "A chave de {name} foi substituída"
+    },
+    "needs_migration": {
+      "fix_flow": {
+        "abort": {
+          "cannot_connect": "Não foi possível alcançar {name}. Desperte-o e abra este reparo novamente.",
+          "migration_blocked": "O Home Assistant não pode adicionar os dados de drive: {reason}"
+        },
+        "error": {
+          "cannot_connect": "Não foi possível alcançar o display. Desperte-o e tente novamente.",
+          "write_failed": "A configuração não pôde ser gravada, ou não foi lida como gravada. O backup está em `opendisplay/backups` na sua pasta de configuração."
+        },
+        "step": {
+          "confirm": {
+            "description": "{name} roda firmware 3.0, mas sua configuração não tem dados de drive para seu painel, então não desenha nada. Isso ocorre após atualização do firmware 2.x, que mantém a configuração antiga. Uploads para {name} são recusados até corrigir.\n\nO Home Assistant grava os dados de drive para {panel} na configuração de {name} e mantém o resto. Primeiro salva um backup da configuração atual, sem sua chave, senha WiFi e chaves FindMy, em `opendisplay/backups` na sua pasta de configuração.\n\nMantenha {name} acordado e ao alcance. Alguns painéis redesenham por cerca de 30 segundos após a gravação.",
+            "title": "Adicionar dados de drive a {name}"
+          },
+          "confirm_untested": {
+            "description": "{name} roda firmware 3.0, mas sua configuração não tem dados de drive para seu painel, então não desenha nada. Isso ocorre após atualização do firmware 2.x, que mantém a configuração antiga. Uploads para {name} são recusados até corrigir.\n\nO Home Assistant grava os dados de drive para {panel} na configuração de {name} e mantém o resto. Primeiro salva um backup da configuração atual, sem sua chave, senha WiFi e chaves FindMy, em `opendisplay/backups` na sua pasta de configuração.\n\nMantenha {name} acordado e ao alcance. Alguns painéis redesenham por cerca de 30 segundos após a gravação.\n\n**Não testado:** estes dados de drive repetem o que o firmware 2.x enviava para {panel}, mas ninguém confirmou ainda se desenha corretamente com firmware 3.0. Verifique o display após o próximo upload e mantenha o backup.",
+            "title": "Adicionar dados de drive não testados a {name}"
+          }
+        }
+      },
+      "title": "{name} não pode desenhar seu painel"
     }
   },
   "options": {

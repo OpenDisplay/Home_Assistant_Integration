@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Échec de l’authentification. Mettre à jour la clé de chiffrement."
     },
+    "device_not_configured": {
+      "message": "L'appareil OpenDisplay n'a aucune configuration enregistrée. Le configurer via le site OpenDisplay ou la CLI, puis recharger l'intégration."
+    },
     "device_not_found": {
       "message": "Impossible de trouver l’appareil Bluetooth avec l’adresse `{address}`."
     },
@@ -145,6 +148,9 @@
     },
     "multiple_errors": {
       "message": "Des erreurs sont survenues pour un ou plusieurs appareils :\n{errors}"
+    },
+    "needs_migration": {
+      "message": "{name} n'a pas de données de pilotage pour son panneau et n'afficherait rien. Ouvrir sa réparation dans Paramètres > Réparations pour l'ajouter."
     },
     "nfc_content_empty": {
       "message": "Le contenu NFC ne peut pas être vide."
@@ -181,6 +187,42 @@
     },
     "url_not_allowed": {
       "message": "L’URL `{url}` n’est pas autorisée. L’ajouter à `allowlist_external_urls` dans configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} a été mis à jour depuis le firmware 2.x et utilisait encore son ancienne clé. Home Assistant l'a remplacée par une nouvelle clé générée par l'écran, car les clés 2.x sont souvent faibles ou partagées dans des liens.\n\nLes autres applications utilisant cet écran, comme le site OpenDisplay ou la CLI, ont besoin de la nouvelle clé :\n\n`{key}`\n\nSélectionner **Soumettre** une fois copiée. Home Assistant utilise déjà la nouvelle clé.",
+            "title": "Nouvelle clé pour {name}"
+          }
+        }
+      },
+      "title": "La clé de {name} a été remplacée"
+    },
+    "needs_migration": {
+      "fix_flow": {
+        "abort": {
+          "cannot_connect": "Impossible d'atteindre {name}. Le réveiller, puis rouvrir cette réparation.",
+          "migration_blocked": "Home Assistant ne peut pas ajouter les données de pilotage : {reason}"
+        },
+        "error": {
+          "cannot_connect": "Impossible d'atteindre l'écran. Le réveiller et réessayer.",
+          "write_failed": "La configuration n'a pas pu être écrite, ou elle n'a pas été lue telle qu'écrite. La sauvegarde se trouve dans `opendisplay/backups` dans votre dossier de configuration."
+        },
+        "step": {
+          "confirm": {
+            "description": "{name} utilise le firmware 3.0, mais sa configuration ne contient pas de données de pilotage pour son panneau, donc il n'affiche rien. Cela arrive après une mise à jour depuis le firmware 2.x, qui conserve l'ancienne configuration. Les téléchargements vers {name} sont refusés tant que ce n'est pas corrigé.\n\nHome Assistant écrit les données de pilotage pour {panel} dans la configuration de {name} et conserve tout le reste. Il sauvegarde d'abord une copie de la configuration actuelle, sans sa clé, mot de passe WiFi ni clés FindMy, dans `opendisplay/backups` dans votre dossier de configuration.\n\nGarder {name} éveillé et à portée. Certains panneaux redessinent pendant environ 30 secondes après l'écriture.",
+            "title": "Ajouter les données de pilotage à {name}"
+          },
+          "confirm_untested": {
+            "description": "{name} utilise le firmware 3.0, mais sa configuration ne contient pas de données de pilotage pour son panneau, donc il n'affiche rien. Cela arrive après une mise à jour depuis le firmware 2.x, qui conserve l'ancienne configuration. Les téléchargements vers {name} sont refusés tant que ce n'est pas corrigé.\n\nHome Assistant écrit les données de pilotage pour {panel} dans la configuration de {name} et conserve tout le reste. Il sauvegarde d'abord une copie de la configuration actuelle, sans sa clé, mot de passe WiFi ni clés FindMy, dans `opendisplay/backups` dans votre dossier de configuration.\n\nGarder {name} éveillé et à portée. Certains panneaux redessinent pendant environ 30 secondes après l'écriture.\n\n**Non testé :** ces données de pilotage répètent ce que le firmware 2.x envoyait à {panel}, mais personne n'a encore confirmé qu'elles s'affichent correctement avec le firmware 3.0. Vérifier l'écran après le prochain téléchargement et conserver la sauvegarde.",
+            "title": "Ajouter des données de pilotage non testées à {name}"
+          }
+        }
+      },
+      "title": "{name} ne peut pas afficher son panneau"
     }
   },
   "options": {

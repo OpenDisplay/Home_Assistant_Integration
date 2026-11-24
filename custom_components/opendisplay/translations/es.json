@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Autenticación fallida. Actualizar la clave de cifrado."
     },
+    "device_not_configured": {
+      "message": "El dispositivo OpenDisplay no tiene configuración almacenada. Configurarlo con el sitio web o CLI de OpenDisplay, luego recargar la integración."
+    },
     "device_not_found": {
       "message": "No se pudo encontrar el dispositivo Bluetooth con la dirección `{address}`."
     },
@@ -145,6 +148,9 @@
     },
     "multiple_errors": {
       "message": "Ocurrieron errores en uno o más dispositivos:\n{errors}"
+    },
+    "needs_migration": {
+      "message": "{name} no tiene datos de unidad para su panel y no dibujaría nada. Abrir su reparación en Configuración > Reparaciones para añadirlos."
     },
     "nfc_content_empty": {
       "message": "El contenido NFC no puede estar vacío."
@@ -181,6 +187,42 @@
     },
     "url_not_allowed": {
       "message": "La URL `{url}` no está permitida. Agrégala a `allowlist_external_urls` en configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} se actualizó desde firmware 2.x y aún usaba su clave antigua. Home Assistant la reemplazó con una nueva clave generada por el display, porque las claves 2.x suelen ser débiles o se compartían en enlaces.\n\nOtras apps que usan este display, como el sitio web de OpenDisplay o el CLI, necesitan la nueva clave:\n\n`{key}`\n\nSeleccionar **Enviar** una vez copiada. Home Assistant ya usa la nueva clave.",
+            "title": "Nueva clave para {name}"
+          }
+        }
+      },
+      "title": "La clave de {name} fue reemplazada"
+    },
+    "needs_migration": {
+      "fix_flow": {
+        "abort": {
+          "cannot_connect": "No se pudo contactar con {name}. Activarlo y abrir esta reparación de nuevo.",
+          "migration_blocked": "Home Assistant no puede añadir los datos de unidad: {reason}"
+        },
+        "error": {
+          "cannot_connect": "No se pudo contactar con el display. Activarlo y volver a intentar.",
+          "write_failed": "No se pudo escribir la configuración, o no se leyó igual que se escribió. La copia de seguridad está en `opendisplay/backups` en la carpeta de configuración."
+        },
+        "step": {
+          "confirm": {
+            "description": "{name} ejecuta firmware 3.0, pero su configuración no tiene datos de unidad para su panel, por lo que no dibuja nada. Esto ocurre tras una actualización desde firmware 2.x, que mantiene la configuración antigua. Las cargas a {name} se rechazan hasta que se solucione.\n\nHome Assistant escribe los datos de unidad para {panel} en la configuración de {name} y mantiene todo lo demás. Primero guarda una copia de seguridad de la configuración actual, sin su clave, contraseña WiFi ni claves FindMy, en `opendisplay/backups` en la carpeta de configuración.\n\nMantener {name} activo y en rango. Algunos paneles redibujan durante unos 30 segundos tras la escritura.",
+            "title": "Añadir datos de unidad a {name}"
+          },
+          "confirm_untested": {
+            "description": "{name} ejecuta firmware 3.0, pero su configuración no tiene datos de unidad para su panel, por lo que no dibuja nada. Esto ocurre tras una actualización desde firmware 2.x, que mantiene la configuración antigua. Las cargas a {name} se rechazan hasta que se solucione.\n\nHome Assistant escribe los datos de unidad para {panel} en la configuración de {name} y mantiene todo lo demás. Primero guarda una copia de seguridad de la configuración actual, sin su clave, contraseña WiFi ni claves FindMy, en `opendisplay/backups` en la carpeta de configuración.\n\nMantener {name} activo y en rango. Algunos paneles redibujan durante unos 30 segundos tras la escritura.\n\n**No probado:** estos datos de unidad repiten lo que el firmware 2.x enviaba a {panel}, pero nadie ha confirmado aún que dibuje correctamente con firmware 3.0. Revisar el display tras la siguiente carga y conservar la copia de seguridad.",
+            "title": "Añadir datos de unidad no probados a {name}"
+          }
+        }
+      },
+      "title": "{name} no puede dibujar su panel"
     }
   },
   "options": {
