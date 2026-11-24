@@ -10,6 +10,7 @@ import asyncio
 from collections.abc import AsyncGenerator
 from datetime import timedelta
 import logging
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.const import Platform
@@ -20,6 +21,9 @@ from opendisplay import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
     BLEConnectionError,
+    BLETimeoutError,
+    OpenDisplayError,
+    ProtocolError,
     RefreshMode,
 )
 import pytest
@@ -36,7 +40,12 @@ from custom_components.opendisplay.ble_lock import async_get_ble_lock, ble_conne
 from custom_components.opendisplay.const import (
     CONF_BLOCKS_PER_ACK,
     CONF_ENCRYPTION_KEY,
+    CONF_HOST,
     CONF_MAX_QUEUE_SIZE,
+    CONF_PORT,
+    CONF_SLEEP_AFTER_DELIVERY,
+    CONF_SLEEP_MODE,
+    CONF_TLS,
     DEFAULT_BLOCKS_PER_ACK,
     DEFAULT_MAX_QUEUE_SIZE,
     EVENT_CONTENT_DELIVERED,
@@ -46,6 +55,7 @@ from custom_components.opendisplay.delivery import DeliveryManager
 
 from . import (
     TEST_ADDRESS as ADDRESS,
+    _async_ctx,
     connection_fails,
     connects_to,
     connects_via,
@@ -112,6 +122,19 @@ def _uploading_device() -> MagicMock:
     """Return a device mock that accepts a prepared image."""
     device = MagicMock()
     device.upload_prepared_image = AsyncMock()
+    device.deep_sleep = AsyncMock()
+    return device
+
+
+def _resyncing_device() -> MagicMock:
+    """Return a device mock that also answers a config resync."""
+    device = _uploading_device()
+    device.read_firmware_version = AsyncMock(
+        return_value={"major": 1, "minor": 2, "sha": "abc"}
+    )
+    device.is_flex = False
+    device.landing_url = MagicMock(return_value="http://landing")
+    device.config = MagicMock()
     return device
 
 
@@ -632,3 +655,245 @@ async def test_drain_waits_for_a_preheld_registry_lock(
         and record.levelno == logging.WARNING
     ]
     assert len(contention) == 1
+
+
+async def test_a_frame_queued_mid_upload_is_not_dropped(
+    hass: HomeAssistant, manager: DeliveryManager
+) -> None:
+    """Latest-wins must not lose a frame queued while an older one streams."""
+    device = _uploading_device()
+
+    async def _upload(*_args, **_kwargs) -> None:
+        _submit(manager, device_id="newer")
+
+    device.upload_prepared_image = AsyncMock(side_effect=_upload)
+    with connects_to(device):
+        _submit(manager, device_id="first")
+        await manager._deliver()
+
+    assert manager.state.pending is True
+    assert manager._pending_upload is not None
+    assert manager._pending_upload.device_id == "newer"
+    await manager.async_shutdown()
+
+
+# --- sleep after delivery --------------------------------------------------
+
+
+async def test_sleep_is_sent_after_a_delivery_by_default(
+    manager: DeliveryManager,
+) -> None:
+    """A sleepy tag is sent back to sleep once its queued frame has landed."""
+    device = _uploading_device()
+    with connects_to(device):
+        _submit(manager)
+        await manager._deliver()
+
+    device.upload_prepared_image.assert_awaited_once()
+    device.deep_sleep.assert_awaited_once_with()
+
+
+async def test_sleep_follows_both_the_upload_and_the_resync(
+    manager: DeliveryManager,
+) -> None:
+    """Sleep comes last: a resync on the same link must not be cut off."""
+    device = _resyncing_device()
+    calls = MagicMock()
+    calls.attach_mock(device.upload_prepared_image, "upload")
+    calls.attach_mock(device.read_firmware_version, "resync")
+    calls.attach_mock(device.deep_sleep, "sleep")
+
+    with (
+        connects_to(device),
+        patch("custom_components.opendisplay._write_cache"),
+    ):
+        _submit(manager)
+        manager.request_config_resync()
+        await manager._deliver()
+
+    assert [name for name, *_ in calls.mock_calls] == ["upload", "resync", "sleep"]
+    assert manager._has_pending_work() is False
+
+
+@pytest.mark.parametrize(
+    "config_entry_options", [{CONF_SLEEP_AFTER_DELIVERY: False}], ids=["off"]
+)
+async def test_sleep_is_not_sent_when_the_option_is_off(
+    manager: DeliveryManager,
+) -> None:
+    """With the option off the tag idles out its wake window as before."""
+    device = _uploading_device()
+    with connects_to(device):
+        _submit(manager)
+        await manager._deliver()
+
+    device.upload_prepared_image.assert_awaited_once()
+    device.deep_sleep.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "config_entry_options", [{CONF_SLEEP_MODE: "off"}], ids=["not-sleepy"]
+)
+async def test_sleep_is_not_sent_to_a_device_that_is_not_sleepy(
+    entry: MockConfigEntry, manager: DeliveryManager
+) -> None:
+    """Only a device treated as deep-sleeping is ever told to sleep."""
+    assert entry.runtime_data.sleep_profile.is_sleepy is False
+    device = _uploading_device()
+    with connects_to(device):
+        _submit(manager)
+        await manager._deliver()
+
+    device.upload_prepared_image.assert_awaited_once()
+    device.deep_sleep.assert_not_awaited()
+
+
+async def test_sleep_is_not_sent_when_nothing_was_delivered(
+    manager: DeliveryManager,
+) -> None:
+    """A drain that found no work leaves the device alone."""
+    device = _uploading_device()
+    with connects_to(device):
+        await manager._deliver()
+
+    device.upload_prepared_image.assert_not_awaited()
+    device.deep_sleep.assert_not_awaited()
+
+
+async def test_sleep_is_skipped_when_new_content_arrived_mid_drain(
+    manager: DeliveryManager,
+) -> None:
+    """A frame queued during the upload is not stranded for a whole sleep cycle.
+
+    The next advertisement in this same wake window drains it instead.
+    """
+    device = _uploading_device()
+
+    async def _upload(*_args, **_kwargs) -> None:
+        _submit(manager, device_id="newer")
+
+    device.upload_prepared_image = AsyncMock(side_effect=_upload)
+    with connects_to(device):
+        _submit(manager, device_id="first")
+        await manager._deliver()
+
+    device.deep_sleep.assert_not_awaited()
+    # The newer frame was not clobbered by the one that just finished.
+    assert manager._pending_upload is not None
+    assert manager._pending_upload.device_id == "newer"
+    assert manager.state.pending is True
+    await manager.async_shutdown()
+
+
+async def test_sleep_is_skipped_when_content_arrives_during_the_resync(
+    manager: DeliveryManager,
+) -> None:
+    """Work queued while the resync runs also keeps the device awake."""
+    device = _resyncing_device()
+    resync = device.read_firmware_version.return_value
+
+    async def _read_fw() -> dict:
+        _submit(manager, device_id="during-resync")
+        return resync
+
+    device.read_firmware_version = AsyncMock(side_effect=_read_fw)
+    with (
+        connects_to(device),
+        patch("custom_components.opendisplay._write_cache"),
+    ):
+        manager.request_config_resync()
+        await manager._deliver()
+
+    device.deep_sleep.assert_not_awaited()
+    assert manager._pending_upload is not None
+    assert manager._pending_upload.device_id == "during-resync"
+    await manager.async_shutdown()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ProtocolError("deep sleep not supported"),
+        BLEConnectionError("link dropped"),
+        BLETimeoutError("no ack"),
+        OpenDisplayError("nack"),
+        RuntimeError("unexpected"),
+    ],
+    ids=["nack", "disconnect", "timeout", "opendisplay-error", "unexpected"],
+)
+async def test_a_failing_sleep_does_not_fail_the_delivery(
+    hass: HomeAssistant, manager: DeliveryManager, error: Exception
+) -> None:
+    """The frame already landed; a sleep error must not count as a failure."""
+    delivered = async_capture_events(hass, EVENT_CONTENT_DELIVERED)
+    device = _uploading_device()
+    device.deep_sleep = AsyncMock(side_effect=error)
+    with connects_to(device):
+        _submit(manager)
+        await manager._deliver()
+    await hass.async_block_till_done()
+
+    device.deep_sleep.assert_awaited_once()
+    assert len(delivered) == 1
+    assert manager.state.pending is False
+    assert manager.state.last_error is None
+    assert manager.state.attempts == 0
+
+
+async def test_a_hanging_sleep_is_bounded(
+    hass: HomeAssistant, manager: DeliveryManager
+) -> None:
+    """A sleep command that never returns is abandoned, not waited on forever."""
+    delivered = async_capture_events(hass, EVENT_CONTENT_DELIVERED)
+    device = _uploading_device()
+
+    async def _hang() -> None:
+        await asyncio.sleep(3600)
+
+    device.deep_sleep = AsyncMock(side_effect=_hang)
+    with (
+        connects_to(device),
+        patch.object(delivery_mod, "SLEEP_COMMAND_TIMEOUT_S", 0.01),
+    ):
+        _submit(manager)
+        await manager._deliver()
+    await hass.async_block_till_done()
+
+    assert len(delivered) == 1
+    assert manager.state.last_error is None
+
+
+@pytest.mark.parametrize(
+    "config_entry_data",
+    [{CONF_HOST: "1.2.3.4", CONF_PORT: 2446, CONF_TLS: False}],
+    ids=["wifi"],
+)
+async def test_sleep_is_sent_once_after_a_wifi_to_ble_fallback(
+    entry: MockConfigEntry, manager: DeliveryManager
+) -> None:
+    """WiFi delivers the frame, the resync fails over WiFi, BLE finishes it.
+
+    The sleep must go out exactly once, over the BLE link that completed the
+    drain, and not over WiFi before the resync had run.
+    """
+    entry.runtime_data.mdns_last_seen = time.monotonic()
+    wifi = _resyncing_device()
+    wifi.read_firmware_version = AsyncMock(side_effect=OSError("wifi dropped"))
+    ble = _resyncing_device()
+
+    def _factory(**kwargs):
+        return _async_ctx(wifi if "host" in kwargs else ble)
+
+    with (
+        connects_via(_factory),
+        patch("custom_components.opendisplay._write_cache"),
+    ):
+        _submit(manager)
+        manager.request_config_resync()
+        await manager._deliver()
+
+    wifi.upload_prepared_image.assert_awaited_once()
+    ble.upload_prepared_image.assert_not_awaited()
+    ble.read_firmware_version.assert_awaited_once()
+    wifi.deep_sleep.assert_not_awaited()
+    ble.deep_sleep.assert_awaited_once_with()

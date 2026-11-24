@@ -80,6 +80,7 @@ Each device has options, under **Configure** on the device page:
 | **Missed cycles** | how many wakes may be missed before entities are marked unavailable |
 | **Queue timeout** | how long queued content waits for a wake before it expires |
 | **Probe before queueing** | try a quick connection first, so content reaches an awake tag immediately |
+| **Sleep after delivery** | once queued content is delivered, send the tag straight back to deep sleep instead of letting it idle for the rest of its wake window (on by default) |
 | **Blocks per ack**, **Max queue size** | Bluetooth transfer tuning; leave these alone unless transfers are unreliable |
 
 ## Usage

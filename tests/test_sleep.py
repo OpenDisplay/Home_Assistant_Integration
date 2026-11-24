@@ -10,9 +10,11 @@ from custom_components.opendisplay.const import (
     CONF_MISSED_CYCLES,
     CONF_PROBE_BEFORE_QUEUE,
     CONF_QUEUE_TIMEOUT_HOURS,
+    CONF_SLEEP_AFTER_DELIVERY,
     CONF_SLEEP_MODE,
     DEFAULT_PROBE_BEFORE_QUEUE,
     DEFAULT_QUEUE_TIMEOUT_HOURS,
+    DEFAULT_SLEEP_AFTER_DELIVERY,
 )
 from custom_components.opendisplay.sleep import (
     AVAILABILITY_SLACK_S,
@@ -171,6 +173,7 @@ async def test_from_entry_reads_the_device_power_config(
             CONF_MISSED_CYCLES: 7,
             CONF_QUEUE_TIMEOUT_HOURS: 3,
             CONF_PROBE_BEFORE_QUEUE: False,
+            CONF_SLEEP_AFTER_DELIVERY: False,
         }
     ],
 )
@@ -189,6 +192,7 @@ async def test_from_entry_applies_every_configured_option(
     assert profile.is_sleepy is True  # forced on despite a USB device
     assert profile.queue_timeout_s == 3 * 3600
     assert profile.probe_before_queue is False
+    assert profile.sleep_after_delivery is False
     assert profile.missed_cycles == 7
 
 
@@ -202,3 +206,4 @@ async def test_from_entry_falls_back_to_the_defaults(
     profile = mock_config_entry.runtime_data.sleep_profile
     assert profile.queue_timeout_s == DEFAULT_QUEUE_TIMEOUT_HOURS * 3600
     assert profile.probe_before_queue is DEFAULT_PROBE_BEFORE_QUEUE
+    assert profile.sleep_after_delivery is DEFAULT_SLEEP_AFTER_DELIVERY is True
