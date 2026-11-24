@@ -436,7 +436,8 @@ async def test_a_display_that_needs_migration_raises_a_repair_issue(
     )
     assert issue is not None
     assert issue.translation_key == "needs_migration"
-    assert issue.is_fixable is False
+    assert issue.is_fixable is True
+    assert issue.data == {"entry_id": mock_config_entry.entry_id}
     assert issue.translation_placeholders == {"name": mock_config_entry.title}
 
 

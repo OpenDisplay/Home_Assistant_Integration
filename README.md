@@ -80,10 +80,13 @@ repair then shows the new key once, for other apps that use the display.
 
 A display updated from 2.x to 3.0 over Bluetooth keeps its old configuration,
 which has no drive data for its panel, so it draws nothing. Home Assistant then
-shows a repair and refuses uploads to it (a dry run still previews). Add the
-drive data with `opendisplay migrate --device <name>` from the
-[py-opendisplay](https://github.com/OpenDisplay/py-opendisplay) CLI, then reload
-the integration.
+shows a repair and refuses uploads to it (a dry run still previews). The
+repair's **Fix** adds the drive data from the OpenDisplay panel database and
+keeps the rest of the configuration. It first saves a backup of the old
+configuration, without its key, WiFi password and FindMy keys, in
+`opendisplay/backups` in the configuration folder. The display must be awake
+and in range. When the drive data has not been confirmed on that panel yet, the
+repair says so before writing.
 
 Each device has options, under **Configure** on the device page:
 
