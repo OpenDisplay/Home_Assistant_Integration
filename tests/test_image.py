@@ -99,7 +99,6 @@ async def test_queued_frame_is_marked_pending(
         prepared=(b"frame", None, MagicMock()),
         refresh_mode=MagicMock(),
         partial_state=MagicMock(),
-        use_measured_palettes=False,
         preview_jpeg=JPEG,
         device_id=None,
     )

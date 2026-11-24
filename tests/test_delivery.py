@@ -21,6 +21,7 @@ from opendisplay import (
     AuthenticationRequiredError,
     BLEConnectionError,
     RefreshMode,
+    Sec2KeyRequiredError,
 )
 import pytest
 from pytest_homeassistant.common import (
@@ -34,11 +35,7 @@ from custom_components.opendisplay import delivery as delivery_mod
 from custom_components.opendisplay.binary_sensor import OpenDisplayUpdatePendingSensor
 from custom_components.opendisplay.ble_lock import async_get_ble_lock, ble_connection
 from custom_components.opendisplay.const import (
-    CONF_BLOCKS_PER_ACK,
     CONF_ENCRYPTION_KEY,
-    CONF_MAX_QUEUE_SIZE,
-    DEFAULT_BLOCKS_PER_ACK,
-    DEFAULT_MAX_QUEUE_SIZE,
     EVENT_CONTENT_DELIVERED,
     EVENT_CONTENT_EXPIRED,
 )
@@ -91,7 +88,6 @@ def _submit(mgr: DeliveryManager, device_id: str = "dev1", **overrides):
         "prepared": (b"img", None, object()),
         "refresh_mode": RefreshMode.FULL,
         "partial_state": MagicMock(),
-        "use_measured_palettes": False,
         "preview_jpeg": b"jpeg",
         "device_id": device_id,
     }
@@ -265,8 +261,10 @@ async def test_drain_gives_up_after_max_attempts(
         # Issue #91's real case: firmware status 0x03 (encryption not
         # configured) surfaces as AuthenticationRequiredError.
         AuthenticationRequiredError("device has no encryption configured"),
+        # A claimed firmware 3.0 device that none of the keys opens.
+        Sec2KeyRequiredError(1),
     ],
-    ids=["failed", "required"],
+    ids=["failed", "required", "sec2"],
 )
 async def test_drain_auth_failure_pauses_and_starts_reauth(
     hass: HomeAssistant, manager: DeliveryManager, auth_error: Exception
@@ -292,8 +290,9 @@ async def test_drain_auth_failure_pauses_and_starts_reauth(
     [
         AuthenticationFailedError("wrong key"),
         AuthenticationRequiredError("device has no encryption configured"),
+        Sec2KeyRequiredError(1),
     ],
-    ids=["failed", "required"],
+    ids=["failed", "required", "sec2"],
 )
 async def test_auth_failure_stops_a_resync_only_retry_loop(
     hass: HomeAssistant, manager: DeliveryManager, auth_error: Exception
@@ -507,33 +506,6 @@ async def test_shutdown_detaches_from_wakes_and_cancels_the_expiry(
 
 
 # --- what reaches the library ----------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("options", "blocks_per_ack", "max_queue_size"),
-    [
-        ({}, DEFAULT_BLOCKS_PER_ACK, DEFAULT_MAX_QUEUE_SIZE),
-        ({CONF_BLOCKS_PER_ACK: 4, CONF_MAX_QUEUE_SIZE: 1}, 4, 1),
-    ],
-    ids=["defaults", "configured"],
-)
-async def test_drain_threads_the_pipe_options(
-    hass: HomeAssistant,
-    entry: MockConfigEntry,
-    manager: DeliveryManager,
-    options: dict,
-    blocks_per_ack: int,
-    max_queue_size: int,
-) -> None:
-    """The sliding-window options reach the OpenDisplayDevice constructor."""
-    hass.config_entries.async_update_entry(entry, options=options)
-    device = _uploading_device()
-    with connects_to(device) as constructor:
-        _submit(manager)
-        await manager._deliver()
-
-    assert constructor.call_args.kwargs["blocks_per_ack"] == blocks_per_ack
-    assert constructor.call_args.kwargs["max_queue_size"] == max_queue_size
 
 
 async def test_drain_passes_state_and_refresh_mode(manager: DeliveryManager) -> None:

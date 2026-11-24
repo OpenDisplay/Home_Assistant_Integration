@@ -14,6 +14,7 @@ from opendisplay import (
     BLEConnectionError,
     BLETimeoutError,
     OpenDisplayError,
+    Sec2KeyRequiredError,
 )
 import pytest
 from pytest_homeassistant.common import MockConfigEntry
@@ -25,6 +26,7 @@ from custom_components.opendisplay.const import (
     CONF_HOST,
     DOMAIN,
 )
+from custom_components.opendisplay.keystore import EntryKeyStore
 from custom_components.opendisplay.transport import resolve_transport
 
 from . import (
@@ -59,9 +61,9 @@ async def test_setup_encrypted_device(
     hass: HomeAssistant,
     mock_encrypted_config_entry: MockConfigEntry,
     mock_opendisplay_device: MagicMock,
-    mock_opendisplay_device_class: MagicMock,
+    mock_opendisplay_connect: MagicMock,
 ) -> None:
-    """Test setup passes the encryption key to OpenDisplayDevice."""
+    """Test setup passes the encryption key to connect()."""
     mock_opendisplay_device.is_flex = False
     mock_encrypted_config_entry.add_to_hass(hass)
 
@@ -69,9 +71,9 @@ async def test_setup_encrypted_device(
     await hass.async_block_till_done()
 
     assert mock_encrypted_config_entry.state is ConfigEntryState.LOADED
-    assert mock_opendisplay_device_class.call_args.kwargs[
-        "encryption_key"
-    ] == bytes.fromhex(ENCRYPTION_KEY)
+    assert mock_opendisplay_connect.call_args.kwargs["encryption_key"] == bytes.fromhex(
+        ENCRYPTION_KEY
+    )
 
 
 async def test_setup_device_not_found(
@@ -107,7 +109,7 @@ async def test_setup_connection_error(
     mock_config_entry.add_to_hass(hass)
 
     with patch(
-        "custom_components.opendisplay.OpenDisplayDevice",
+        "custom_components.opendisplay.connect",
         return_value=AsyncMock(__aenter__=AsyncMock(side_effect=exception)),
     ):
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
@@ -195,6 +197,7 @@ async def test_unload_cancels_active_upload_task(
     [
         AuthenticationFailedError("wrong key"),
         AuthenticationRequiredError("auth required"),
+        Sec2KeyRequiredError(1),
     ],
 )
 async def test_setup_authentication_error(
@@ -206,7 +209,7 @@ async def test_setup_authentication_error(
     mock_config_entry.add_to_hass(hass)
 
     with patch(
-        "custom_components.opendisplay.OpenDisplayDevice",
+        "custom_components.opendisplay.connect",
         return_value=AsyncMock(__aenter__=AsyncMock(side_effect=exception)),
     ):
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
@@ -214,6 +217,22 @@ async def test_setup_authentication_error(
 
     assert mock_config_entry.state is ConfigEntryState.SETUP_ERROR
     assert mock_config_entry.error_reason_translation_key == "authentication_error"
+
+
+async def test_setup_device_without_a_stored_config(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_opendisplay_device: MagicMock,
+) -> None:
+    """A reachable device with no stored config cannot be set up; no retry loop."""
+    mock_opendisplay_device.config = None
+    mock_config_entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.SETUP_ERROR
+    assert mock_config_entry.error_reason_translation_key == "device_not_configured"
 
 
 async def test_setup_invalid_encryption_key_format(
@@ -314,10 +333,10 @@ async def test_cache_is_not_used_for_a_non_sleepy_device(
 async def test_setup_deadline_is_treated_as_a_connect_failure(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
-    mock_opendisplay_device: MagicMock,
+    mock_opendisplay_connect: MagicMock,
 ) -> None:
     """A wedged BLE link must not stall setup forever."""
-    mock_opendisplay_device.read_firmware_version.side_effect = TimeoutError
+    mock_opendisplay_connect.return_value.__aenter__.side_effect = TimeoutError
     mock_config_entry.add_to_hass(hass)
 
     assert not await hass.config_entries.async_setup(mock_config_entry.entry_id)
@@ -356,6 +375,22 @@ async def test_platform_selection(
     await hass.async_block_till_done()
 
     assert set(_get_platforms(mock_config_entry.runtime_data)) == expected
+
+
+async def test_setup_hands_the_entry_key_store_to_connect(
+    hass: HomeAssistant,
+    mock_encrypted_config_entry: MockConfigEntry,
+    mock_opendisplay_connect: MagicMock,
+) -> None:
+    """The library can rotate a migrated key only into a store that keeps it."""
+    mock_encrypted_config_entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(mock_encrypted_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    store = mock_opendisplay_connect.call_args.kwargs["key_store"]
+    assert isinstance(store, EntryKeyStore)
+    assert store.keys_to_try("any") == [bytes.fromhex(ENCRYPTION_KEY)]
 
 
 async def test_a_new_lan_address_keeps_wifi_preferred_after_the_reload(

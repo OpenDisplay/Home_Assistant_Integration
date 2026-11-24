@@ -6,6 +6,7 @@ else runs against a really-set-up config entry, so the runtime_data fields the
 resolver reads and writes are the real dataclass rather than a stand-in.
 """
 
+import asyncio
 from collections.abc import Awaitable, Callable
 import time
 from typing import Any
@@ -13,7 +14,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from opendisplay import OpenDisplayConnectionError, OpenDisplayTimeoutError
+from opendisplay import (
+    BLETimeoutError,
+    OpenDisplayConnectionError,
+    OpenDisplayTimeoutError,
+)
 import pytest
 from pytest_homeassistant.common import MockConfigEntry
 
@@ -24,6 +29,7 @@ from custom_components.opendisplay.const import (
     DEFAULT_LAN_PORT,
     MDNS_FRESHNESS_WINDOW_S,
 )
+from custom_components.opendisplay.keystore import EntryKeyStore
 from custom_components.opendisplay.transport import (
     TRANSPORT_BLE,
     TRANSPORT_WIFI,
@@ -154,14 +160,14 @@ async def test_wifi_preferred_when_fresh(
             hass,
             entry,
             action,
-            base_kwargs={"config": None},
+            encryption_key=None,
             ble_unavailable=lambda: AssertionError("BLE must not be reached"),
         )
 
     assert result == TRANSPORT_WIFI
     action.assert_awaited_once_with(device)
     assert "host" in calls[0]
-    assert "mac_address" not in calls[0]
+    assert "address" not in calls[0]
     assert len(calls) == 1  # BLE was never attempted
     assert entry.runtime_data.last_transport == TRANSPORT_WIFI
 
@@ -198,7 +204,7 @@ async def test_wifi_failure_falls_back_to_ble(
             hass,
             entry,
             action,
-            base_kwargs={"config": None},
+            encryption_key=None,
             ble_unavailable=lambda: AssertionError("BLE device was available"),
         )
 
@@ -223,12 +229,12 @@ async def test_stale_host_uses_ble_directly(
 
     with connects_via(_factory):
         result = await async_run_with_fallback(
-            hass, entry, action, base_kwargs={}, ble_unavailable=RuntimeError
+            hass, entry, action, encryption_key=None, ble_unavailable=RuntimeError
         )
 
     assert result == TRANSPORT_BLE
     assert len(calls) == 1
-    assert "mac_address" in calls[0]
+    assert "address" in calls[0]
     assert "host" not in calls[0]
 
 
@@ -247,7 +253,89 @@ async def test_ble_unavailable_raises_the_supplied_exception(
 
     with ble_unreachable(), pytest.raises(_Sentinel):
         await async_run_with_fallback(
-            hass, entry, action, base_kwargs={}, ble_unavailable=_Sentinel
+            hass, entry, action, encryption_key=None, ble_unavailable=_Sentinel
         )
 
     action.assert_not_awaited()
+
+
+def _slow_ctx(delay: float, device: object = None):
+    """Return an async context manager that takes ``delay`` seconds to enter."""
+    ctx = MagicMock()
+
+    async def _aenter(*_args):
+        await asyncio.sleep(delay)
+        return device
+
+    async def _aexit(*_args):
+        return False
+
+    ctx.__aenter__ = _aenter
+    ctx.__aexit__ = _aexit
+    return ctx
+
+
+async def test_connect_deadline_breach_is_a_connect_timeout(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> None:
+    """A connect slower than the deadline raises BLETimeoutError, the action never runs."""
+    action = AsyncMock()
+
+    with (
+        connects_via(lambda **kw: _slow_ctx(1.0)),
+        pytest.raises(BLETimeoutError),
+    ):
+        await async_run_with_fallback(
+            hass,
+            entry,
+            action,
+            encryption_key=None,
+            ble_unavailable=RuntimeError,
+            connect_deadline=0.01,
+        )
+
+    action.assert_not_awaited()
+
+
+async def test_connect_deadline_does_not_bound_the_action(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> None:
+    """Only entering the connection is bounded; a slow upload still completes."""
+    device = MagicMock()
+    action = AsyncMock(side_effect=lambda _device: asyncio.sleep(0.05))
+
+    with connects_via(lambda **kw: _async_ctx(device)):
+        result = await async_run_with_fallback(
+            hass,
+            entry,
+            action,
+            encryption_key=None,
+            ble_unavailable=RuntimeError,
+            connect_deadline=0.01,
+        )
+
+    assert result == TRANSPORT_BLE
+    action.assert_awaited_once_with(device)
+
+
+async def test_the_key_reaches_connect(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> None:
+    """The stored key is handed to connect(), which picks the scheme."""
+    calls: list[dict[str, Any]] = []
+
+    def _factory(**kwargs):
+        calls.append(kwargs)
+        return _async_ctx(MagicMock())
+
+    with connects_via(_factory):
+        await async_run_with_fallback(
+            hass,
+            entry,
+            AsyncMock(),
+            encryption_key=b"\x01" * 16,
+            ble_unavailable=RuntimeError,
+        )
+
+    assert calls[0]["encryption_key"] == b"\x01" * 16
+    assert isinstance(calls[0]["key_store"], EntryKeyStore)

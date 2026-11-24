@@ -19,6 +19,7 @@ from opendisplay import (
     BLEConnectionError,
     NfcNotSupportedError,
     NfcWriteError,
+    Sec2KeyRequiredError,
 )
 from PIL import Image as PILImage
 import pytest
@@ -39,6 +40,7 @@ from . import (
     TEST_ADDRESS,
     make_nfc_device_config,
     make_notifier_device_config,
+    make_sleepy_device_config,
 )
 
 
@@ -371,10 +373,10 @@ async def test_upload_image_cancels_previous_task(
 async def test_upload_image_with_encryption_key(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
-    mock_opendisplay_device_class: MagicMock,
+    mock_opendisplay_connect: MagicMock,
     mock_resolve_media: MagicMock,
 ) -> None:
-    """Test that upload_image passes the encryption key to OpenDisplayDevice."""
+    """Test that upload_image passes the encryption key to connect()."""
     hass.config_entries.async_update_entry(
         mock_config_entry,
         data={**mock_config_entry.data, CONF_ENCRYPTION_KEY: ENCRYPTION_KEY},
@@ -395,9 +397,9 @@ async def test_upload_image_with_encryption_key(
         blocking=True,
     )
 
-    assert mock_opendisplay_device_class.call_args.kwargs[
-        "encryption_key"
-    ] == bytes.fromhex(ENCRYPTION_KEY)
+    assert mock_opendisplay_connect.call_args.kwargs["encryption_key"] == bytes.fromhex(
+        ENCRYPTION_KEY
+    )
 
 
 @pytest.mark.parametrize(
@@ -405,6 +407,7 @@ async def test_upload_image_with_encryption_key(
     [
         AuthenticationFailedError("wrong key"),
         AuthenticationRequiredError("auth required"),
+        Sec2KeyRequiredError(1),
     ],
 )
 async def test_upload_image_auth_error(
@@ -1263,3 +1266,32 @@ async def test_drawcustom_transposes_the_canvas_for_a_rotated_panel(
 
     assert mock_render.await_args.kwargs["width"] == 128
     assert mock_render.await_args.kwargs["height"] == 296
+
+
+@pytest.mark.parametrize("device_config", [make_sleepy_device_config()])
+async def test_upload_to_a_probably_asleep_tag_probes_with_a_connect_deadline(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_resolve_media: MagicMock,
+) -> None:
+    """A tag not seen within its wake window gets one bounded connect, not 40 s."""
+    with patch.object(
+        services, "_async_connect_and_run", new_callable=AsyncMock
+    ) as connect_and_run:
+        await hass.services.async_call(
+            DOMAIN,
+            "upload_image",
+            {
+                "device_id": _device_id(hass, mock_config_entry),
+                "image": {
+                    "media_content_id": "media-source://local/test.png",
+                    "media_content_type": "image/png",
+                },
+            },
+            blocking=True,
+        )
+
+    assert (
+        connect_and_run.await_args.kwargs["connect_deadline"]
+        == services.PROBE_CONNECT_DEADLINE_S
+    )

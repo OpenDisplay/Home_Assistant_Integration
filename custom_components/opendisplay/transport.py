@@ -15,6 +15,7 @@ BLE for that same delivery — a hard requirement — via ``async_run_with_fallb
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 import contextlib
 from dataclasses import dataclass
@@ -27,9 +28,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util.hass_dict import HassKey
 
 from opendisplay import (
+    BLETimeoutError,
     OpenDisplayConnectionError,
     OpenDisplayDevice,
     OpenDisplayTimeoutError,
+    connect,
 )
 
 from .const import (
@@ -40,6 +43,7 @@ from .const import (
     DOMAIN,
     MDNS_FRESHNESS_WINDOW_S,
 )
+from .keystore import EntryKeyStore
 
 if TYPE_CHECKING:
     from . import OpenDisplayConfigEntry
@@ -151,13 +155,47 @@ def record_last_transport(entry: OpenDisplayConfigEntry, transport: str) -> None
         runtime.last_transport = transport
 
 
+async def _connect_and_run(
+    action: Callable[[OpenDisplayDevice], Awaitable[None]],
+    encryption_key: bytes | None,
+    key_store: EntryKeyStore,
+    connect_deadline: float | None,
+    **addressing: Any,
+) -> None:
+    """Connect with ``opendisplay.connect()`` and run ``action`` on the device.
+
+    ``connect_deadline`` bounds only entering the connection (link, firmware
+    version, identity, security, config), not ``action``. A breach is raised as
+    ``BLETimeoutError`` so callers treat it like any other connect timeout.
+    """
+    async with contextlib.AsyncExitStack() as stack:
+        deadline = asyncio.timeout(connect_deadline)
+        try:
+            async with deadline:
+                device = await stack.enter_async_context(
+                    connect(
+                        encryption_key=encryption_key,
+                        key_store=key_store,
+                        **addressing,
+                    )
+                )
+        except TimeoutError as err:
+            if not deadline.expired():
+                raise
+            raise BLETimeoutError(
+                f"Connecting took longer than {connect_deadline:.0f}s"
+            ) from err
+        await action(device.legacy)
+
+
 async def async_run_with_fallback(
     hass: HomeAssistant,
     entry: OpenDisplayConfigEntry,
     action: Callable[[OpenDisplayDevice], Awaitable[None]],
     *,
-    base_kwargs: dict[str, Any],
+    encryption_key: bytes | None,
     ble_unavailable: Callable[[], BaseException],
+    connect_deadline: float | None = None,
 ) -> str:
     """Open a device and run ``action`` over the resolved transport.
 
@@ -167,26 +205,28 @@ async def async_run_with_fallback(
     the transport that completed the delivery.
 
     Must be called inside the per-MAC ``ble_connection`` lock context (the lock is
-    MAC-keyed, hence transport-neutral). ``base_kwargs`` are the addressing-neutral
-    ``OpenDisplayDevice`` kwargs (config, encryption_key, tuning, timeouts); the
-    addressing kwargs (host/port/tls or ble_device/mac_address) are added here.
-    ``ble_unavailable`` builds the exception to raise when the BLE path is selected
-    (or fallen back to) but no connectable device exists — each caller supplies its
-    own (``_DeviceUnavailable`` / a translated ``device_not_found``).
+    MAC-keyed, hence transport-neutral). ``connect_deadline`` bounds each connect
+    (the probe path uses it to give up quickly); ``None`` leaves the library's own
+    budget. ``ble_unavailable`` builds the exception to raise when the BLE path is
+    selected (or fallen back to) but no connectable device exists — each caller
+    supplies its own (``_DeviceUnavailable`` / a translated ``device_not_found``).
     """
     address = entry.unique_id
     assert address is not None
     resolved = resolve_transport(entry)
+    key_store = EntryKeyStore(hass, entry)
 
     if resolved.use_wifi:
         try:
-            async with OpenDisplayDevice(
+            await _connect_and_run(
+                action,
+                encryption_key,
+                key_store,
+                connect_deadline,
                 host=resolved.host,
                 port=resolved.port,
                 tls=resolved.tls,
-                **base_kwargs,
-            ) as device:
-                await action(device)
+            )
         except WIFI_FALLBACK_EXCEPTIONS as err:
             _LOGGER.warning(
                 "%s: WiFi delivery to %s:%s failed (%s); falling back to BLE",
@@ -203,11 +243,13 @@ async def async_run_with_fallback(
     if ble_device is None:
         raise ble_unavailable()
 
-    async with OpenDisplayDevice(
-        mac_address=address,
+    await _connect_and_run(
+        action,
+        encryption_key,
+        key_store,
+        connect_deadline,
+        address=address,
         ble_device=ble_device,
-        **base_kwargs,
-    ) as device:
-        await action(device)
+    )
     record_last_transport(entry, TRANSPORT_BLE)
     return TRANSPORT_BLE

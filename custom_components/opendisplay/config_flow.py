@@ -40,18 +40,17 @@ from opendisplay import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
     BLEConnectionError,
-    OpenDisplayDevice,
     OpenDisplayError,
+    Sec2KeyRequiredError,
+    connect,
     parse_advertisement,
 )
 
 from .ble_lock import ble_connection
 from .const import (
-    CONF_BLOCKS_PER_ACK,
     CONF_ENCRYPTION_KEY,
     CONF_GITHUB_TOKEN,
     CONF_HOST,
-    CONF_MAX_QUEUE_SIZE,
     CONF_MISSED_CYCLES,
     CONF_PORT,
     CONF_PROBE_BEFORE_QUEUE,
@@ -59,9 +58,7 @@ from .const import (
     CONF_SLEEP_MODE,
     CONF_TLS,
     CONNECT_PROBE_DEADLINE_S,
-    DEFAULT_BLOCKS_PER_ACK,
     DEFAULT_LAN_PORT,
-    DEFAULT_MAX_QUEUE_SIZE,
     DEFAULT_MISSED_CYCLES,
     DEFAULT_PROBE_BEFORE_QUEUE,
     DEFAULT_QUEUE_TIMEOUT_HOURS,
@@ -148,22 +145,6 @@ def _options_schema() -> vol.Schema:
             vol.Required(
                 CONF_PROBE_BEFORE_QUEUE, default=DEFAULT_PROBE_BEFORE_QUEUE
             ): BooleanSelector(),
-            vol.Required(CONF_BLOCKS_PER_ACK, default=DEFAULT_BLOCKS_PER_ACK): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=32, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
-                vol.Coerce(int),
-            ),
-            vol.Required(CONF_MAX_QUEUE_SIZE, default=DEFAULT_MAX_QUEUE_SIZE): vol.All(
-                NumberSelector(
-                    NumberSelectorConfig(
-                        min=1, max=32, step=1, mode=NumberSelectorMode.BOX
-                    )
-                ),
-                vol.Coerce(int),
-            ),
             vol.Optional(CONF_GITHUB_TOKEN): TextSelector(
                 TextSelectorConfig(type=TextSelectorType.PASSWORD)
             ),
@@ -201,7 +182,7 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
         if ble_device is None:
             raise BLEConnectionError(f"Could not find connectable device for {address}")
 
-        # Bound the whole probe (connect + auto-interrogate + firmware read) so a
+        # Bound the whole probe (link, firmware version, identity, security, config) so a
         # wedged BLE link can't freeze the config dialog. A breach is surfaced as
         # BLEConnectionError, which the callers' existing OpenDisplayError handling
         # maps to "cannot_connect"; AuthenticationRequiredError still propagates.
@@ -209,13 +190,13 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
             async with asyncio.timeout(CONNECT_PROBE_DEADLINE_S):
                 async with (
                     ble_connection(address, "connection probe (config flow)"),
-                    OpenDisplayDevice(
-                        mac_address=address,
+                    connect(
+                        address=address,
                         ble_device=ble_device,
                         encryption_key=encryption_key,
-                    ) as device,
+                    ),
                 ):
-                    await device.read_firmware_version()
+                    pass
         except TimeoutError as err:
             raise BLEConnectionError(
                 f"Connection probe exceeded {CONNECT_PROBE_DEADLINE_S:.0f}s"
@@ -351,7 +332,7 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 await self._async_test_connection(self._discovery_info.address)
-            except AuthenticationRequiredError:
+            except AuthenticationRequiredError, Sec2KeyRequiredError:
                 _LOGGER.debug(
                     "%s: device requires an encryption key; prompting for one",
                     self._discovery_info.address,
@@ -385,7 +366,7 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
 
             try:
                 await self._async_test_connection(address)
-            except AuthenticationRequiredError:
+            except AuthenticationRequiredError, Sec2KeyRequiredError:
                 _LOGGER.debug(
                     "%s: device requires an encryption key; prompting for one", address
                 )
@@ -439,7 +420,11 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
         """Test connection, populate errors, and return True on success."""
         try:
             await self._async_test_connection(address, encryption_key)
-        except (AuthenticationFailedError, AuthenticationRequiredError) as err:
+        except (
+            AuthenticationFailedError,
+            AuthenticationRequiredError,
+            Sec2KeyRequiredError,
+        ) as err:
             _LOGGER.debug("%s: encryption key rejected (%s)", address, err)
             errors[CONF_ENCRYPTION_KEY] = "invalid_auth"
         except OpenDisplayError:

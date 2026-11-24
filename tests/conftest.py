@@ -31,12 +31,17 @@ from . import (
 # Every module that imports these by name needs its own patch, since patching
 # the source module would not reach the already-bound references.
 _DEVICE_NAMESPACES = (
-    "custom_components.opendisplay.OpenDisplayDevice",
-    "custom_components.opendisplay.config_flow.OpenDisplayDevice",
+    "custom_components.opendisplay.update.OpenDisplayDevice",
     "custom_components.opendisplay.services.OpenDisplayDevice",
     "custom_components.opendisplay.transport.OpenDisplayDevice",
-    "custom_components.opendisplay.update.OpenDisplayDevice",
     "custom_components.opendisplay.delivery.OpenDisplayDevice",
+)
+# Modules that connect with opendisplay.connect(). Its device's ``legacy`` is the
+# OpenDisplayDevice mock below, so tests keep asserting on that one mock.
+_CONNECT_NAMESPACES = (
+    "custom_components.opendisplay.connect",
+    "custom_components.opendisplay.config_flow.connect",
+    "custom_components.opendisplay.transport.connect",
 )
 _BLE_DEVICE_NAMESPACES = (
     "custom_components.opendisplay.async_ble_device_from_address",
@@ -116,9 +121,36 @@ def mock_opendisplay_device_class(
         yield mock_class
 
 
+@pytest.fixture
+def mock_opendisplay_connect(
+    mock_opendisplay_device_class: MagicMock, device_config: GlobalConfig
+) -> Generator[MagicMock]:
+    """Yield the opendisplay.connect mock (for asserting its arguments)."""
+    with (
+        patch(_CONNECT_NAMESPACES[0]) as mock_fn,
+        _patch_each(_CONNECT_NAMESPACES[1:], new=mock_fn),
+    ):
+        connected = mock_fn.return_value
+        connected.legacy = mock_opendisplay_device_class.return_value
+
+        async def _enter(*_args: Any) -> MagicMock:
+            # Like Device.__aenter__: the legacy device connects first, so an
+            # error a test puts on the legacy mock's __aenter__ surfaces here.
+            await connected.legacy.__aenter__()
+            # Both hold the config read on entry; tests set it on the legacy mock.
+            connected.config.cached = connected.legacy.config
+            return connected
+
+        connected.__aenter__.side_effect = _enter
+        connected.profile.firmware = FIRMWARE_VERSION
+        yield mock_fn
+
+
 @pytest.fixture(autouse=True)
-def mock_opendisplay_device(mock_opendisplay_device_class: MagicMock) -> MagicMock:
-    """Mock the OpenDisplayDevice for setup entry; yields the instance mock."""
+def mock_opendisplay_device(
+    mock_opendisplay_device_class: MagicMock, mock_opendisplay_connect: MagicMock
+) -> MagicMock:
+    """Mock the device for setup entry; yields the OpenDisplayDevice instance mock."""
     return mock_opendisplay_device_class.return_value
 
 

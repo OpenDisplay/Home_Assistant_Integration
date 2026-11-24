@@ -41,15 +41,12 @@ from opendisplay import (
     OpenDisplayError,
     PartialState,
     RefreshMode,
+    Sec2KeyRequiredError,
 )
 
 from .ble_lock import ble_connection
 from .const import (
-    CONF_BLOCKS_PER_ACK,
     CONF_ENCRYPTION_KEY,
-    CONF_MAX_QUEUE_SIZE,
-    DEFAULT_BLOCKS_PER_ACK,
-    DEFAULT_MAX_QUEUE_SIZE,
     EVENT_CONTENT_DELIVERED,
     EVENT_CONTENT_EXPIRED,
     SIGNAL_IMAGE_UPDATED,
@@ -89,7 +86,6 @@ class PendingUpload:
     prepared: tuple[bytes, bytes | None, Any]
     refresh_mode: RefreshMode
     partial_state: PartialState
-    use_measured_palettes: bool
     preview_jpeg: bytes
     device_id: str | None
     queued_at: float
@@ -199,7 +195,6 @@ class DeliveryManager:
         prepared: tuple[bytes, bytes | None, Any],
         refresh_mode: RefreshMode,
         partial_state: PartialState,
-        use_measured_palettes: bool,
         preview_jpeg: bytes,
         device_id: str | None,
     ) -> DeliveryReceipt:
@@ -213,7 +208,6 @@ class DeliveryManager:
             prepared=prepared,
             refresh_mode=refresh_mode,
             partial_state=partial_state,
-            use_measured_palettes=use_measured_palettes,
             preview_jpeg=preview_jpeg,
             device_id=device_id,
             queued_at=now,
@@ -306,7 +300,11 @@ class DeliveryManager:
             # Device slept mid-connect or the wake window was missed; keep the
             # work queued and try again on the next wake.
             self._register_attempt_failure(str(err))
-        except AuthenticationFailedError, AuthenticationRequiredError:
+        except (
+            AuthenticationFailedError,
+            AuthenticationRequiredError,
+            Sec2KeyRequiredError,
+        ):
             # Bad/rotated/absent key. Pausing only the upload would leave a
             # pending config resync deliverable, and the next advertisement would
             # start another identical, doomed session (issue #91), so the pause is
@@ -323,28 +321,13 @@ class DeliveryManager:
     async def _drain_once(self) -> None:
         """Run the connection + drain body (see `_deliver` for error handling)."""
         key = self._resolve_key()
-        if key is _KEY_INVALID:
+        if not isinstance(key, bytes | None):  # _KEY_INVALID
             # Malformed stored key; ``_resolve_key`` already started reauth. This
             # returns normally rather than raising, so without pausing here the
             # work stays deliverable and every advertisement retries it — the
             # same loop as the auth handler above, by a second route.
             self._pause_for_auth(start_reauth=False)
             return
-
-        runtime = self._entry.runtime_data
-        upload = self._pending_upload
-        use_measured = upload.use_measured_palettes if upload else True
-        base_kwargs: dict[str, Any] = {
-            "config": runtime.device_config,
-            "use_measured_palettes": use_measured,
-            "encryption_key": key,
-            "blocks_per_ack": self._entry.options.get(
-                CONF_BLOCKS_PER_ACK, DEFAULT_BLOCKS_PER_ACK
-            ),
-            "max_queue_size": self._entry.options.get(
-                CONF_MAX_QUEUE_SIZE, DEFAULT_MAX_QUEUE_SIZE
-            ),
-        }
 
         async def _run(device: OpenDisplayDevice) -> None:
             # Re-read pending state each invocation: if a WiFi attempt uploaded
@@ -369,7 +352,7 @@ class DeliveryManager:
                 self._hass,
                 self._entry,
                 _run,
-                base_kwargs=base_kwargs,
+                encryption_key=key,
                 ble_unavailable=lambda: BLEConnectionError("device not connectable"),
             )
 

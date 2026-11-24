@@ -16,7 +16,11 @@ from homeassistant.components.bluetooth import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    ConfigEntryError,
+    ConfigEntryNotReady,
+)
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH
 from homeassistant.helpers.typing import ConfigType
@@ -28,9 +32,10 @@ from opendisplay import (
     BLETimeoutError,
     ColorScheme,
     GlobalConfig,
-    OpenDisplayDevice,
     OpenDisplayError,
     PartialState,
+    Sec2KeyRequiredError,
+    connect,
 )
 from opendisplay.models.config_json import config_from_json, config_to_json
 
@@ -38,6 +43,7 @@ from .ble_lock import async_get_ble_lock, ble_connection
 from .const import CONF_CACHED_STATE, CONF_ENCRYPTION_KEY, DOMAIN, SETUP_DEADLINE_S
 from .coordinator import OpenDisplayCoordinator
 from .delivery import DeliveryManager
+from .keystore import EntryKeyStore
 from .services import async_setup_services
 from .sleep import SleepProfile
 from .transport import last_mdns_sighting
@@ -252,20 +258,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
             async with asyncio.timeout(SETUP_DEADLINE_S):
                 async with (
                     ble_connection(address, "setup interrogation"),
-                    OpenDisplayDevice(
-                        mac_address=address,
+                    connect(
+                        address=address,
                         ble_device=ble_device,
                         encryption_key=encryption_key,
+                        # Lets the library replace a key migrated from 2.x (§ 10.5).
+                        key_store=EntryKeyStore(hass, entry),
                     ) as device,
                 ):
-                    fw = await device.read_firmware_version()
-                    is_flex = device.is_flex
+                    fw = device.profile.firmware
+                    is_flex = device.legacy.is_flex
                     # Capture while connected: landing_url() reads the advertised name.
-                    landing_url = device.landing_url()
-            device_config = device.config
-            if TYPE_CHECKING:
-                assert device_config is not None
-        except (AuthenticationFailedError, AuthenticationRequiredError) as err:
+                    landing_url = device.legacy.landing_url()
+                    stored_config = device.config.cached
+        except (
+            AuthenticationFailedError,
+            AuthenticationRequiredError,
+            Sec2KeyRequiredError,
+        ) as err:
             _LOGGER.warning(
                 "%s: device rejected the encryption key during setup (%s); "
                 "reauthentication required",
@@ -294,6 +304,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
             device_config = cached.device_config
             landing_url = cached.landing_url
             from_cache = True
+        else:
+            if stored_config is None:
+                raise ConfigEntryError(
+                    translation_domain=DOMAIN,
+                    translation_key="device_not_configured",
+                )
+            device_config = stored_config
 
     # Imported here rather than at module scope because update.py imports from
     # this module — a top-level import would be circular. Sharing the formatter

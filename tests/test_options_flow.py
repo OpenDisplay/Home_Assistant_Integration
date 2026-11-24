@@ -9,9 +9,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.opendisplay.const import (
-    CONF_BLOCKS_PER_ACK,
     CONF_GITHUB_TOKEN,
-    CONF_MAX_QUEUE_SIZE,
     CONF_MISSED_CYCLES,
     CONF_PROBE_BEFORE_QUEUE,
     CONF_QUEUE_TIMEOUT_HOURS,
@@ -43,8 +41,6 @@ async def test_options_flow_persists_and_reloads(
             CONF_MISSED_CYCLES: 5,
             CONF_QUEUE_TIMEOUT_HOURS: 12,
             CONF_PROBE_BEFORE_QUEUE: False,
-            CONF_BLOCKS_PER_ACK: 8,
-            CONF_MAX_QUEUE_SIZE: 4,
         },
     )
     await hass.async_block_till_done()
@@ -69,8 +65,6 @@ async def test_options_flow_stores_and_clears_the_github_token(
         CONF_MISSED_CYCLES: 3,
         CONF_QUEUE_TIMEOUT_HOURS: 24,
         CONF_PROBE_BEFORE_QUEUE: True,
-        CONF_BLOCKS_PER_ACK: 4,
-        CONF_MAX_QUEUE_SIZE: 16,
     }
 
     result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
