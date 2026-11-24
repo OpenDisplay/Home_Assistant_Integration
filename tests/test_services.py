@@ -11,7 +11,7 @@ import aiohttp
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from opendisplay import (
     AuthenticationFailedError,
@@ -33,6 +33,7 @@ from custom_components.opendisplay.const import (
     DOMAIN,
     SIGNAL_IMAGE_UPDATED,
 )
+from custom_components.opendisplay.repairs import needs_migration_issue_id
 from custom_components.opendisplay.services import HA_TAG_URL_PREFIX, NFC_MAX_PAYLOAD
 
 from . import (
@@ -104,6 +105,42 @@ async def test_upload_image_local_file(
     )
 
     mock_upload_device.upload_prepared_image.assert_called_once()
+
+
+async def test_upload_image_refused_while_the_display_needs_migration(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_resolve_media: MagicMock,
+) -> None:
+    """A display without drive data would draw nothing, so nothing is sent or queued."""
+    device_id = _device_id(hass, mock_config_entry)
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        needs_migration_issue_id(mock_config_entry),
+        is_fixable=False,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key="needs_migration",
+    )
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await hass.services.async_call(
+            DOMAIN,
+            "upload_image",
+            {
+                "device_id": device_id,
+                "image": {
+                    "media_content_id": "media-source://local/test.png",
+                    "media_content_type": "image/png",
+                },
+            },
+            blocking=True,
+            return_response=True,
+        )
+
+    assert exc_info.value.translation_key == "needs_migration"
+    mock_upload_device.upload_prepared_image.assert_not_called()
 
 
 async def test_upload_image_remote_url(
@@ -1122,6 +1159,37 @@ async def test_drawcustom_dry_run_previews_without_uploading(
 
     assert response["status"] == "dry_run"
     mock_upload_device.upload_prepared_image.assert_not_awaited()
+
+
+async def test_drawcustom_dry_run_still_previews_while_the_display_needs_migration(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_upload_device: MagicMock,
+    mock_render: MagicMock,
+) -> None:
+    """A dry run sends nothing, so a display without drive data can still be previewed."""
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        needs_migration_issue_id(mock_config_entry),
+        is_fixable=False,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key="needs_migration",
+    )
+
+    response = await hass.services.async_call(
+        DOMAIN,
+        "drawcustom",
+        {
+            "device_id": [_device_id(hass, mock_config_entry)],
+            "payload": [{"type": "text", "value": "hi"}],
+            "dry-run": True,
+        },
+        blocking=True,
+        return_response=True,
+    )
+
+    assert response["status"] == "dry_run"
 
 
 def _capture_previews(hass: HomeAssistant) -> list[bytes]:

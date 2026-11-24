@@ -71,6 +71,7 @@ if TYPE_CHECKING:
 from .ble_lock import ble_connection
 from .const import CONF_ENCRYPTION_KEY, DOMAIN, SIGNAL_IMAGE_UPDATED
 from .delivery import DELIVERY_DEADLINE_S, DeliveryReceipt
+from .repairs import async_display_needs_migration
 from .transport import async_run_with_fallback
 
 ATTR_IMAGE = "image"
@@ -645,6 +646,12 @@ async def _async_send_image(
     if dry_run:
         async_dispatcher_send(hass, f"{SIGNAL_IMAGE_UPDATED}_{entry.unique_id}", jpeg)
         return DeliveryReceipt(status="dry_run", expires_at=None)
+    if async_display_needs_migration(hass, entry):
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="needs_migration",
+            translation_placeholders={"name": entry.title},
+        )
 
     # Partial refreshes diff against the entry's tracked frame; full/fast
     # refreshes re-baseline the panel, so start a fresh state that this upload

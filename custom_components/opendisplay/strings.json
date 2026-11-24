@@ -169,6 +169,9 @@
     "multiple_errors": {
       "message": "Errors occurred for one or more devices:\n{errors}"
     },
+    "needs_migration": {
+      "message": "{name} has no drive data for its panel and would draw nothing. Open its repair under Settings > Repairs to add it."
+    },
     "nfc_content_empty": {
       "message": "NFC content cannot be empty."
     },
@@ -499,6 +502,29 @@
             "title": "New key for {name}",
             "description": "{name} was updated from firmware 2.x and still used its old key. Home Assistant replaced it with a new key the display generated, because 2.x keys are often weak or were shared in links.\n\nOther apps that use this display, such as the OpenDisplay website or the CLI, need the new key:\n\n`{key}`\n\nSelect **Submit** once you have copied it. Home Assistant already uses the new key."
           }
+        }
+      }
+    },
+    "needs_migration": {
+      "title": "{name} cannot draw its panel",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Add drive data to {name}",
+            "description": "{name} runs firmware 3.0, but its configuration has no drive data for its panel, so it draws nothing. This happens after an update from firmware 2.x, which keeps the old configuration. Uploads to {name} are refused until it is fixed.\n\nHome Assistant writes the drive data for {panel} to the configuration of {name} and keeps everything else. It first saves a backup of the current configuration, without its key, WiFi password and FindMy keys, in `opendisplay/backups` in your configuration folder.\n\nKeep {name} awake and in range. Some panels redraw for about 30 seconds after the write."
+          },
+          "confirm_untested": {
+            "title": "Add untested drive data to {name}",
+            "description": "{name} runs firmware 3.0, but its configuration has no drive data for its panel, so it draws nothing. This happens after an update from firmware 2.x, which keeps the old configuration. Uploads to {name} are refused until it is fixed.\n\nHome Assistant writes the drive data for {panel} to the configuration of {name} and keeps everything else. It first saves a backup of the current configuration, without its key, WiFi password and FindMy keys, in `opendisplay/backups` in your configuration folder.\n\nKeep {name} awake and in range. Some panels redraw for about 30 seconds after the write.\n\n**Untested:** this drive data repeats what firmware 2.x sent to {panel}, but nobody has confirmed yet that it draws correctly with firmware 3.0. Check the display after the next upload, and keep the backup."
+          }
+        },
+        "error": {
+          "cannot_connect": "Could not reach the display. Wake it and try again.",
+          "write_failed": "The configuration could not be written, or it did not read back as written. The backup is in `opendisplay/backups` in your configuration folder."
+        },
+        "abort": {
+          "cannot_connect": "Could not reach {name}. Wake it, then open this repair again.",
+          "migration_blocked": "Home Assistant cannot add the drive data: {reason}"
         }
       }
     }

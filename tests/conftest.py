@@ -42,12 +42,14 @@ _CONNECT_NAMESPACES = (
     "custom_components.opendisplay.connect",
     "custom_components.opendisplay.config_flow.connect",
     "custom_components.opendisplay.transport.connect",
+    "custom_components.opendisplay.repairs.connect",
 )
 _BLE_DEVICE_NAMESPACES = (
     "custom_components.opendisplay.async_ble_device_from_address",
     "custom_components.opendisplay.config_flow.async_ble_device_from_address",
     "custom_components.opendisplay.transport.async_ble_device_from_address",
     "custom_components.opendisplay.update.async_ble_device_from_address",
+    "custom_components.opendisplay.repairs.async_ble_device_from_address",
 )
 
 
@@ -143,6 +145,7 @@ def mock_opendisplay_connect(
 
         connected.__aenter__.side_effect = _enter
         connected.profile.firmware = FIRMWARE_VERSION
+        connected.profile.needs_migration = False
         yield mock_fn
 
 
