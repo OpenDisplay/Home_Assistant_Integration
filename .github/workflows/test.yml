@@ -25,11 +25,15 @@ jobs:
           # under test is chosen. See the comments in pyproject.toml.
           - leg: latest
             group: dev
+            # Coverage is only collected on the latest leg; the artifact below
+            # is uploaded from there alone.
+            cov_args: --cov-report=xml
           # The hacs.json floor. A failure here means the integration cannot
           # actually run on the oldest version HACS offers it to, which is
           # either a bug to fix or a floor to raise -- not a test to weaken.
           - leg: min-ha
             group: min-ha
+            cov_args: --no-cov
     steps:
       - uses: actions/checkout@v4
 
@@ -42,9 +46,10 @@ jobs:
         run: uv sync --no-default-groups --group ${{ matrix.group }}
 
       - name: Run tests
+        # -n auto parallelizes with pytest-xdist; ubuntu-latest has 4 vCPUs.
         run: >
           uv run --no-default-groups --group ${{ matrix.group }}
-          pytest tests/ --cov-report=xml
+          pytest tests/ -n auto ${{ matrix.cov_args }}
 
       - name: Upload coverage
         if: matrix.leg == 'latest'
@@ -59,16 +64,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # No uv sync here: ruff is a standalone binary, and installing the dev
+      # group would pull in all of Home Assistant just to lint. Keep the
+      # version in sync with the pin in pyproject.toml.
       - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-
-      - name: Install
-        run: uv sync --group dev
 
       - name: Check
-        run: uv run ruff check .
+        run: uvx ruff==0.15.17 check .
 
       - name: Check formatting
-        run: uv run ruff format --check .
+        run: uvx ruff==0.15.17 format --check .
