@@ -291,7 +291,7 @@ class OpenDisplayConfigFlow(ConfigFlow, domain=DOMAIN):
         """Record the mDNS sighting on a matching loaded entry, if any."""
         for entry in self.hass.config_entries.async_entries(DOMAIN):
             if entry.unique_id == unique_id:
-                note_mdns_seen(entry)
+                note_mdns_seen(self.hass, entry)
                 return
 
     async def async_step_zeroconf_confirm(
