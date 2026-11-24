@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Autentizace selhala. Aktualizovat šifrovací klíč."
     },
+    "device_not_configured": {
+      "message": "Zařízení OpenDisplay nemá uloženou konfiguraci. Nakonfigurovat jej pomocí webu OpenDisplay nebo CLI, poté znovu načíst integraci."
+    },
     "device_not_found": {
       "message": "Bluetooth zařízení s adresou `{address}` nebylo nalezeno."
     },
@@ -181,6 +184,19 @@
     },
     "url_not_allowed": {
       "message": "URL `{url}` není povolena. Přidejte ji do `allowlist_external_urls` v configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} byl aktualizován z firmwaru 2.x a stále používal svůj starý klíč. Home Assistant jej nahradil novým klíčem, který generoval displej, protože klíče 2.x jsou často slabé nebo byly sdíleny v odkazech.\n\nJiné aplikace používající tento displej, jako web OpenDisplay nebo CLI, potřebují nový klíč:\n\n`{key}`\n\nPo zkopírování vybrat **Odeslat**. Home Assistant již nový klíč používá.",
+            "title": "Nový klíč pro {name}"
+          }
+        }
+      },
+      "title": "Klíč zařízení {name} byl nahrazen"
     }
   },
   "options": {

@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Authentifizierung fehlgeschlagen. Verschlüsselungsschlüssel aktualisieren."
     },
+    "device_not_configured": {
+      "message": "Das OpenDisplay-Gerät hat keine gespeicherte Konfiguration. Mit der OpenDisplay-Website oder dem CLI konfigurieren und dann die Integration neu laden."
+    },
     "device_not_found": {
       "message": "Bluetooth-Gerät mit Adresse `{address}` konnte nicht gefunden werden."
     },
@@ -181,6 +184,19 @@
     },
     "url_not_allowed": {
       "message": "URL `{url}` ist nicht erlaubt. In `allowlist_external_urls` in configuration.yaml hinzufügen."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} wurde von Firmware 2.x aktualisiert und verwendete noch den alten Schlüssel. Home Assistant hat ihn durch einen neuen Schlüssel ersetzt, den das Display generiert hat, da 2.x-Schlüssel oft schwach sind oder in Links geteilt wurden.\n\nAndere Apps, die dieses Display verwenden, wie die OpenDisplay-Website oder das CLI, benötigen den neuen Schlüssel:\n\n`{key}`\n\nNach dem Kopieren **Absenden** wählen. Home Assistant verwendet bereits den neuen Schlüssel.",
+            "title": "Neuer Schlüssel für {name}"
+          }
+        }
+      },
+      "title": "Der Schlüssel von {name} wurde ersetzt"
     }
   },
   "options": {

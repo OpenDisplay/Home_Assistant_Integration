@@ -172,6 +172,10 @@
       "out": "451ec0042a3e",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "892e6dc7bb56",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "e469310c63c6",
       "src": "f244d0d2db8d"
@@ -255,6 +259,18 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "4f1612b673a0",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "d942fc44a565",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "cb7a0cc901f4",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "6a7d7030269b",
+      "src": "7092e40b2515"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "f4064970f630",
@@ -1014,6 +1030,10 @@
       "out": "9e507db4cc0f",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "2e389d6d0ec7",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "5c1f9c1134fc",
       "src": "f244d0d2db8d"
@@ -1097,6 +1117,18 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "fbd45bf5d464",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "791906a695a8",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "43eedb045ef4",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "da391782ba9a",
+      "src": "7092e40b2515"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "f407ac69b8bd",
@@ -1856,6 +1888,10 @@
       "out": "5b02c9b5bc26",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "92881495e4c7",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "429a0d6f8a18",
       "src": "f244d0d2db8d"
@@ -1939,6 +1975,18 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "fdebaa8d51f1",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "b4a265c4c94c",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "88f8447bb174",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "f96cf5368691",
+      "src": "7092e40b2515"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "b91e673e4faf",
@@ -2698,6 +2746,10 @@
       "out": "b4c0bb1725b5",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "328fcc4e822a",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "d749244c1514",
       "src": "f244d0d2db8d"
@@ -2781,6 +2833,18 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "b1f7216a69d7",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "a66fbd2ee502",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "7cc0ea3c065d",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "aea2e3f93834",
+      "src": "7092e40b2515"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "3300b9e0cebf",
@@ -3540,6 +3604,10 @@
       "out": "808d4428797d",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "69135a155a76",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "2a6eb6f25f73",
       "src": "f244d0d2db8d"
@@ -3623,6 +3691,18 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "4d728bd5af6b",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "89bafc369ed7",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "67fe06f5a2cc",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "906e85383202",
+      "src": "7092e40b2515"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "179c008aff1b",
@@ -4382,6 +4462,10 @@
       "out": "967e5cf30a74",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "5db80816ff4a",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "a80f90799c7a",
       "src": "f244d0d2db8d"
@@ -4465,6 +4549,18 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "ba50f1abf1df",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "2e86b693115a",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "12a1e940c614",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "d520a3d9683e",
+      "src": "7092e40b2515"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "43e2e40d805c",
@@ -5224,6 +5320,10 @@
       "out": "b7f02c4bb3f9",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "ebf5da49244a",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "3701c74aad7c",
       "src": "f244d0d2db8d"
@@ -5307,6 +5407,18 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "6ee8fc0b163f",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "0e6f96a58b7f",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "68da82d2ece3",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "7124ee9ec259",
+      "src": "7092e40b2515"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "c908f1878f2b",
@@ -6066,6 +6178,10 @@
       "out": "19b11cedb540",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "b8bd7d8e2395",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "dd2fad6c9806",
       "src": "f244d0d2db8d"
@@ -6149,6 +6265,18 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "ff9646286a09",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "a64ba83373c0",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "1ed14da8a835",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "cf87c0332e0a",
+      "src": "7092e40b2515"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "ae0e734c291f",
@@ -6908,6 +7036,10 @@
       "out": "09ff0363aa17",
       "src": "3d9f7c0c6d80"
     },
+    "exceptions\u0000device_not_configured\u0000message": {
+      "out": "746f5a51331e",
+      "src": "cec7493e7e04"
+    },
     "exceptions\u0000device_not_found\u0000message": {
       "out": "dd2fad6c9806",
       "src": "f244d0d2db8d"
@@ -6991,6 +7123,18 @@
     "exceptions\u0000url_not_allowed\u0000message": {
       "out": "7a9528bffb26",
       "src": "33ffb9a9f2c4"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000description": {
+      "out": "c354c5a5e207",
+      "src": "4a41aa7d7b38"
+    },
+    "issues\u0000key_rotated\u0000fix_flow\u0000step\u0000confirm\u0000title": {
+      "out": "1ed14da8a835",
+      "src": "779f88dcae45"
+    },
+    "issues\u0000key_rotated\u0000title": {
+      "out": "cf87c0332e0a",
+      "src": "7092e40b2515"
     },
     "options\u0000step\u0000init\u0000data\u0000blocks_per_ack": {
       "out": "b3fa9ef0928e",

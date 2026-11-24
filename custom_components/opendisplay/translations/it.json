@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Autenticazione fallita. Aggiornare la chiave di crittografia."
     },
+    "device_not_configured": {
+      "message": "Il dispositivo OpenDisplay non ha configurazioni memorizzate. Configurarlo tramite il sito OpenDisplay o la CLI, quindi ricaricare l'integrazione."
+    },
     "device_not_found": {
       "message": "Impossibile trovare il dispositivo Bluetooth con indirizzo `{address}`."
     },
@@ -181,6 +184,19 @@
     },
     "url_not_allowed": {
       "message": "L'URL `{url}` non è consentito. Aggiungerlo a `allowlist_external_urls` in configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} è stato aggiornato dal firmware 2.x e utilizzava ancora la sua vecchia chiave. Home Assistant l'ha sostituita con una nuova chiave generata dal display, perché le chiavi 2.x sono spesso deboli o erano condivise nei link.\n\nAltre app che usano questo display, come il sito OpenDisplay o la CLI, necessitano della nuova chiave:\n\n`{key}`\n\nSelezionare **Invia** una volta copiata. Home Assistant usa già la nuova chiave.",
+            "title": "Nuova chiave per {name}"
+          }
+        }
+      },
+      "title": "La chiave di {name} è stata sostituita"
     }
   },
   "options": {

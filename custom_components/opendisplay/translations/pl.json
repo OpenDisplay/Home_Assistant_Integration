@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Autoryzacja nie powiodła się. Zaktualizuj klucz szyfrowania."
     },
+    "device_not_configured": {
+      "message": "Urządzenie OpenDisplay nie ma zapisanej konfiguracji. Skonfigurować je za pomocą strony OpenDisplay lub CLI, a następnie przeładować integrację."
+    },
     "device_not_found": {
       "message": "Nie znaleziono urządzenia Bluetooth o adresie `{address}`."
     },
@@ -181,6 +184,19 @@
     },
     "url_not_allowed": {
       "message": "URL `{url}` nie jest dozwolony. Dodaj go do `allowlist_external_urls` w configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} został zaktualizowany z firmware 2.x i nadal używał starego klucza. Home Assistant zastąpił go nowym kluczem wygenerowanym przez wyświetlacz, ponieważ klucze 2.x są często słabe lub były udostępniane w linkach.\n\nInne aplikacje korzystające z tego wyświetlacza, takie jak strona OpenDisplay lub CLI, potrzebują nowego klucza:\n\n`{key}`\n\nWybrać **Wyślij** po skopiowaniu. Home Assistant już używa nowego klucza.",
+            "title": "Nowy klucz dla {name}"
+          }
+        }
+      },
+      "title": "Klucz {name} został zastąpiony"
     }
   },
   "options": {

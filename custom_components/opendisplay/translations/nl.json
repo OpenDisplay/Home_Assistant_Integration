@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Authenticatie mislukt. Update de encryptiesleutel."
     },
+    "device_not_configured": {
+      "message": "Het OpenDisplay-apparaat heeft geen opgeslagen configuratie. Configureer het via de OpenDisplay-website of CLI en laad de integratie daarna opnieuw."
+    },
     "device_not_found": {
       "message": "Bluetooth-apparaat met adres `{address}` niet gevonden."
     },
@@ -181,6 +184,19 @@
     },
     "url_not_allowed": {
       "message": "URL `{url}` is niet toegestaan. Voeg deze toe aan `allowlist_external_urls` in configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} is bijgewerkt vanaf firmware 2.x en gebruikte nog de oude sleutel. Home Assistant heeft deze vervangen door een nieuwe sleutel die het display genereerde, omdat 2.x-sleutels vaak zwak zijn of gedeeld werden in links.\n\nAndere apps die dit display gebruiken, zoals de OpenDisplay-website of de CLI, hebben de nieuwe sleutel nodig:\n\n`{key}`\n\nSelecteer **Verzenden** zodra je deze hebt gekopieerd. Home Assistant gebruikt al de nieuwe sleutel.",
+            "title": "Nieuwe sleutel voor {name}"
+          }
+        }
+      },
+      "title": "De sleutel van {name} is vervangen"
     }
   },
   "options": {

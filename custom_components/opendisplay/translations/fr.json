@@ -119,6 +119,9 @@
     "authentication_error": {
       "message": "Échec de l’authentification. Mettre à jour la clé de chiffrement."
     },
+    "device_not_configured": {
+      "message": "L'appareil OpenDisplay n'a aucune configuration enregistrée. Le configurer via le site OpenDisplay ou la CLI, puis recharger l'intégration."
+    },
     "device_not_found": {
       "message": "Impossible de trouver l’appareil Bluetooth avec l’adresse `{address}`."
     },
@@ -181,6 +184,19 @@
     },
     "url_not_allowed": {
       "message": "L’URL `{url}` n’est pas autorisée. L’ajouter à `allowlist_external_urls` dans configuration.yaml."
+    }
+  },
+  "issues": {
+    "key_rotated": {
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "description": "{name} a été mis à jour depuis le firmware 2.x et utilisait encore son ancienne clé. Home Assistant l'a remplacée par une nouvelle clé générée par l'écran, car les clés 2.x sont souvent faibles ou partagées dans des liens.\n\nLes autres applications utilisant cet écran, comme le site OpenDisplay ou la CLI, ont besoin de la nouvelle clé :\n\n`{key}`\n\nSélectionner **Soumettre** une fois copiée. Home Assistant utilise déjà la nouvelle clé.",
+            "title": "Nouvelle clé pour {name}"
+          }
+        }
+      },
+      "title": "La clé de {name} a été remplacée"
     }
   },
   "options": {
