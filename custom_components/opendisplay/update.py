@@ -167,7 +167,7 @@ _UNIFIED_REPO = "OpenDisplay/Firmware_Unified"
 _MANIFEST = "manifest.json"
 # OD_IC_TYPE_* (Firmware_Unified opendisplay_structs.h) to the manifest's chip, for the
 # chips that update over Bluetooth with one board per chip. ESP32 is left out: it reports
-# 3.0.0 whatever it runs (Firmware_Unified#103), and several boards share each chip (#107).
+# 3.0.0 whatever it runs (Firmware_Unified#103), and several boards share each chip (Firmware_Unified#107).
 _UNIFIED_INSTALL_CHIPS: dict[int, str] = {
     ICType.NRF52840: "nrf52840",
     ICType.EFR32BG22: "efr32bg22",
