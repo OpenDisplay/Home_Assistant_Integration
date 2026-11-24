@@ -5,9 +5,43 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.repairs import RepairsFlow, RepairsFlowResult
-from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import issue_registry as ir
 
-from .const import CONF_ENCRYPTION_KEY
+from .const import CONF_ENCRYPTION_KEY, DOMAIN
+
+
+def needs_migration_issue_id(entry: ConfigEntry) -> str:
+    """Return the repair issue id for a display that has no drive data for its panel."""
+    return f"needs_migration_{entry.entry_id}"
+
+
+@callback
+def async_update_needs_migration_issue(
+    hass: HomeAssistant, entry: ConfigEntry, needs_migration: bool
+) -> None:
+    """Raise the issue while the display cannot draw its panel, and remove it after."""
+    issue_id = needs_migration_issue_id(entry)
+    if not needs_migration:
+        ir.async_delete_issue(hass, DOMAIN, issue_id)
+        return
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=False,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key="needs_migration",
+        translation_placeholders={"name": entry.title},
+    )
+
+
+@callback
+def async_display_needs_migration(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Return whether the last setup found the display without drive data."""
+    issue_id = needs_migration_issue_id(entry)
+    return ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
 
 
 class KeyRotatedRepairFlow(RepairsFlow):

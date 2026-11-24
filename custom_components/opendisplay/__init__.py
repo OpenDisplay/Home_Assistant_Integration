@@ -44,6 +44,7 @@ from .const import CONF_CACHED_STATE, CONF_ENCRYPTION_KEY, DOMAIN, SETUP_DEADLIN
 from .coordinator import OpenDisplayCoordinator
 from .delivery import DeliveryManager
 from .keystore import EntryKeyStore
+from .repairs import async_update_needs_migration_issue
 from .services import async_setup_services
 from .sleep import SleepProfile
 from .transport import last_mdns_sighting
@@ -271,6 +272,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
                     # Capture while connected: landing_url() reads the advertised name.
                     landing_url = device.legacy.landing_url()
                     stored_config = device.config.cached
+                    needs_migration = device.profile.needs_migration
         except (
             AuthenticationFailedError,
             AuthenticationRequiredError,
@@ -311,6 +313,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: OpenDisplayConfigEntry) 
                     translation_key="device_not_configured",
                 )
             device_config = stored_config
+            async_update_needs_migration_issue(hass, entry, needs_migration)
 
     # Imported here rather than at module scope because update.py imports from
     # this module — a top-level import would be circular. Sharing the formatter

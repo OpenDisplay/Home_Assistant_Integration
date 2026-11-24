@@ -166,6 +166,9 @@
         "multiple_errors": {
             "message": "Errors occurred for one or more devices:\n{errors}"
         },
+        "needs_migration": {
+            "message": "{name} has no drive data for its panel and would draw nothing. Add it with `opendisplay migrate`, then reload the integration."
+        },
         "nfc_content_empty": {
             "message": "NFC content cannot be empty."
         },
@@ -497,6 +500,10 @@
                     }
                 }
             }
+        },
+        "needs_migration": {
+            "title": "{name} cannot draw its panel",
+            "description": "{name} runs firmware 3.0, but its configuration has no drive data for its panel, so it draws nothing. This happens after an update from firmware 2.x, which keeps the old configuration.\n\nAdd the drive data with the OpenDisplay CLI (`opendisplay migrate --device {name}`), then reload the integration. Uploads to {name} are refused until then."
         }
     }
 }

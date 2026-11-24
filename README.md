@@ -78,6 +78,13 @@ On the first connection Home Assistant replaces that key with a new one the
 display generates, because 2.x keys are often weak or were shared in links. A
 repair then shows the new key once, for other apps that use the display.
 
+A display updated from 2.x to 3.0 over Bluetooth keeps its old configuration,
+which has no drive data for its panel, so it draws nothing. Home Assistant then
+shows a repair and refuses uploads to it (a dry run still previews). Add the
+drive data with `opendisplay migrate --device <name>` from the
+[py-opendisplay](https://github.com/OpenDisplay/py-opendisplay) CLI, then reload
+the integration.
+
 Each device has options, under **Configure** on the device page:
 
 | option | |

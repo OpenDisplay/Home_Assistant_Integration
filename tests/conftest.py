@@ -143,6 +143,7 @@ def mock_opendisplay_connect(
 
         connected.__aenter__.side_effect = _enter
         connected.profile.firmware = FIRMWARE_VERSION
+        connected.profile.needs_migration = False
         yield mock_fn
 
 

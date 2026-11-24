@@ -7,7 +7,7 @@ from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, issue_registry as ir
 from opendisplay import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
@@ -27,6 +27,7 @@ from custom_components.opendisplay.const import (
     DOMAIN,
 )
 from custom_components.opendisplay.keystore import EntryKeyStore
+from custom_components.opendisplay.repairs import needs_migration_issue_id
 from custom_components.opendisplay.transport import resolve_transport
 
 from . import (
@@ -414,3 +415,53 @@ async def test_a_new_lan_address_keeps_wifi_preferred_after_the_reload(
     assert mock_config_entry.state is ConfigEntryState.LOADED
     assert mock_config_entry.data[CONF_HOST] == "192.168.1.50"
     assert resolve_transport(mock_config_entry).use_wifi is True
+
+
+async def test_a_display_that_needs_migration_raises_a_repair_issue(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_opendisplay_connect: MagicMock,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """Firmware 3.0 without drive data draws nothing; the user is told how to fix it."""
+    mock_opendisplay_connect.return_value.profile.needs_migration = True
+    mock_config_entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+    issue = issue_registry.async_get_issue(
+        DOMAIN, needs_migration_issue_id(mock_config_entry)
+    )
+    assert issue is not None
+    assert issue.translation_key == "needs_migration"
+    assert issue.is_fixable is False
+    assert issue.translation_placeholders == {"name": mock_config_entry.title}
+
+
+async def test_a_migrated_display_clears_the_repair_issue(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """Once the display has its drive data, the next setup removes the issue."""
+    mock_config_entry.add_to_hass(hass)
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        needs_migration_issue_id(mock_config_entry),
+        is_fixable=False,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key="needs_migration",
+    )
+
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert (
+        issue_registry.async_get_issue(
+            DOMAIN, needs_migration_issue_id(mock_config_entry)
+        )
+        is None
+    )
