@@ -1728,6 +1728,7 @@ dev = [
     { name = "mypy" },
     { name = "pytest-cov" },
     { name = "pytest-homeassistant", version = "2026.11.2", source = { registry = "https://pypi.org/simple" }, extra = ["bluetooth"], marker = "extra == 'group-25-opendisplay-homeassistant-dev'" },
+    { name = "pytest-xdist" },
     { name = "ruff" },
 ]
 min-ha = [
@@ -1735,6 +1736,7 @@ min-ha = [
     { name = "mypy" },
     { name = "pytest-cov" },
     { name = "pytest-homeassistant", version = "2026.11.0", source = { registry = "https://pypi.org/simple" }, extra = ["bluetooth"], marker = "extra == 'group-25-opendisplay-homeassistant-min-ha'" },
+    { name = "pytest-xdist" },
     { name = "ruff" },
 ]
 
@@ -1750,6 +1752,7 @@ dev = [
     { name = "mypy", specifier = "==1.18.2" },
     { name = "pytest-cov", specifier = "==7.1.0" },
     { name = "pytest-homeassistant", extras = ["bluetooth"], specifier = "==2026.11.2" },
+    { name = "pytest-xdist" },
     { name = "ruff", specifier = "==0.15.17" },
 ]
 min-ha = [
@@ -1757,6 +1760,7 @@ min-ha = [
     { name = "mypy", specifier = "==1.18.2" },
     { name = "pytest-cov", specifier = "==7.1.0" },
     { name = "pytest-homeassistant", extras = ["bluetooth"], specifier = "==2026.11.0" },
+    { name = "pytest-xdist" },
     { name = "ruff", specifier = "==0.15.17" },
 ]
 
