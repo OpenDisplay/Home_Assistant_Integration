@@ -18,6 +18,11 @@
       "firmware": {
         "default": "mdi:chip"
       }
+    },
+    "sensor": {
+      "resolution": {
+        "default": "mdi:aspect-ratio"
+      }
     }
   },
   "services": {
