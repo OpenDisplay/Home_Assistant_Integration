@@ -188,6 +188,14 @@
       "out": "2aab933151b7",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000firmware_release_unusable\u0000message": {
+      "out": "b115f2030af8",
+      "src": "812bee171c8e"
+    },
+    "exceptions\u0000firmware_update_failed\u0000message": {
+      "out": "6d3d52be3e87",
+      "src": "8a87b4b3aa69"
+    },
     "exceptions\u0000github_rate_limited\u0000message": {
       "out": "c3c1c6f06cac",
       "src": "0fdb00e65f7b"
@@ -1085,6 +1093,14 @@
     "exceptions\u0000device_sleeping_ota\u0000message": {
       "out": "5b60bade6dcc",
       "src": "430e3a1baa6a"
+    },
+    "exceptions\u0000firmware_release_unusable\u0000message": {
+      "out": "3d5f5d31bf65",
+      "src": "812bee171c8e"
+    },
+    "exceptions\u0000firmware_update_failed\u0000message": {
+      "out": "02c72063cf4b",
+      "src": "8a87b4b3aa69"
     },
     "exceptions\u0000github_rate_limited\u0000message": {
       "out": "7763578e2692",
@@ -1984,6 +2000,14 @@
       "out": "7e66b9304d9a",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000firmware_release_unusable\u0000message": {
+      "out": "dcfc1991207d",
+      "src": "812bee171c8e"
+    },
+    "exceptions\u0000firmware_update_failed\u0000message": {
+      "out": "f4039d1d6851",
+      "src": "8a87b4b3aa69"
+    },
     "exceptions\u0000github_rate_limited\u0000message": {
       "out": "0220d3cc111d",
       "src": "0fdb00e65f7b"
@@ -2881,6 +2905,14 @@
     "exceptions\u0000device_sleeping_ota\u0000message": {
       "out": "05d2ec6a3e74",
       "src": "430e3a1baa6a"
+    },
+    "exceptions\u0000firmware_release_unusable\u0000message": {
+      "out": "b02cc059e50a",
+      "src": "812bee171c8e"
+    },
+    "exceptions\u0000firmware_update_failed\u0000message": {
+      "out": "b91da826d473",
+      "src": "8a87b4b3aa69"
     },
     "exceptions\u0000github_rate_limited\u0000message": {
       "out": "83373fbda522",
@@ -3780,6 +3812,14 @@
       "out": "c945b1b2513e",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000firmware_release_unusable\u0000message": {
+      "out": "e9a89e420733",
+      "src": "812bee171c8e"
+    },
+    "exceptions\u0000firmware_update_failed\u0000message": {
+      "out": "59681f1d27ac",
+      "src": "8a87b4b3aa69"
+    },
     "exceptions\u0000github_rate_limited\u0000message": {
       "out": "b1d18f774c2f",
       "src": "0fdb00e65f7b"
@@ -4677,6 +4717,14 @@
     "exceptions\u0000device_sleeping_ota\u0000message": {
       "out": "9b4f8a1e1050",
       "src": "430e3a1baa6a"
+    },
+    "exceptions\u0000firmware_release_unusable\u0000message": {
+      "out": "689bdc096e5b",
+      "src": "812bee171c8e"
+    },
+    "exceptions\u0000firmware_update_failed\u0000message": {
+      "out": "b138fc09c896",
+      "src": "8a87b4b3aa69"
     },
     "exceptions\u0000github_rate_limited\u0000message": {
       "out": "a115eeddc3ed",
@@ -5576,6 +5624,14 @@
       "out": "0192d49a67dd",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000firmware_release_unusable\u0000message": {
+      "out": "5dbcf0025b82",
+      "src": "812bee171c8e"
+    },
+    "exceptions\u0000firmware_update_failed\u0000message": {
+      "out": "a0de8c5071cb",
+      "src": "8a87b4b3aa69"
+    },
     "exceptions\u0000github_rate_limited\u0000message": {
       "out": "1d8b99db6a16",
       "src": "0fdb00e65f7b"
@@ -6474,6 +6530,14 @@
       "out": "55a286024f3c",
       "src": "430e3a1baa6a"
     },
+    "exceptions\u0000firmware_release_unusable\u0000message": {
+      "out": "12d3d6c3aabc",
+      "src": "812bee171c8e"
+    },
+    "exceptions\u0000firmware_update_failed\u0000message": {
+      "out": "8be8952f6538",
+      "src": "8a87b4b3aa69"
+    },
     "exceptions\u0000github_rate_limited\u0000message": {
       "out": "c669ee731682",
       "src": "0fdb00e65f7b"
@@ -7371,6 +7435,14 @@
     "exceptions\u0000device_sleeping_ota\u0000message": {
       "out": "b0d5ab4a0e7e",
       "src": "430e3a1baa6a"
+    },
+    "exceptions\u0000firmware_release_unusable\u0000message": {
+      "out": "12d3d6c3aabc",
+      "src": "812bee171c8e"
+    },
+    "exceptions\u0000firmware_update_failed\u0000message": {
+      "out": "8be8952f6538",
+      "src": "8a87b4b3aa69"
     },
     "exceptions\u0000github_rate_limited\u0000message": {
       "out": "c650e3fcf250",

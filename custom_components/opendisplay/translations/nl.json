@@ -131,6 +131,12 @@
     "device_sleeping_ota": {
       "message": "Het apparaat slaapt en kan nu niet worden bijgewerkt. Wek het (druk op de knop of wacht op de volgende geplande check-in) en start de update opnieuw."
     },
+    "firmware_release_unusable": {
+      "message": "Firmware {version} kan niet op dit display worden geïnstalleerd: {reason}."
+    },
+    "firmware_update_failed": {
+      "message": "De firmware-update is niet voltooid: {detail}"
+    },
     "github_rate_limited": {
       "message": "De API-limiet van GitHub is bereikt ({limit} verzoeken per uur), waardoor de firmware-release niet kon worden opgehaald. De limiet wordt gereset om {reset}. Het toevoegen van een GitHub-token in de opties van een OpenDisplay-apparaat verhoogt de limiet."
     },

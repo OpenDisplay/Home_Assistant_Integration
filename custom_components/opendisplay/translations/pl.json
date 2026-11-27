@@ -131,6 +131,12 @@
     "device_sleeping_ota": {
       "message": "Urządzenie jest uśpione i nie można go teraz zaktualizować. Obudź je (naciśnij przycisk lub poczekaj na kolejne zaplanowane sprawdzenie) i rozpocznij aktualizację ponownie."
     },
+    "firmware_release_unusable": {
+      "message": "Nie można zainstalować oprogramowania układowego {version} na tym wyświetlaczu: {reason}."
+    },
+    "firmware_update_failed": {
+      "message": "Aktualizacja oprogramowania układowego nie została zakończona: {detail}"
+    },
     "github_rate_limited": {
       "message": "Osiągnięto limit zapytań do API GitHub ({limit} zapytań na godzinę), więc nie można pobrać wersji firmware. Limit resetuje się o {reset}. Dodanie tokenu GitHub w opcjach dowolnego urządzenia OpenDisplay zwiększa limit."
     },

@@ -131,6 +131,12 @@
     "device_sleeping_ota": {
       "message": "Zařízení je v režimu spánku a nelze jej nyní aktualizovat. Probudit (stisknout tlačítko nebo počkat na další plánovanou kontrolu) a znovu spustit aktualizaci."
     },
+    "firmware_release_unusable": {
+      "message": "Firmware {version} nelze nainstalovat na tento displej: {reason}."
+    },
+    "firmware_update_failed": {
+      "message": "Aktualizace firmwaru nebyla dokončena: {detail}"
+    },
     "github_rate_limited": {
       "message": "Byl dosažen limit počtu požadavků na GitHub API ({limit} požadavků za hodinu), proto nebylo možné načíst vydání firmwaru. Limit se obnoví v {reset}. Přidání GitHub tokenu v nastavení jakéhokoli zařízení OpenDisplay zvyšuje tento limit."
     },

@@ -131,6 +131,12 @@
     "device_sleeping_ota": {
       "message": "El dispositivo está en reposo y no puede actualizarse ahora. Despertarlo (presionar su botón o esperar su próxima conexión programada) y comenzar la actualización de nuevo."
     },
+    "firmware_release_unusable": {
+      "message": "El firmware {version} no se puede instalar en esta pantalla: {reason}."
+    },
+    "firmware_update_failed": {
+      "message": "La actualización del firmware no se completó: {detail}"
+    },
     "github_rate_limited": {
       "message": "Se ha alcanzado el límite de solicitudes de la API de GitHub ({limit} solicitudes por hora), por lo que no se pudo obtener la versión del firmware. Se restablece a las {reset}. Agregar un token de GitHub en las opciones de cualquier dispositivo OpenDisplay aumenta el límite."
     },

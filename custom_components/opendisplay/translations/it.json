@@ -131,6 +131,12 @@
     "device_sleeping_ota": {
       "message": "Il dispositivo è in stato di sospensione e non può essere aggiornato ora. Riattivarlo (premere il pulsante o attendere il prossimo check-in programmato) e avviare nuovamente l'aggiornamento."
     },
+    "firmware_release_unusable": {
+      "message": "Il firmware {version} non può essere installato su questo display: {reason}."
+    },
+    "firmware_update_failed": {
+      "message": "L'aggiornamento del firmware non è stato completato: {detail}"
+    },
     "github_rate_limited": {
       "message": "È stato raggiunto il limite di richieste all'API di GitHub ({limit} richieste all'ora), quindi non è stato possibile recuperare la versione del firmware. Il limite si resetta alle {reset}. Aggiungere un token GitHub nelle opzioni di qualsiasi dispositivo OpenDisplay aumenta il limite."
     },

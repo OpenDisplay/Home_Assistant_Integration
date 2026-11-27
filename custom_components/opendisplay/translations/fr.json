@@ -131,6 +131,12 @@
     "device_sleeping_ota": {
       "message": "L’appareil est en veille et ne peut pas être mis à jour pour le moment. Le réveiller (appuyer sur son bouton ou attendre son prochain check-in programmé) et relancer la mise à jour."
     },
+    "firmware_release_unusable": {
+      "message": "Le firmware {version} ne peut pas être installé sur cet écran : {reason}."
+    },
+    "firmware_update_failed": {
+      "message": "La mise à jour du firmware n’a pas été terminée : {detail}"
+    },
     "github_rate_limited": {
       "message": "La limite de requêtes de l'API GitHub a été atteinte ({limit} requêtes par heure), le téléchargement de la version du firmware a échoué. La limite sera réinitialisée à {reset}. Ajouter un token GitHub dans les options de n'importe quel appareil OpenDisplay augmente cette limite."
     },

@@ -131,6 +131,12 @@
     "device_sleeping_ota": {
       "message": "O dispositivo está em modo de espera e não pode ser atualizado agora. Desperte-o (pressione seu botão ou aguarde a próxima verificação agendada) e inicie a atualização novamente."
     },
+    "firmware_release_unusable": {
+      "message": "O firmware {version} não pode ser instalado neste display: {reason}."
+    },
+    "firmware_update_failed": {
+      "message": "A atualização do firmware não foi concluída: {detail}"
+    },
     "github_rate_limited": {
       "message": "O limite de requisições da API do GitHub foi atingido ({limit} requisições por hora), então a versão do firmware não pôde ser obtida. O limite será resetado em {reset}. Adicionar um token do GitHub nas opções de qualquer dispositivo OpenDisplay aumenta o limite."
     },
