@@ -61,11 +61,14 @@ jobs:
           path = pathlib.Path("pyproject.toml")
           text = path.read_text()
           dev_start = text.index("dev = [")
-          dev_end = text.index("]", dev_start)
-          block = text[dev_start:dev_end].replace(
-              f"pytest-homeassistant[bluetooth]=={before}",
-              f"pytest-homeassistant[bluetooth]=={latest}",
-          )
+          # The list closes with a "]" on its own line. A bare "]" would match
+          # the one in "pytest-homeassistant[bluetooth]" and cut the block short.
+          dev_end = text.index("\n]", dev_start)
+          old = f"pytest-homeassistant[bluetooth]=={before}"
+          block = text[dev_start:dev_end]
+          if old not in block:
+              sys.exit(f"{old} not found in the dev group of pyproject.toml")
+          block = block.replace(old, f"pytest-homeassistant[bluetooth]=={latest}")
           path.write_text(text[:dev_start] + block + text[dev_end:])
           PY
 
