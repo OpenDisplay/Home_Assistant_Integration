@@ -36,7 +36,7 @@ from . import (
 )
 
 ENTITY = "update.opendisplay_1234_firmware"
-LATEST = "v9.9.9"
+LATEST = "v1.9.9"
 GITHUB_RELEASE = f"https://api.github.com/repos/{OTA_REPO}/releases/tags/{LATEST}"
 RATE_LIMITED_HEADERS = {
     "x-ratelimit-limit": "60",

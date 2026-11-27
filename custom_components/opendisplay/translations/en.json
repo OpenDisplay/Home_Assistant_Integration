@@ -148,6 +148,12 @@
         "device_sleeping_ota": {
             "message": "The device is asleep and cannot be updated right now. Wake it (press its button or wait for its next scheduled check-in) and start the update again."
         },
+        "firmware_release_unusable": {
+            "message": "Firmware {version} cannot be installed on this display: {reason}."
+        },
+        "firmware_update_failed": {
+            "message": "The firmware update did not complete: {detail}"
+        },
         "github_rate_limited": {
             "message": "GitHub's API rate limit has been reached ({limit} requests per hour), so the firmware release could not be fetched. It resets at {reset}. Adding a GitHub token in the options of any OpenDisplay device raises the limit."
         },

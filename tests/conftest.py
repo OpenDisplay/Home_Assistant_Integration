@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from opendisplay import GlobalConfig
+from opendisplay.models.firmware import FirmwareVersion
 import pytest
 from pytest_homeassistant.common import MockConfigEntry
 from pytest_homeassistant.components.bluetooth import generate_ble_device
@@ -43,6 +44,7 @@ _CONNECT_NAMESPACES = (
     "custom_components.opendisplay.config_flow.connect",
     "custom_components.opendisplay.transport.connect",
     "custom_components.opendisplay.repairs.connect",
+    "custom_components.opendisplay.update.connect",
 )
 _BLE_DEVICE_NAMESPACES = (
     "custom_components.opendisplay.async_ble_device_from_address",
@@ -98,6 +100,12 @@ def device_config() -> GlobalConfig:
 
 
 @pytest.fixture
+def firmware_version() -> FirmwareVersion:
+    """Return the firmware version the mocked device reports."""
+    return FIRMWARE_VERSION
+
+
+@pytest.fixture
 def is_flex() -> bool:
     """Whether the mocked device is a Flex. Override for base-model tests."""
     return True
@@ -105,7 +113,7 @@ def is_flex() -> bool:
 
 @pytest.fixture
 def mock_opendisplay_device_class(
-    device_config: GlobalConfig, is_flex: bool
+    device_config: GlobalConfig, is_flex: bool, firmware_version: FirmwareVersion
 ) -> Generator[MagicMock]:
     """Yield the OpenDisplayDevice class mock (for asserting constructor args)."""
     with (
@@ -114,7 +122,7 @@ def mock_opendisplay_device_class(
     ):
         mock_device = mock_class.return_value
         mock_device.__aenter__.return_value = mock_device
-        mock_device.read_firmware_version.return_value = FIRMWARE_VERSION
+        mock_device.read_firmware_version.return_value = firmware_version
         mock_device.config = device_config
         mock_device.is_flex = is_flex
         # Becomes the device registry's configuration_url, which rejects a
@@ -125,7 +133,9 @@ def mock_opendisplay_device_class(
 
 @pytest.fixture
 def mock_opendisplay_connect(
-    mock_opendisplay_device_class: MagicMock, device_config: GlobalConfig
+    mock_opendisplay_device_class: MagicMock,
+    device_config: GlobalConfig,
+    firmware_version: FirmwareVersion,
 ) -> Generator[MagicMock]:
     """Yield the opendisplay.connect mock (for asserting its arguments)."""
     with (
@@ -144,7 +154,7 @@ def mock_opendisplay_connect(
             return connected
 
         connected.__aenter__.side_effect = _enter
-        connected.profile.firmware = FIRMWARE_VERSION
+        connected.profile.firmware = firmware_version
         connected.profile.needs_migration = False
         yield mock_fn
 
