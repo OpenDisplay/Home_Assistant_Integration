@@ -1,5 +1,28 @@
 # Changelog
 
+## [4.0.0](https://github.com/OpenDisplay/Home_Assistant_Integration/compare/3.2.0...4.0.0) (2026-11-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* drawcustom's dither field accepts only names (none, burkes, ordered, ...); numeric values fail validation.
+
+### Features
+
+* move to py-opendisplay 8 and drop numeric dither values ([a784528](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/a784528e25cf8b02da9153dd3adcc1cb199f482e))
+* require Home Assistant 2026.11.0 or newer ([33774a8](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/33774a820d908957826760769116f93f4b8be6b7))
+* **services:** offer device upload for the upload_image action ([2a5fdbb](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/2a5fdbb6dec823e53a869bfc1c808fa77365c47c))
+* show the dithered frame on the display content image ([7e5a782](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/7e5a7823d574cda50ad70d571369ab503026726a))
+* use measured palettes by default for drawcustom ([b44f927](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/b44f927f3cb5f5e1484dad448687adac5769be35))
+
+
+### Bug Fixes
+
+* accept any odl-renderer 0.5.x from 0.5.15 so OpenEPaperLink can be installed alongside ([fc2282a](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/fc2282a1f0b71435b649aa0b4b22bf53fe06aabe))
+* redact the FindMy config from diagnostics and require py-opendisplay 8.2.0 ([9b084dd](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/9b084dd41876391dc57c682517d67eadbdc959dc))
+* require py-opendisplay 8.1.0 for preview_image ([3494429](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/3494429adfb332d0d8b72092e4be3d775a71107b))
+* show the colour scheme name in the device model again ([01281e1](https://github.com/OpenDisplay/Home_Assistant_Integration/commit/01281e175fb4a95fafc8e5cd90c29ca7ca174fc6))
+
 ## [3.2.0](https://github.com/OpenDisplay/Home_Assistant_Integration/compare/3.1.0...3.2.0) (2026-10-28)
 
 
