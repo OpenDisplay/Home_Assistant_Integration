@@ -36,7 +36,7 @@ dependencies = [
 #              only pulls it in on Linux, so macOS runs need it listed here.
 #              Unpinned: uv.lock pins it.
 dev = [
-    "pytest-homeassistant[bluetooth]==2026.11.2",
+    "pytest-homeassistant[bluetooth]==2026.11.3",
     # Not a pytest-homeassistant dependency (PHCC used to pull it in).
     "pytest-cov==7.1.0",
     # CI runs pytest with -n auto; unpinned, uv.lock pins it.
