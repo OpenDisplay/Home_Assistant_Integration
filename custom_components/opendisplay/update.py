@@ -7,10 +7,9 @@ from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import timedelta
-import hashlib
 import logging
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import aiohttp
 from homeassistant.components.bluetooth import async_ble_device_from_address
@@ -22,26 +21,17 @@ from homeassistant.components.update import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 import homeassistant.util.dt as dt_util
 from homeassistant.util.hass_dict import HassKey
 
-from opendisplay import Sec2KeyRequiredError, connect
 from opendisplay.device import OpenDisplayDevice
 from opendisplay.exceptions import (
     AuthenticationFailedError,
     AuthenticationRequiredError,
     BLEConnectionError,
-    OpenDisplayError,
     OTAError,
-)
-from opendisplay.firmware import (
-    ReleaseManifest,
-    UpdateOutcome,
-    UpdateRefusedError,
-    update as firmware_update,
 )
 from opendisplay.models.enums import ICType
 from opendisplay.models.firmware import firmware_ota_asset, firmware_release_repo
@@ -51,10 +41,6 @@ from . import OpenDisplayConfigEntry, _get_encryption_key
 from .ble_lock import ble_connection
 from .const import CONF_GITHUB_TOKEN, DOMAIN
 from .entity import OpenDisplayEntity
-from .keystore import EntryKeyStore
-
-if TYPE_CHECKING:
-    from bleak.backends.device import BLEDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -162,58 +148,6 @@ async def _async_github_json(
 # install is not offered for it here — only release-note visibility.
 _OTA_INSTALL_IC_TYPES = {ICType.EFR32BG22}
 
-# Firmware 3.x comes from one repo for every chip; its manifest names each board's files.
-_UNIFIED_REPO = "OpenDisplay/Firmware_Unified"
-_MANIFEST = "manifest.json"
-# OD_IC_TYPE_* (Firmware_Unified opendisplay_structs.h) to the manifest's chip, for the
-# chips that update over Bluetooth with one board per chip. ESP32 is left out: it reports
-# 3.0.0 whatever it runs (Firmware_Unified#103), and several boards share each chip (Firmware_Unified#107).
-_UNIFIED_INSTALL_CHIPS: dict[int, str] = {
-    ICType.NRF52840: "nrf52840",
-    ICType.EFR32BG22: "efr32bg22",
-    7: "nrf54l15",
-    8: "nrf54lm20a",
-}
-# SMP over a proxy, the reboot and a panel redraw (the library allows 180 s for the
-# reboot alone), then a second SMP link to read the running slot.
-V3_INSTALL_DEADLINE_S = 900.0
-
-
-def _major(version: str) -> int | None:
-    head = version.removeprefix("v").split(".", 1)[0]
-    return int(head) if head.isdigit() else None
-
-
-def _has_entity(entry: OpenDisplayConfigEntry) -> bool:
-    """Whether the display gets an update entity.
-
-    On 3.x only where it can install: elsewhere it would offer an update forever.
-    """
-    runtime = entry.runtime_data
-    return (
-        runtime.firmware["major"] < 3
-        or runtime.device_config.system.ic_type in _UNIFIED_INSTALL_CHIPS
-    )
-
-
-class _ReleaseUnusableError(HomeAssistantError):
-    """The release has no file this display can take, or a file did not check out."""
-
-    def __init__(self, version: str, reason: str) -> None:
-        super().__init__(
-            translation_domain=DOMAIN,
-            translation_key="firmware_release_unusable",
-            translation_placeholders={"version": version, "reason": reason},
-        )
-
-
-def _update_failed(detail: str) -> HomeAssistantError:
-    return HomeAssistantError(
-        translation_domain=DOMAIN,
-        translation_key="firmware_update_failed",
-        translation_placeholders={"detail": detail},
-    )
-
 
 def _format_firmware_version(major: int, minor: int, patch: int | None = None) -> str:
     """Format firmware version to match GitHub tag convention.
@@ -247,14 +181,9 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up OpenDisplay firmware update entity."""
-    coordinator = entry.runtime_data.coordinator
-    if _has_entity(entry):
-        async_add_entities([OpenDisplayFirmwareUpdateEntity(coordinator, entry)])
-        return
-    entity_registry = er.async_get(hass)
-    unique_id = f"{coordinator.address}-{_FIRMWARE_DESCRIPTION.key}"
-    if entity_id := entity_registry.async_get_entity_id("update", DOMAIN, unique_id):
-        entity_registry.async_remove(entity_id)
+    async_add_entities(
+        [OpenDisplayFirmwareUpdateEntity(entry.runtime_data.coordinator, entry)]
+    )
 
 
 class OpenDisplayFirmwareUpdateEntity(
@@ -277,20 +206,12 @@ class OpenDisplayFirmwareUpdateEntity(
         )
         ic_type = entry.runtime_data.device_config.system.ic_type
         self._ic_type = ic_type
-        self._major = fw["major"]
-        self._unified_chip = (
-            _UNIFIED_INSTALL_CHIPS.get(ic_type) if self._major >= 3 else None
-        )
-        self._firmware_repo = (
-            _UNIFIED_REPO if self._major >= 3 else firmware_release_repo(ic_type)
-        )
+        self._firmware_repo = firmware_release_repo(ic_type)
         self._ble_address: str = entry.unique_id or ""
         self._entry = entry
         self._installing = False
 
-        if self._unified_chip is not None or (
-            self._major < 3 and ic_type in _OTA_INSTALL_IC_TYPES
-        ):
+        if ic_type in _OTA_INSTALL_IC_TYPES:
             self._attr_supported_features = (
                 UpdateEntityFeature.INSTALL
                 | UpdateEntityFeature.PROGRESS
@@ -356,15 +277,7 @@ class OpenDisplayFirmwareUpdateEntity(
         except aiohttp.ClientError as err:
             _LOGGER.debug("Failed to fetch latest firmware version: %s", err)
         else:
-            tag = data.get("tag_name")
-            if tag and _major(tag) != self._major:
-                # A new major needs the user (2.x to 3.0: drive data, claiming), so
-                # it is never offered here.
-                _LOGGER.debug("Latest firmware %s is another major version", tag)
-                self._attr_latest_version = self._attr_installed_version
-                self._attr_release_notes = None
-                return
-            self._attr_latest_version = tag
+            self._attr_latest_version = data.get("tag_name")
             self._attr_release_notes = data.get("body") or None
 
     async def async_install(
@@ -390,10 +303,6 @@ class OpenDisplayFirmwareUpdateEntity(
                     translation_domain=DOMAIN,
                     translation_key="device_sleeping_ota",
                 )
-
-        if self._unified_chip is not None:
-            await self._async_install_unified(tag, self._unified_chip)
-            return
 
         asset_name = firmware_ota_asset(self._ic_type, tag)
         if asset_name is None:
@@ -531,138 +440,6 @@ class OpenDisplayFirmwareUpdateEntity(
             self._installing = False
             self._attr_in_progress = False
             self.async_write_ha_state()
-
-    async def _async_install_unified(self, tag: str, chip: str) -> None:
-        """Install a Firmware_Unified release with the library's ``update()``."""
-        image = await self._async_download_unified(tag, chip)
-
-        self._installing = True
-        self._attr_in_progress = True
-        self.async_write_ha_state()
-
-        def _on_progress(sent: int, total: int) -> None:
-            pct = sent * 100 // total if total else 0
-            if pct != self._attr_update_percentage:
-                self._attr_update_percentage = pct
-                self.async_write_ha_state()
-
-        async def _find(address: str) -> BLEDevice | None:
-            return async_ble_device_from_address(self.hass, address, connectable=True)
-
-        deadline: asyncio.Timeout | None = None
-        try:
-            ble_device = await _find(self._ble_address)
-            if ble_device is None:
-                raise HomeAssistantError(
-                    translation_domain=DOMAIN,
-                    translation_key="device_not_found",
-                    translation_placeholders={
-                        "address": self._ble_address,
-                        "reason": "not seen over Bluetooth",
-                    },
-                )
-            async with (
-                asyncio.timeout(V3_INSTALL_DEADLINE_S) as deadline,
-                ble_connection(self._ble_address, "firmware update"),
-                connect(
-                    address=self._ble_address,
-                    ble_device=ble_device,
-                    encryption_key=_get_encryption_key(self._entry),
-                    key_store=EntryKeyStore(self.hass, self._entry),
-                ) as device,
-            ):
-                result = await firmware_update(
-                    device, image, on_progress=_on_progress, find_device=_find
-                )
-        except TimeoutError as err:
-            if deadline is not None and deadline.expired():
-                raise _update_failed(
-                    f"it took longer than {V3_INSTALL_DEADLINE_S:.0f} s"
-                ) from err
-            raise
-        except (
-            AuthenticationFailedError,
-            AuthenticationRequiredError,
-            Sec2KeyRequiredError,
-            ConfigEntryAuthFailed,
-        ) as err:
-            _LOGGER.warning(
-                "%s: device rejected the encryption key during the update (%s); "
-                "reauthentication required",
-                self._ble_address,
-                err,
-            )
-            self._entry.async_start_reauth(self.hass)
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="authentication_error",
-            ) from err
-        except (UpdateRefusedError, OpenDisplayError) as err:
-            raise _update_failed(str(err)) from err
-        finally:
-            self._installing = False
-            self._attr_in_progress = False
-            self._attr_update_percentage = None
-            self.async_write_ha_state()
-
-        if result.outcome is not UpdateOutcome.UPDATED:
-            raise _update_failed(result.detail)
-        _LOGGER.info("%s: %s", self._ble_address, result.detail)
-        self._attr_installed_version = result.version_after or tag
-        self.async_write_ha_state()
-        # The firmware version and config are read again at setup.
-        self.hass.config_entries.async_schedule_reload(self._entry.entry_id)
-
-    async def _async_download_unified(self, tag: str, chip: str) -> bytes:
-        """Fetch this board's Bluetooth update file, checked against the manifest."""
-        try:
-            release = await _async_github_json(
-                self.hass,
-                self._entry,
-                _GITHUB_RELEASE.format(repo=_UNIFIED_REPO, tag=tag),
-            )
-        except aiohttp.ClientError as err:
-            raise HomeAssistantError(
-                f"Could not fetch release metadata: {err}"
-            ) from err
-        urls = {
-            asset["name"]: asset["browser_download_url"]
-            for asset in release.get("assets", [])
-        }
-        if _MANIFEST not in urls:
-            raise _ReleaseUnusableError(tag, "it has no manifest.json")
-        try:
-            manifest = ReleaseManifest.parse(await self._async_get(urls[_MANIFEST]))
-        except (ValueError, KeyError) as err:
-            raise _ReleaseUnusableError(
-                tag, f"its manifest is invalid ({err})"
-            ) from err
-        boards = [b for b in manifest.boards_for_chip(chip) if b.ble_ota_files]
-        if len(boards) != 1 or len(boards[0].ble_ota_files) != 1:
-            raise _ReleaseUnusableError(
-                tag, f"it has {len(boards)} Bluetooth update builds for {chip}"
-            )
-        name = boards[0].ble_ota_files[0]
-        artefact = manifest.artefact(name)
-        if artefact is None or name not in urls:
-            raise _ReleaseUnusableError(tag, f"{name} is missing")
-        image = await self._async_get(urls[name])
-        if hashlib.sha256(image).hexdigest() != artefact.sha256:
-            raise _ReleaseUnusableError(
-                tag, f"{name} does not match the manifest's SHA-256"
-            )
-        return image
-
-    async def _async_get(self, url: str) -> bytes:
-        session = async_get_clientsession(self.hass)
-        try:
-            async with session.get(
-                url, timeout=aiohttp.ClientTimeout(total=120)
-            ) as resp:
-                resp.raise_for_status()
-                return await resp.read()
-        except aiohttp.ClientError as err:
-            raise HomeAssistantError(f"Firmware download failed: {err}") from err
 
     async def _download_asset(self, tag: str, asset_name: str) -> bytes:
         """Fetch the named asset from a GitHub release."""

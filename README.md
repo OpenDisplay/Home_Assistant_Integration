@@ -88,17 +88,6 @@ configuration, without its key, WiFi password and FindMy keys, in
 and in range. When the drive data has not been confirmed on that panel yet, the
 repair says so before writing.
 
-The firmware update entity follows the firmware a display runs. On 2.x it
-offers that chip's 2.x releases; only BG22 displays install over Bluetooth. On
-3.x it offers releases of
-[Firmware_Unified](https://github.com/OpenDisplay/Firmware_Unified/releases)
-and installs them on nRF52840, nRF54L15, nRF54LM20A and BG22 displays, after
-checking the file against the release manifest. ESP32 displays on 3.x have no
-update entity yet. A new major version is never offered: the move from 2.x to
-3.0 needs you (drive data, claiming), so it is done outside Home
-Assistant. nRF displays return to their old firmware if the new one does not
-start; a BG22 waits in its bootloader for another try instead.
-
 Each device has options, under **Configure** on the device page:
 
 | option | |
